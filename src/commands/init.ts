@@ -66,6 +66,11 @@ export async function initCommand() {
     await fs.mkdir(globalDirPath, { recursive: true });
     console.log(chalk.green(`✓ Created ${config.global.directory} directory`));
 
+    // Create issues directory
+    const issuesDir = path.join(globalDirPath, 'issues');
+    await fs.mkdir(issuesDir, { recursive: true });
+    console.log(chalk.green(`✓ Created ${config.global.directory}/issues directory`));
+
     // Create templates directory and copy all template files
     const templatesDir = path.join(globalDirPath, 'templates');
     const packageTemplatesDir = path.join(__dirname, '..', 'templates');
@@ -153,11 +158,10 @@ Feel free to create your own structure that fits your project needs.
       console.log(chalk.green(`✓ Added ${workDir} to .gitignore`));
     }
 
-    // Add work plan path to .gitignore
-    const planPath = config.work?.plan?.path || 'plan.md';
-    const planAdded = await addToGitignore(projectRoot, planPath);
-    if (planAdded) {
-      console.log(chalk.green(`✓ Added ${planPath} to .gitignore`));
+    // Add .ctx.current to .gitignore
+    const currentAdded = await addToGitignore(projectRoot, '.ctx.current');
+    if (currentAdded) {
+      console.log(chalk.green(`✓ Added .ctx.current to .gitignore`));
     }
 
     console.log(chalk.blue.bold('\n✨ Initialization complete!\n'));

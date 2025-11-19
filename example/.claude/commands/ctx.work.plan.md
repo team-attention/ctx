@@ -206,16 +206,18 @@ Auto-generate spec from issue content (description, comments, images). Add note:
 
 ### If interactive mode:
 
-**Step 6.1: Generate draft spec**
+**Step 6.1: Generate draft spec (core sections)**
 
-Analyze issue (description, comments, images) and generate initial spec draft with all sections.
+Analyze issue and generate: Problem Statement, User Stories/Use Cases, Success Criteria.
 
-**Step 6.2: Review with user**
+**Step 6.2: Review core spec with user**
 
-**Use AskUserQuestion tool** to show draft and get feedback:
+1. **First, output the generated spec to the user** (DO NOT use AskUserQuestion yet):
 
-```
+```markdown
 I've drafted a spec based on the issue:
+
+---
 
 ## Problem Statement
 [Generated content]
@@ -226,27 +228,47 @@ I've drafted a spec based on the issue:
 ## Success Criteria
 [Generated content]
 
-## Scope
-### In Scope
-[Generated]
-### Out of Scope
-[Generated]
-
-## Constraints
-[Generated]
-
 ---
+```
 
-Does this look correct?
-- Reply 'yes' to proceed with this spec
-- Reply 'no' with corrections (e.g., "no - change scope to X, add Y to success criteria")
-- Reply 'skip' to use as-is without review
+2. **Then, use AskUserQuestion tool** to get feedback:
+
+```
+Does this spec look correct?
+
+Options:
+- 'yes' to proceed
+- 'skip' to use as-is and move forward
+- Provide corrections directly (e.g., "change success criteria to X, add user story Y")
 ```
 
 **Handle response:**
-- `yes` → Proceed with draft
-- `no` → Apply corrections, regenerate, show updated version for confirmation
-- `skip` → Use draft, add note "_Generated from issue. User skipped review._"
+- `yes` → Proceed to Step 6.3
+- `skip` → Proceed to Step 6.3, add note "_User skipped review_"
+- Corrections → Apply changes, **output updated spec to user**, ask for confirmation again
+
+**Step 6.3: Ask about detailed sections**
+
+**Use AskUserQuestion tool**:
+
+```
+Would you like to add more detailed sections to the spec?
+- Scope (in-scope and out-of-scope)
+- Constraints (technical/business/timeline limits)
+- Dependencies (prerequisites, external systems)
+- Context & References
+
+Reply 'yes' to add these sections, or 'no' to skip.
+```
+
+**If yes:**
+1. Generate detailed sections (Scope, Constraints, Dependencies, Context & References)
+2. **Output the detailed sections to user** (show the generated content)
+3. **Then use AskUserQuestion tool** for review (same yes/skip/corrections flow as Step 6.2)
+4. If corrections needed: Apply changes, **output updated sections**, ask for confirmation again
+
+**If no:**
+- Proceed with core spec only
 
 ---
 
@@ -330,7 +352,26 @@ Generate spec and update `plan.md`. ✓ Spec created
 
 ### If `--no-ask` flag is NOT present:
 
-**Generate plan based on spec** - No additional questions needed (spec already has requirements).
+**Interactive Planning Process** - Clarify scope and reusable components:
+
+1. **Review loaded contexts** (from Step 7) - Identify reusable code:
+   - Existing utilities, functions, or patterns that can be reused
+   - Similar implementations in the codebase
+   - Shared components or libraries
+
+2. **Use AskUserQuestion tool** to clarify scope:
+   - **In-scope questions**: "Should we include [feature X] in this implementation?"
+   - **Out-of-scope questions**: "Should we defer [feature Y] to a future iteration?"
+   - **Reusability questions**: "I found [utility Z] in the codebase. Should we reuse it or implement a new approach?"
+   - **Technical approach questions**: "Approach A vs Approach B - which aligns better with project goals?"
+   - **Refactoring questions**: "Should we refactor [existing code] or work around it?"
+
+3. **Define clear boundaries**:
+   - ✅ **In-scope**: What WILL be implemented in this task
+   - ❌ **Out-of-scope**: What will NOT be implemented (and why - future work, out of bounds, etc.)
+   - ♻️ **Reusable**: What existing code/patterns will be leveraged
+
+4. **Generate implementation plan** with clarified scope and reusable components
 
 ---
 
@@ -341,6 +382,20 @@ Generate spec and update `plan.md`. ✓ Spec created
 
 ## Overview
 [Brief technical approach - reference spec sections and loaded contexts]
+
+## Scope Definition
+
+### ✅ In-Scope (What we WILL implement)
+- [Feature/component to implement]
+- [Another feature to implement]
+
+### ❌ Out-of-Scope (What we will NOT implement)
+- [Feature to defer] - Reason: [future iteration/separate task]
+- [Feature to exclude] - Reason: [out of bounds/not required]
+
+### ♻️ Reusable Components
+- **`path/to/utility.ts`** - `functionName()` - [How we'll reuse it]
+- **`path/to/pattern.ts`** - [Existing pattern to follow]
 
 ## Phase 1: <Phase-Name>
 ### Step 1: <Step-Name>

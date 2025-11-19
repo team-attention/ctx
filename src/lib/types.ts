@@ -24,9 +24,6 @@ export interface Config {
     ignore: string[];
   };
   work?: {
-    plan?: {
-      path: string;
-    };
     directory?: string;
   };
   frontmatter: FrontmatterConfig;
