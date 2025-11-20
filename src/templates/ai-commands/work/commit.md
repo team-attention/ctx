@@ -5,7 +5,7 @@ allowed-tools: [Read, Bash, TodoWrite]
 ---
 
 # Task
-Create a commit with conventional commit format (emoji + type + message). If `{{work.plan.path}}` exists, include issue link from its frontmatter.
+Create a commit with conventional commit format (emoji + type + message). If `.ctx.current` exists, include issue link from the active issue.
 
 ---
 
@@ -26,7 +26,12 @@ Run `git status`. If no staged files, run `git add .`
 
 ## 3. Analyze Changes
 
-Check if `{{work.plan.path}}` exists. If it does, read it for issue link (frontmatter: `issue_link`). If not, skip this step.
+Check if `.ctx.current` exists. If it does:
+- Read `.ctx.current` to get the issue path/URL
+- If it's a file path (offline): Read the issue file and get `source` from frontmatter (will be "local" or the original URL)
+- If it's a URL (online): Use the URL directly
+
+This will be used as the issue link in the commit message.
 
 Run `git diff --cached` to analyze changes. Determine:
 - Should changes be split into multiple commits? (multiple unrelated concerns, different types)
@@ -126,7 +131,7 @@ Select appropriate type based on changes:
 
 - **First line**: <72 characters, present tense, imperative mood ("add" not "added")
 - **Splitting commits**: Suggest split if changes have multiple unrelated concerns
-- **Issue link**: Include only if `{{work.plan.path}}` exists and has `issue_link` in frontmatter
+- **Issue link**: Include only if `.ctx.current` exists and has a valid issue URL (not "local")
 - **Use TodoWrite**: Track progress through steps
 - **Verify**: Show `git log -1` after commit
 

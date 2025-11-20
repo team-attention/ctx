@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import { isProjectInitialized, addToGitignore } from '../lib/fileUtils.js';
+import { isProjectInitialized, updateCtxGitignore } from '../lib/fileUtils.js';
 import { ClaudeCodePlatform } from '../lib/platforms/claudeCode.js';
 import { loadConfig } from '../lib/config.js';
 
@@ -32,19 +32,21 @@ export async function refreshCommand() {
       console.log(chalk.gray('  AI commands now reflect current ctx.config.yaml settings'));
     }
 
-    // Add work directory to .gitignore if not already present
+    // Update .gitignore with current config
+    console.log(chalk.blue('Updating .gitignore...'));
     const config = await loadConfig(projectRoot);
-    const workDir = config.work?.directory || '.worktrees';
-    const workDirAdded = await addToGitignore(projectRoot, workDir);
-    if (workDirAdded) {
-      console.log(chalk.green(`✓ Added ${workDir} to .gitignore`));
-    }
 
-    // Add work plan path to .gitignore if not already present
-    const planPath = config.work?.plan?.path || 'plan.md';
-    const planAdded = await addToGitignore(projectRoot, planPath);
-    if (planAdded) {
-      console.log(chalk.green(`✓ Added ${planPath} to .gitignore`));
+    // Collect all ctx-managed entries
+    const gitignoreEntries = [
+      '.ctx.current',
+      config.work?.directory || '.worktrees',
+    ];
+
+    const gitignoreUpdated = await updateCtxGitignore(projectRoot, gitignoreEntries);
+    if (gitignoreUpdated > 0) {
+      console.log(chalk.green(`✓ Updated .gitignore with ${gitignoreUpdated} ctx-managed entries`));
+    } else {
+      console.log(chalk.green('✓ .gitignore is already up to date'));
     }
   } catch (error) {
     console.error(chalk.red(`✗ Error: ${error instanceof Error ? error.message : String(error)}`));

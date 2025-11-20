@@ -16,10 +16,9 @@ global:
     - templates/**
     - README.md
     - "*-context-registry.yml"
+    - issues/**
 work:
   directory: .worktrees # automatically added to .gitignore
-  plan:
-    path: plan.md # automatically added to .gitignore
 frontmatter:
   local: optional
   global: optional

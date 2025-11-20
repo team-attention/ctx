@@ -54,9 +54,6 @@ export async function loadConfig(projectRoot: string): Promise<Config> {
       },
       work: {
         directory: userConfig.work?.directory || DEFAULT_CONFIG.work?.directory || '.worktrees',
-        plan: {
-          path: userConfig.work?.plan?.path || DEFAULT_CONFIG.work?.plan?.path || 'plan.md',
-        },
       },
       frontmatter: {
         local: userConfig.frontmatter?.local || DEFAULT_CONFIG.frontmatter.local,
@@ -109,11 +106,6 @@ export function flattenConfig(config: Config): Record<string, string> {
   }
 
   flatten(config);
-
-  // Provide default values for optional config fields
-  if (!placeholders['work.plan.path']) {
-    placeholders['work.plan.path'] = 'plan.md';
-  }
 
   return placeholders;
 }
