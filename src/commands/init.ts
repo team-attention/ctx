@@ -149,6 +149,11 @@ Feel free to create your own structure that fits your project needs.
     if (isPlatformSupported(editor)) {
       const platform = getPlatform(editor);
       await platform.install();
+
+      // Install hooks if platform supports it (Claude Code)
+      if (editor === 'claude-code' && 'installHooks' in platform) {
+        await (platform as any).installHooks();
+      }
     }
 
     // Add work directory to .gitignore

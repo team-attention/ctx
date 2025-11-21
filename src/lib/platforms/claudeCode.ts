@@ -2,7 +2,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import chalk from 'chalk';
 import { Platform } from './types.js';
-import { getAICommandTemplates, loadAICommandTemplate } from '../templates.js';
+import { getAICommandTemplates, loadAICommandTemplate, getHookTemplates, loadHookTemplate } from '../templates.js';
 import { loadConfig, flattenConfig } from '../config.js';
 
 /**
@@ -20,6 +20,14 @@ export class ClaudeCodePlatform implements Platform {
 
   getCommandsDir(): string {
     return path.join(this.projectRoot, '.claude', 'commands');
+  }
+
+  getHooksDir(): string {
+    return path.join(this.projectRoot, '.claude', 'hooks');
+  }
+
+  getSettingsPath(): string {
+    return path.join(this.projectRoot, '.claude', 'settings.local.json');
   }
 
   async isInstalled(): Promise<boolean> {
@@ -114,5 +122,87 @@ export class ClaudeCodePlatform implements Platform {
     }
 
     return updated;
+  }
+
+  /**
+   * Update or create settings.local.json with hook configuration
+   */
+  private async updateSettingsLocal(hookConfig: any): Promise<void> {
+    const settingsPath = this.getSettingsPath();
+    let settings: any = {};
+
+    // Read existing settings if file exists
+    try {
+      const content = await fs.readFile(settingsPath, 'utf-8');
+      settings = JSON.parse(content);
+    } catch {
+      // File doesn't exist or is invalid, start fresh
+      settings = {};
+    }
+
+    // Initialize hooks structure if not exists
+    if (!settings.hooks) {
+      settings.hooks = {};
+    }
+
+    // Merge hook configuration
+    Object.assign(settings.hooks, hookConfig);
+
+    // Write back to file
+    await fs.writeFile(settingsPath, JSON.stringify(settings, null, 2) + '\n', 'utf-8');
+  }
+
+  /**
+   * Install hooks from templates to .claude/hooks/ and configure settings.local.json
+   */
+  async installHooks(): Promise<void> {
+    const hooksDir = this.getHooksDir();
+
+    // Create .claude/hooks directory
+    await fs.mkdir(hooksDir, { recursive: true });
+
+    // Get all hook templates
+    const templates = await getHookTemplates();
+
+    if (templates.length === 0) {
+      console.log(chalk.yellow('⚠️  No hook templates found'));
+      return;
+    }
+
+    // Copy each hook template
+    for (const hookName of templates) {
+      const content = await loadHookTemplate(hookName);
+      const targetPath = path.join(hooksDir, hookName);
+      await fs.writeFile(targetPath, content, 'utf-8');
+
+      // Make executable on Unix systems
+      if (hookName.endsWith('.sh')) {
+        try {
+          await fs.chmod(targetPath, 0o755);
+        } catch {
+          // chmod might fail on Windows, that's ok
+        }
+      }
+    }
+
+    // Configure settings.local.json with UserPromptSubmit hook
+    // Only configure track-session hook if it exists
+    if (templates.includes('ctx.track-session.sh')) {
+      await this.updateSettingsLocal({
+        UserPromptSubmit: [
+          {
+            matcher: '',
+            hooks: [
+              {
+                type: 'command',
+                command: '.claude/hooks/ctx.track-session.sh'
+              }
+            ]
+          }
+        ]
+      });
+    }
+
+    console.log(chalk.green(`✓ Installed ${templates.length} hook(s) to .claude/hooks/ and configured settings.local.json`));
   }
 }

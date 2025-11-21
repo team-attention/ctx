@@ -16,10 +16,9 @@ global:
     - templates/**
     - README.md
     - "*-context-registry.yml"
+    - issues/**
 work:
   directory: .worktrees
-  plan:
-    path: plan.md
 frontmatter:
   local: optional
   global: optional

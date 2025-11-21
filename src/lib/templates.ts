@@ -141,3 +141,44 @@ export async function loadAICommandTemplate(commandName: string): Promise<string
     throw new Error(`Failed to load AI command template '${commandName}': ${error}`);
   }
 }
+
+/**
+ * Get the hooks template directory path
+ */
+export function getHooksTemplateDir(): string {
+  return path.join(__dirname, '..', 'templates', 'hooks');
+}
+
+/**
+ * Get list of all hook templates
+ * Returns hook file names (e.g., 'ctx.track-session.sh')
+ */
+export async function getHookTemplates(): Promise<string[]> {
+  const hooksDir = getHooksTemplateDir();
+
+  try {
+    const entries = await fs.readdir(hooksDir, { withFileTypes: true });
+    const hooks = entries
+      .filter(entry => entry.isFile())
+      .map(entry => entry.name);
+
+    return hooks;
+  } catch (error) {
+    // It's ok if hooks directory doesn't exist - just return empty array
+    return [];
+  }
+}
+
+/**
+ * Load a specific hook template by name
+ */
+export async function loadHookTemplate(hookName: string): Promise<string> {
+  const templatePath = path.join(getHooksTemplateDir(), hookName);
+
+  try {
+    const content = await fs.readFile(templatePath, 'utf-8');
+    return content;
+  } catch (error) {
+    throw new Error(`Failed to load hook template '${hookName}': ${error}`);
+  }
+}
