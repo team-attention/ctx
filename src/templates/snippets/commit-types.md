@@ -1,0 +1,64 @@
+# Commit Types & Emoji
+
+Select appropriate type based on changes:
+
+- ✨ **feat**: New feature
+- 🐛 **fix**: Bug fix
+- 📝 **docs**: Documentation
+- 💄 **style**: Formatting/style
+- ♻️ **refactor**: Code refactoring
+- ⚡️ **perf**: Performance improvements
+- ✅ **test**: Tests
+- 🔧 **chore**: Tooling, configuration
+- 🚀 **ci**: CI/CD improvements
+- 🗑️ **revert**: Reverting changes
+- 🚨 **fix**: Fix compiler/linter warnings
+- 🔒️ **fix**: Fix security issues
+- 🚚 **refactor**: Move or rename resources
+- 🏗️ **refactor**: Architectural changes
+- 🔀 **chore**: Merge branches
+- 📦️ **chore**: Add/update packages
+- ➕ **chore**: Add dependency
+- ➖ **chore**: Remove dependency
+- 🧑‍💻 **chore**: Improve developer experience
+- 👔 **feat**: Business logic
+- 📱 **feat**: Responsive design
+- 🚸 **feat**: Improve UX/usability
+- 🩹 **fix**: Simple non-critical fix
+- 🥅 **fix**: Catch errors
+- 👽️ **fix**: External API changes
+- 🔥 **fix**: Remove code/files
+- 🎨 **style**: Improve structure/format
+- 🚑️ **fix**: Critical hotfix
+- 🎉 **chore**: Begin project
+- 🔖 **chore**: Release/version tags
+- 🚧 **wip**: Work in progress
+- 💚 **fix**: Fix CI build
+- 📌 **chore**: Pin dependencies
+- 👷 **ci**: CI build system
+- 📈 **feat**: Analytics/tracking
+- ✏️ **fix**: Fix typos
+- ⏪️ **revert**: Revert changes
+- 📄 **chore**: License
+- 💥 **feat**: Breaking changes
+- 🍱 **assets**: Assets
+- ♿️ **feat**: Accessibility
+- 💡 **docs**: Comments in code
+- 🗃️ **db**: Database changes
+- 🔊 **feat**: Add/update logs
+- 🔇 **fix**: Remove logs
+- 🤡 **test**: Mock things
+- 🥚 **feat**: Easter egg
+- 🙈 **chore**: .gitignore
+- 📸 **test**: Snapshots
+- ⚗️ **experiment**: Experiments
+- 🚩 **feat**: Feature flags
+- 💫 **ui**: Animations/transitions
+- ⚰️ **refactor**: Remove dead code
+- 🦺 **feat**: Validation
+- ✈️ **feat**: Offline support
+- 🧵 **feat**: Multithreading/concurrency
+- 🔍️ **feat**: SEO
+- 🏷️ **feat**: Types
+- 💬 **feat**: Text/literals
+- 🌐 **feat**: i18n/l10n

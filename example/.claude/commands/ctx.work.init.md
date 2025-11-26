@@ -31,11 +31,31 @@ Check `$ARGUMENTS`:
 
 ### 1.1 Validate URL
 
-Check if URL is supported:
-- GitHub: `github.com/*/issues/*`
-- Linear: `linear.app/*/issue/*`
+**Supported Issue Providers:**
 
-If not supported, show error with supported formats.
+### GitHub
+
+- **URL Pattern**: `github.com/*/issues/*`
+- **ID Extraction**: `https://github.com/user/repo/issues/123` → `123`
+- **Fetch Command**:
+  ```bash
+  gh issue view <number> --json title,body,url
+  gh issue view <number> --json comments
+  ```
+
+### Linear
+
+- **URL Pattern**: `linear.app/*/issue/*`
+- **ID Extraction**: `https://linear.app/team/issue/ABC-123` → `ABC-123`
+  - URL format: `linear.app/{workspace}/issue/{issueId}`
+- **Fetch Command**:
+  ```
+  mcp__linear-server__get_issue(issueId: "ABC-123")
+  mcp__linear-server__list_comments(issueId: "ABC-123")
+  ```
+
+
+If URL doesn't match any pattern, show error.
 
 ### 1.2 Check Existing `.ctx.current`
 
@@ -48,35 +68,58 @@ If exists:
 
 ### 1.3 Fetch Issue from Provider
 
-**For GitHub:**
-```bash
-gh issue view <number> --json title,body,url
-```
+**Supported Issue Providers:**
 
-**For Linear:**
+### GitHub
 
-First, extract issue ID from URL:
-- URL format: `linear.app/{workspace}/issue/{issueId}`
-- Example: `https://linear.app/my-team/issue/ABC-123` → `ABC-123`
+- **URL Pattern**: `github.com/*/issues/*`
+- **ID Extraction**: `https://github.com/user/repo/issues/123` → `123`
+- **Fetch Command**:
+  ```bash
+  gh issue view <number> --json title,body,url
+  gh issue view <number> --json comments
+  ```
 
-Then use MCP tool:
-```
-mcp__linear-server__get_issue(issueId: "ABC-123")
-```
+### Linear
 
-Extract:
+- **URL Pattern**: `linear.app/*/issue/*`
+- **ID Extraction**: `https://linear.app/team/issue/ABC-123` → `ABC-123`
+  - URL format: `linear.app/{workspace}/issue/{issueId}`
+- **Fetch Command**:
+  ```
+  mcp__linear-server__get_issue(issueId: "ABC-123")
+  mcp__linear-server__list_comments(issueId: "ABC-123")
+  ```
+
+
+Extract from the fetched issue:
 - Title
 - Description (will be used as Spec)
 - URL
 
 ### 1.4 Write `.ctx.current`
 
-Use the Write tool to create `.ctx.current` file with:
+**.ctx.current Structure** (JSON format):
+
 ```json
 {
-  "issue": "<url>"
+  "issue": "<url-or-file-path>",
+  "sessions": ["<session-path-1>", "<session-path-2>"]
 }
 ```
+
+**Fields:**
+- `issue`: URL (online) or file path (offline) to the issue
+  - Example (online): `https://github.com/user/repo/issues/123`
+  - Example (online): `https://linear.app/team/issue/ABC-123`
+  - Example (offline): `ctx/issues/2025-11-20-0000_feature.md`
+- `sessions`: Array of JSONL session file paths (optional)
+  - Example: `[".claude/sessions/2025-11-20-session.jsonl"]`
+
+**Location:** Project root (`.ctx.current`)
+
+
+Create the file with `issue` field set to the URL.
 
 ### 1.5 Show Summary
 
@@ -109,13 +152,27 @@ Same as Flow A step 1.2.
 
 ### 1.3 Write `.ctx.current`
 
-Use the Write tool to create `.ctx.current` file with:
+**.ctx.current Structure** (JSON format):
+
 ```json
 {
-  "issue": "ctx/issues/<filename>"
+  "issue": "<url-or-file-path>",
+  "sessions": ["<session-path-1>", "<session-path-2>"]
 }
 ```
 
+**Fields:**
+- `issue`: URL (online) or file path (offline) to the issue
+  - Example (online): `https://github.com/user/repo/issues/123`
+  - Example (online): `https://linear.app/team/issue/ABC-123`
+  - Example (offline): `ctx/issues/2025-11-20-0000_feature.md`
+- `sessions`: Array of JSONL session file paths (optional)
+  - Example: `[".claude/sessions/2025-11-20-session.jsonl"]`
+
+**Location:** Project root (`.ctx.current`)
+
+
+Create the file with `issue` field set to the file path.
 Example: `ctx/issues/2025-11-19-1430_add-dark-mode.md`
 
 ### 1.4 Show Summary
@@ -206,12 +263,27 @@ git_branch: ""
 
 ### 2.7 Write `.ctx.current`
 
-Use the Write tool to create `.ctx.current` file:
+**.ctx.current Structure** (JSON format):
+
 ```json
 {
-  "issue": "ctx/issues/<filename>"
+  "issue": "<url-or-file-path>",
+  "sessions": ["<session-path-1>", "<session-path-2>"]
 }
 ```
+
+**Fields:**
+- `issue`: URL (online) or file path (offline) to the issue
+  - Example (online): `https://github.com/user/repo/issues/123`
+  - Example (online): `https://linear.app/team/issue/ABC-123`
+  - Example (offline): `ctx/issues/2025-11-20-0000_feature.md`
+- `sessions`: Array of JSONL session file paths (optional)
+  - Example: `[".claude/sessions/2025-11-20-session.jsonl"]`
+
+**Location:** Project root (`.ctx.current`)
+
+
+Create the file with `issue` field set to `ctx/issues/<filename>`
 
 ### 2.8 Show Summary
 

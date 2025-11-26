@@ -31,11 +31,9 @@ Check `$ARGUMENTS`:
 
 ### 1.1 Validate URL
 
-Check if URL is supported:
-- GitHub: `github.com/*/issues/*`
-- Linear: `linear.app/*/issue/*`
+{{snippet:issue-providers}}
 
-If not supported, show error with supported formats.
+If URL doesn't match any pattern, show error.
 
 ### 1.2 Check Existing `.ctx.current`
 
@@ -48,35 +46,18 @@ If exists:
 
 ### 1.3 Fetch Issue from Provider
 
-**For GitHub:**
-```bash
-gh issue view <number> --json title,body,url
-```
+{{snippet:issue-providers}}
 
-**For Linear:**
-
-First, extract issue ID from URL:
-- URL format: `linear.app/{workspace}/issue/{issueId}`
-- Example: `https://linear.app/my-team/issue/ABC-123` → `ABC-123`
-
-Then use MCP tool:
-```
-mcp__linear-server__get_issue(issueId: "ABC-123")
-```
-
-Extract:
+Extract from the fetched issue:
 - Title
 - Description (will be used as Spec)
 - URL
 
 ### 1.4 Write `.ctx.current`
 
-Use the Write tool to create `.ctx.current` file with:
-```json
-{
-  "issue": "<url>"
-}
-```
+{{snippet:ctx-current}}
+
+Create the file with `issue` field set to the URL.
 
 ### 1.5 Show Summary
 
@@ -109,13 +90,9 @@ Same as Flow A step 1.2.
 
 ### 1.3 Write `.ctx.current`
 
-Use the Write tool to create `.ctx.current` file with:
-```json
-{
-  "issue": "{{global.directory}}/issues/<filename>"
-}
-```
+{{snippet:ctx-current}}
 
+Create the file with `issue` field set to the file path.
 Example: `{{global.directory}}/issues/2025-11-19-1430_add-dark-mode.md`
 
 ### 1.4 Show Summary
@@ -206,12 +183,9 @@ git_branch: ""
 
 ### 2.7 Write `.ctx.current`
 
-Use the Write tool to create `.ctx.current` file:
-```json
-{
-  "issue": "{{global.directory}}/issues/<filename>"
-}
-```
+{{snippet:ctx-current}}
+
+Create the file with `issue` field set to `{{global.directory}}/issues/<filename>`
 
 ### 2.8 Show Summary
 

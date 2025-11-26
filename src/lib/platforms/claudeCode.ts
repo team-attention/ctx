@@ -1,9 +1,13 @@
 import fs from 'fs/promises';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import chalk from 'chalk';
 import { Platform } from './types.js';
 import { getAICommandTemplates, loadAICommandTemplate, getHookTemplates, loadHookTemplate } from '../templates.js';
 import { loadConfig, flattenConfig } from '../config.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /**
  * Claude Code platform implementation
@@ -62,6 +66,9 @@ export class ClaudeCodePlatform implements Platform {
     for (const templateName of templates) {
       let content = await loadAICommandTemplate(templateName);
 
+      // Resolve snippets first (before config placeholders)
+      content = await this.resolveSnippets(content);
+
       // Substitute all config placeholders
       for (const [key, value] of Object.entries(placeholders)) {
         const placeholder = `{{${key}}}`;
@@ -100,6 +107,9 @@ export class ClaudeCodePlatform implements Platform {
       const commandName = templateName.replace(/\//g, '.');
       const targetPath = path.join(commandsDir, `ctx.${commandName}`);
       let templateContent = await loadAICommandTemplate(templateName);
+
+      // Resolve snippets first (before config placeholders)
+      templateContent = await this.resolveSnippets(templateContent);
 
       // Substitute all config placeholders
       for (const [key, value] of Object.entries(placeholders)) {
@@ -204,5 +214,33 @@ export class ClaudeCodePlatform implements Platform {
     }
 
     console.log(chalk.green(`✓ Installed ${templates.length} hook(s) to .claude/hooks/ and configured settings.local.json`));
+  }
+
+  /**
+   * Resolve snippet references in template content
+   * Replaces {{snippet:name}} with actual snippet content
+   */
+  private async resolveSnippets(template: string): Promise<string> {
+    const snippetRegex = /\{\{snippet:([^}]+)\}\}/g;
+    let resolved = template;
+    // __dirname is in dist/lib/platforms/, need to go up two levels to get to dist/
+    const snippetsDir = path.join(__dirname, '..', '..', 'templates', 'snippets');
+
+    const matches = template.matchAll(snippetRegex);
+
+    for (const match of matches) {
+      const snippetName = match[1];
+      const snippetPath = path.join(snippetsDir, `${snippetName}.md`);
+
+      try {
+        const snippetContent = await fs.readFile(snippetPath, 'utf-8');
+        resolved = resolved.replace(match[0], snippetContent);
+      } catch (error) {
+        console.log(chalk.yellow(`⚠️  Warning: Snippet not found: ${snippetName}.md`));
+        // Keep the placeholder if snippet file doesn't exist
+      }
+    }
+
+    return resolved;
   }
 }

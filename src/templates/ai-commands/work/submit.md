@@ -65,14 +65,11 @@ Mark todo as completed.
   git diff --cached --stat
   git diff --cached
   ```
-- Generate conventional commit message:
-  - Format: `{emoji} {type}: {short description}`
-  - Types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`
-  - Emojis: ✨ (feat), 🐛 (fix), ♻️ (refactor), 📝 (docs), ✅ (test), 🔧 (chore)
-  - Examples:
-    - `✨ feat: add login feature`
-    - `🐛 fix: resolve search bug`
-    - `♻️ refactor: improve auth flow`
+- Generate conventional commit message using the commit types defined in:
+
+{{snippet:commit-types}}
+
+Use format: `{emoji} {type}: {short description}`
 
 **Check for issue link:**
 - If `.ctx.current` exists:

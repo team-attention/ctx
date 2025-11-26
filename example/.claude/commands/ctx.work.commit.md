@@ -125,6 +125,7 @@ Select appropriate type based on changes:
 - 💬 **feat**: Text/literals
 - 🌐 **feat**: i18n/l10n
 
+
 ---
 
 # Guidelines

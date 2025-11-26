@@ -16,21 +16,12 @@ Generate an **implementation plan** for the active issue in `.ctx.current`.
 
 ## Step 1: Read `.ctx.current`
 
-Check if `.ctx.current` exists:
-```typescript
-if (!fs.existsSync('.ctx.current')) {
-  // Error: No active issue
-}
-```
+Use the Read tool to check if `.ctx.current` exists.
 
-Read the current issue:
-```json
-{
-  "issue": "{{global.directory}}/issues/2025-11-19-1430_add-dark-mode.md"
-  // or
-  "issue": "https://github.com/user/repo/issues/123"
-}
-```
+If it doesn't exist:
+{{snippet:errors}}
+
+{{snippet:ctx-current}}
 
 ---
 
@@ -46,17 +37,7 @@ Check if `issue` value starts with `http`:
 
 ### A1. Fetch Issue from Provider
 
-**For GitHub:**
-```bash
-gh issue view <number> --json title,body,url
-gh issue view <number> --json comments
-```
-
-**For Linear:**
-```
-mcp__linear-server__get_issue(issueId: "ABC-123")
-mcp__linear-server__list_comments(issueId: "ABC-123")
-```
+{{snippet:issue-providers}}
 
 Extract:
 - **Title**: Issue title

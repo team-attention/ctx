@@ -16,21 +16,67 @@ Generate an **implementation plan** for the active issue in `.ctx.current`.
 
 ## Step 1: Read `.ctx.current`
 
-Check if `.ctx.current` exists:
-```typescript
-if (!fs.existsSync('.ctx.current')) {
-  // Error: No active issue
+Use the Read tool to check if `.ctx.current` exists.
+
+If it doesn't exist:
+# Common Error Messages
+
+## no-active-session
+```
+❌ Error: No active work session found
+Run /ctx.work.init first to start a work session
+```
+
+## invalid-provider
+```
+❌ Error: Unsupported issue provider
+Supported: GitHub (github.com), Linear (linear.app)
+```
+
+## file-not-found
+```
+❌ Error: Issue file not found
+Check the path in .ctx.current
+```
+
+## invalid-frontmatter
+```
+❌ Error: Invalid issue file format
+File must be markdown with frontmatter containing: title, source, provider, status
+```
+
+## no-gh-cli
+```
+❌ Error: GitHub CLI not installed
+Install: https://cli.github.com
+```
+
+## no-linear-mcp
+```
+❌ Error: Linear MCP not available
+Setup Linear MCP server in Claude Code settings
+```
+
+
+**.ctx.current Structure** (JSON format):
+
+```json
+{
+  "issue": "<url-or-file-path>",
+  "sessions": ["<session-path-1>", "<session-path-2>"]
 }
 ```
 
-Read the current issue:
-```json
-{
-  "issue": "ctx/issues/2025-11-19-1430_add-dark-mode.md"
-  // or
-  "issue": "https://github.com/user/repo/issues/123"
-}
-```
+**Fields:**
+- `issue`: URL (online) or file path (offline) to the issue
+  - Example (online): `https://github.com/user/repo/issues/123`
+  - Example (online): `https://linear.app/team/issue/ABC-123`
+  - Example (offline): `ctx/issues/2025-11-20-0000_feature.md`
+- `sessions`: Array of JSONL session file paths (optional)
+  - Example: `[".claude/sessions/2025-11-20-session.jsonl"]`
+
+**Location:** Project root (`.ctx.current`)
+
 
 ---
 
@@ -46,17 +92,29 @@ Check if `issue` value starts with `http`:
 
 ### A1. Fetch Issue from Provider
 
-**For GitHub:**
-```bash
-gh issue view <number> --json title,body,url
-gh issue view <number> --json comments
-```
+**Supported Issue Providers:**
 
-**For Linear:**
-```
-mcp__linear-server__get_issue(issueId: "ABC-123")
-mcp__linear-server__list_comments(issueId: "ABC-123")
-```
+### GitHub
+
+- **URL Pattern**: `github.com/*/issues/*`
+- **ID Extraction**: `https://github.com/user/repo/issues/123` → `123`
+- **Fetch Command**:
+  ```bash
+  gh issue view <number> --json title,body,url
+  gh issue view <number> --json comments
+  ```
+
+### Linear
+
+- **URL Pattern**: `linear.app/*/issue/*`
+- **ID Extraction**: `https://linear.app/team/issue/ABC-123` → `ABC-123`
+  - URL format: `linear.app/{workspace}/issue/{issueId}`
+- **Fetch Command**:
+  ```
+  mcp__linear-server__get_issue(issueId: "ABC-123")
+  mcp__linear-server__list_comments(issueId: "ABC-123")
+  ```
+
 
 Extract:
 - **Title**: Issue title
