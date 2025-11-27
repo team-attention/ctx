@@ -9,6 +9,7 @@ import { createCommand } from '../commands/create.js';
 import { syncCommand } from '../commands/sync.js';
 import { validateCommand } from '../commands/validate.js';
 import { refreshCommand } from '../commands/refresh.js';
+import { statusCommand } from '../commands/status.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -55,5 +56,10 @@ program
   .command('refresh')
   .description('Refresh AI commands with current config settings')
   .action(refreshCommand);
+
+program
+  .command('status')
+  .description('Show current ctx and work session status')
+  .action(statusCommand);
 
 program.parse(process.argv);
