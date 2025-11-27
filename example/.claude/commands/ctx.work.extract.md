@@ -1,12 +1,12 @@
 ---
-description: Extract valuable context from work session and update .ctx files
+description: Extract valuable context from work session and update global and local context files
 argument-hint: ""
 allowed-tools: [Read, Write, Edit, Bash, TodoWrite, mcp__linear-server__list_comments, mcp__linear-server__get_issue]
 ---
 
 # Task
 
-Extract valuable context from the current work session (chat history, issue comments, PR reviews) and update `.ctx` files. This command helps preserve important decisions, patterns, and feedback for future development.
+Extract valuable context from the current work session (chat history, issue comments, PR reviews) and update global and local context files. This command helps preserve important decisions, patterns, and feedback for future development.
 
 ---
 
@@ -180,7 +180,7 @@ Use TodoWrite to mark analysis step as in_progress.
 
 ### Classification Criteria
 
-**Global Context** (goes to `.ctx/global/*.md`):
+**Global Context** (goes to `ctx/*.md`):
 - New architectural patterns
 - Project-wide coding conventions
 - Team guidelines and best practices
@@ -208,7 +208,7 @@ Generate a structured proposal in markdown:
 **Description**:
 We adopted the Result<T, E> pattern for error handling instead of throwing exceptions. This provides better type safety and forces explicit error handling.
 
-**Suggested file**: `.ctx/global/patterns/error-handling.md`
+**Suggested file**: `ctx/patterns/error-handling.md`
 
 ---
 
@@ -217,7 +217,7 @@ We adopted the Result<T, E> pattern for error handling instead of throwing excep
 **Description**:
 Prefer type guard functions (`isFoo(x)`) over type assertions (`x as Foo`) for better runtime safety.
 
-**Suggested file**: `.ctx/global/conventions/typescript.md`
+**Suggested file**: `ctx/conventions/typescript.md`
 
 ---
 
@@ -308,7 +308,7 @@ Use TodoWrite to mark application step as in_progress.
 
 For each global context suggestion:
 
-1. Resolve the target file path (e.g., `.ctx/global/patterns/error-handling.md`)
+1. Resolve the target file path (e.g., `ctx/global/patterns/error-handling.md`)
 2. Check if file exists using Read tool
 3. If exists:
    - Read current content
@@ -382,8 +382,8 @@ After all files are updated:
 ✅ Context extraction complete!
 
 Updated files:
-- .ctx/global/patterns/error-handling.md (created)
-- .ctx/global/conventions/typescript.md (updated)
+- ctx/global/patterns/error-handling.md (created)
+- ctx/global/conventions/typescript.md (updated)
 - src/services/payment.ctx.md (created)
 - src/lib/stripe-client.ctx.md (created)
 
@@ -432,7 +432,7 @@ Updated files:
 
 ## File Organization
 
-**Global context structure** (`.ctx/global/`):
+**Global context structure** (`ctx/global/`):
 ```
 patterns/           # Architectural patterns
   error-handling.md

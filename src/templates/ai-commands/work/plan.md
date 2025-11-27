@@ -305,7 +305,7 @@ Use Edit tool to update the frontmatter while preserving other fields.
 ### B9. Show Summary
 
 ```
-✓ Implementation plan added to <filename>
+✓ Implementation plan added to <filename> 
 📎 Commit this file to share with team
 
 Ready to start coding!

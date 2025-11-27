@@ -42,8 +42,8 @@ Parse the command output and present a clear summary to the user.
 - ✓ Synced Y global context(s)
 
 **Updated Files**:
-- `.ctx/local-context-registry.yml`
-- `.ctx/global-context-registry.yml`
+- `ctx/local-context-registry.yml`
+- `ctx/global-context-registry.yml`
 ```
 
 ### If Warnings:
@@ -79,7 +79,7 @@ Parse the command output and present a clear summary to the user.
 
 # Reference Documents
 
-- Registries: `.ctx/local-context-registry.yml`, `.ctx/global-context-registry.yml`
+- Registries: `ctx/local-context-registry.yml`, `ctx/global-context-registry.yml`
 
 # Example Interactions
 
@@ -96,8 +96,8 @@ AI:
 - ✓ Synced 12 global context(s)
 
 **Updated Files**:
-- `.ctx/local-context-registry.yml`
-- `.ctx/global-context-registry.yml`
+- `ctx/local-context-registry.yml`
+- `ctx/global-context-registry.yml`
 ```
 
 ```
@@ -112,7 +112,7 @@ AI:
 - ✓ Synced 45 local context(s)
 
 **Updated Files**:
-- `.ctx/local-context-registry.yml`
+- `ctx/local-context-registry.yml`
 ```
 
 ```
