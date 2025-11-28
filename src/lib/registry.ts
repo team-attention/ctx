@@ -1,7 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import YAML from 'yaml';
-import { LocalContextRegistry, GlobalContextRegistry } from './types.js';
+import { LocalContextRegistry, GlobalContextRegistry, LocalContextEntry } from './types.js';
 import { loadConfig } from './config.js';
 
 const LOCAL_REGISTRY_FILE = 'local-context-registry.yml';
@@ -125,4 +125,29 @@ export async function writeGlobalRegistry(
 
   const yamlContent = YAML.stringify(registry);
   await fs.writeFile(registryPath, yamlContent, 'utf-8');
+}
+
+/**
+ * Find context entry by target path
+ * @param projectRoot - Project root directory
+ * @param targetPath - Target file path (relative or absolute from project root)
+ * @returns Context path and entry if found, null otherwise
+ */
+export async function findContextByTarget(
+  projectRoot: string,
+  targetPath: string
+): Promise<{ contextPath: string; entry: LocalContextEntry } | null> {
+  const registry = await readLocalRegistry(projectRoot);
+
+  // Normalize target path (ensure it starts with /)
+  const normalizedTarget = targetPath.startsWith('/')
+    ? targetPath
+    : `/${targetPath}`;
+
+  const entry = registry.contexts[normalizedTarget];
+  if (entry) {
+    return { contextPath: entry.source, entry };
+  }
+
+  return null;
 }

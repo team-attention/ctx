@@ -59,7 +59,9 @@ program
 
 program
   .command('status')
-  .description('Show current ctx and work session status')
+  .description('Show current ctx and work session status (JSON by default)')
+  .option('--pretty', 'Human-readable dashboard output')
+  .option('--target <path>', 'Find context file for a target file path')
   .action(statusCommand);
 
 program.parse(process.argv);

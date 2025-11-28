@@ -2,8 +2,13 @@ import chalk from 'chalk';
 import fs from 'fs/promises';
 import path from 'path';
 import { isProjectInitialized, fileExists } from '../lib/fileUtils.js';
-import { readLocalRegistry, readGlobalRegistry } from '../lib/registry.js';
+import { readLocalRegistry, readGlobalRegistry, findContextByTarget } from '../lib/registry.js';
 import { loadConfig } from '../lib/config.js';
+
+interface StatusOptions {
+  pretty?: boolean;
+  target?: string;
+}
 
 interface CtxCurrent {
   issue?: string;
@@ -28,14 +33,44 @@ interface StatusData {
   suggestions: string[];
 }
 
-export async function statusCommand() {
+export async function statusCommand(options: StatusOptions = {}) {
   const projectRoot = process.cwd();
 
   try {
+    // --target mode: find context by target path
+    if (options.target) {
+      const result = await findContextByTarget(projectRoot, options.target);
+      if (result) {
+        console.log(JSON.stringify({
+          found: true,
+          target: options.target,
+          contextPath: result.contextPath,
+          entry: result.entry,
+        }, null, 2));
+      } else {
+        console.log(JSON.stringify({
+          found: false,
+          target: options.target,
+          contextPath: null,
+        }, null, 2));
+      }
+      return;
+    }
+
+    // Default: full status
     const status = await collectStatus(projectRoot);
-    printStatus(status);
+
+    if (options.pretty) {
+      printStatusPretty(status);
+    } else {
+      console.log(JSON.stringify(status, null, 2));
+    }
   } catch (error) {
-    console.error(chalk.red('✗ Error getting status:'), error);
+    if (options.pretty) {
+      console.error(chalk.red('✗ Error getting status:'), error);
+    } else {
+      console.log(JSON.stringify({ error: String(error) }, null, 2));
+    }
     process.exit(1);
   }
 }
@@ -195,7 +230,7 @@ function generateSuggestions(status: StatusData): void {
   status.suggestions = status.suggestions.slice(0, 3);
 }
 
-function printStatus(status: StatusData): void {
+function printStatusPretty(status: StatusData): void {
   console.log();
 
   // Not initialized
