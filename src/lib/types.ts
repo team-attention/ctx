@@ -120,39 +120,44 @@ export interface ScannedContext {
   content: string; // File content
 }
 
-// ===== Validation Types =====
+// ===== Check Types =====
 
-export type ValidationStatus = 'valid' | 'warning' | 'error';
-
-export type ValidationCheckType =
-  | 'schema'      // YAML/frontmatter structure validation
-  | 'existence'   // File existence check
-  | 'checksum';   // Checksum consistency check
-
-export interface ValidationCheck {
-  type: ValidationCheckType;
-  passed: boolean;
-  code?: string;           // Error/warning code (e.g., 'E001', 'W201')
-  message?: string;
-  suggestion?: string;
-}
-
-export interface ValidationIssue {
-  contextPath: string;
-  targetPath?: string;      // Only for local contexts
-  status: 'warning' | 'error';
-  checks: ValidationCheck[];
-}
-
-export interface ValidationResult {
-  total: number;
-  valid: number;
-  warnings: number;
-  errors: number;
-  issues: ValidationIssue[];
-}
-
-export interface ValidateOptions {
+export interface CheckOptions {
   local?: boolean;
   global?: boolean;
+  fix?: boolean;
+  pretty?: boolean;
+  path?: string; // Check only a specific context path
+}
+
+export interface CheckIssue {
+  type: 'new' | 'deleted' | 'modified' | 'stale_target' | 'error';
+  scope: 'local' | 'global';
+  contextPath: string;
+  targetPath?: string;
+  message: string;
+  lastModified?: string;
+}
+
+export interface CheckResult {
+  status: 'fresh' | 'stale' | 'error';
+  summary: {
+    local: {
+      total: number;
+      fresh: number;
+      stale: number;
+      new: number;
+      deleted: number;
+      errors: number;
+    };
+    global: {
+      total: number;
+      fresh: number;
+      stale: number;
+      new: number;
+      deleted: number;
+      errors: number;
+    };
+  };
+  issues: CheckIssue[];
 }

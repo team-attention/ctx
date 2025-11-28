@@ -7,7 +7,7 @@ import { dirname, join } from 'path';
 import { initCommand } from '../commands/init.js';
 import { createCommand } from '../commands/create.js';
 import { syncCommand } from '../commands/sync.js';
-import { validateCommand } from '../commands/validate.js';
+import { checkCommand } from '../commands/check.js';
 import { refreshCommand } from '../commands/refresh.js';
 import { statusCommand } from '../commands/status.js';
 
@@ -46,11 +46,14 @@ program
   .action(syncCommand);
 
 program
-  .command('validate')
-  .description('Validate context files and check consistency')
-  .option('--local', 'Validate only local contexts')
-  .option('--global', 'Validate only global contexts')
-  .action(validateCommand);
+  .command('check')
+  .description('Check context health and freshness')
+  .option('--local', 'Check only local contexts')
+  .option('--global', 'Check only global contexts')
+  .option('--path <contextPath>', 'Check only a specific context file')
+  .option('--fix', 'Update registry to match filesystem')
+  .option('--pretty', 'Human-readable output (default is JSON)')
+  .action(checkCommand);
 
 program
   .command('refresh')
