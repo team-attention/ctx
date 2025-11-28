@@ -218,10 +218,12 @@ export class ClaudeCodePlatform implements Platform {
 
   /**
    * Resolve snippet references in template content
-   * Replaces {{snippet:name}} with actual snippet content
+   * Supports two syntaxes:
+   * - {{snippet:name}} - includes entire snippet file
+   * - {{snippet:name#section}} - includes only the specified section (## section header)
    */
   private async resolveSnippets(template: string): Promise<string> {
-    const snippetRegex = /\{\{snippet:([^}]+)\}\}/g;
+    const snippetRegex = /\{\{snippet:([^#}]+)(?:#([^}]+))?\}\}/g;
     let resolved = template;
     // __dirname is in dist/lib/platforms/, need to go up two levels to get to dist/
     const snippetsDir = path.join(__dirname, '..', '..', 'templates', 'snippets');
@@ -230,10 +232,17 @@ export class ClaudeCodePlatform implements Platform {
 
     for (const match of matches) {
       const snippetName = match[1];
+      const sectionName = match[2]; // optional section (e.g., "target-not-found")
       const snippetPath = path.join(snippetsDir, `${snippetName}.md`);
 
       try {
-        const snippetContent = await fs.readFile(snippetPath, 'utf-8');
+        let snippetContent = await fs.readFile(snippetPath, 'utf-8');
+
+        // If section specified, extract only that section
+        if (sectionName) {
+          snippetContent = this.extractSection(snippetContent, sectionName);
+        }
+
         resolved = resolved.replace(match[0], snippetContent);
       } catch (error) {
         console.log(chalk.yellow(`⚠️  Warning: Snippet not found: ${snippetName}.md`));
@@ -242,5 +251,46 @@ export class ClaudeCodePlatform implements Platform {
     }
 
     return resolved;
+  }
+
+  /**
+   * Extract a specific section from snippet content
+   * Looks for ## sectionName header and returns content until next ## header
+   */
+  private extractSection(content: string, sectionName: string): string {
+    const lines = content.split('\n');
+    const sectionHeader = `## ${sectionName}`;
+    let inSection = false;
+    const sectionLines: string[] = [];
+
+    for (const line of lines) {
+      if (line.trim() === sectionHeader) {
+        inSection = true;
+        continue; // Skip the header itself
+      }
+
+      if (inSection) {
+        // Stop at next ## header
+        if (line.startsWith('## ')) {
+          break;
+        }
+        sectionLines.push(line);
+      }
+    }
+
+    if (sectionLines.length === 0) {
+      console.log(chalk.yellow(`⚠️  Warning: Section not found: ${sectionName}`));
+      return `[Section "${sectionName}" not found]`;
+    }
+
+    // Trim leading/trailing empty lines
+    while (sectionLines.length > 0 && sectionLines[0].trim() === '') {
+      sectionLines.shift();
+    }
+    while (sectionLines.length > 0 && sectionLines[sectionLines.length - 1].trim() === '') {
+      sectionLines.pop();
+    }
+
+    return sectionLines.join('\n');
   }
 }
