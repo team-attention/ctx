@@ -72,7 +72,7 @@ Parse the command output and present a clear summary to the user.
 
 **When to use:**
 - After creating/editing context files
-- Before running `/ctx.validate`
+- Before running `/ctx.audit`
 - Periodically to keep registry fresh
 
 **Note:** Sync is fast (~1s), idempotent, and safe to run anytime.

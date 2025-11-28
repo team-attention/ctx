@@ -57,6 +57,30 @@ Install: https://cli.github.com
 Setup Linear MCP server in Claude Code settings
 ```
 
+## target-not-found
+```
+❌ Error: Target file not found: [path]
+Cannot create context for non-existent file
+```
+
+## context-already-exists
+```
+⚠️ Context already exists: [path]
+Use UPDATE mode or specify a different path
+```
+
+## invalid-context-path
+```
+❌ Error: Invalid context path format
+Expected: *.ctx.md (local) or ctx/**/*.md (global)
+```
+
+## registry-lookup-failed
+```
+⚠️ Warning: Could not find context in registry for target: [path]
+Creating new context file
+```
+
 
 **.ctx.current Structure** (JSON format):
 

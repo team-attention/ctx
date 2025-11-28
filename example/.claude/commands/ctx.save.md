@@ -11,7 +11,7 @@ You are assisting with saving context documentation using a unified interface.
 
 Examples:
 - `src/services/payment.ctx.md Add webhook handling` (local context-path)
-- `{{global.directory}}/rules/api.md Add REST versioning guidelines` (global context-path)
+- `ctx/rules/api.md Add REST versioning guidelines` (global context-path)
 - `src/services/payment.ts Document payment processing` (target-path)
 - `Document the auth flow` (description-only, semantic mode)
 
@@ -27,8 +27,8 @@ Save context based on the provided arguments, automatically detecting scope (loc
 
 ```
 First token analysis:
-1. Ends with `.ctx.md` → context-path (local if not in {{global.directory}}/, global if in {{global.directory}}/)
-2. Starts with `{{global.directory}}/` and ends with `.md` → context-path (global)
+1. Ends with `.ctx.md` → context-path (local if not in ctx/, global if in ctx/)
+2. Starts with `ctx/` and ends with `.md` → context-path (global)
 3. Matches code file extension (*.ts, *.js, *.py, *.go, *.rs, *.java, *.tsx, *.jsx) → target-path
 4. None of above → description-only (semantic mode)
 ```
@@ -53,35 +53,37 @@ First token analysis:
 
 ### For context-path or target-path:
 
-**Run check for the specific context path only:**
+**Run check based on scope:**
 
 ```bash
-# Check only the specific context file (auto-detects local/global scope)
-ctx check --path [contextPath]
-```
+# For local scope
+ctx check --local
 
-This checks only the context being saved, not the entire registry. Other contexts with issues won't block this save operation.
+# For global scope
+ctx check --global
+```
 
 ### Handle Check Results
 
-**If errors found for THIS context:**
+**If errors found:**
 ```markdown
-❌ Error found for: [contextPath]
+❌ Errors found
 
-[Show error details]
+[Show error details with affected files]
 
-Please fix this error before proceeding:
-- [Specific fix instruction]
+Please fix these errors manually before proceeding:
+1. [Specific fix instruction for error 1]
+2. [Specific fix instruction for error 2]
 
 After fixing, run this command again.
 ```
 **STOP - Do not proceed with any further steps.**
 
-**If this context is stale:**
-- Note that the context needs updating
-- Proceed to next step (this is expected when saving updates)
+**If stale contexts found:**
+- Show stale contexts briefly
+- Proceed to next step (stale contexts are non-blocking, but inform user)
 
-**If this context is fresh:**
+**If all contexts are fresh:**
 - Briefly confirm check passed
 - Proceed to next step
 
@@ -108,7 +110,10 @@ After fixing, run this command again.
 4. **Verify target file exists**:
    - If target file doesn't exist:
      ```markdown
-     {{snippet:errors#target-not-found}}
+     ```
+❌ Error: Target file not found: [path]
+Cannot create context for non-existent file
+```
      ```
      **STOP**
 
@@ -139,7 +144,7 @@ When no path is provided, use semantic analysis:
 
    1. **Update existing**: [existing-context-path] - [brief description]
    2. **Create new local context** for: [suggested-target-file]
-   3. **Create new global context** at: {{global.directory}}/[suggested-path].md
+   3. **Create new global context** at: ctx/[suggested-path].md
 
    Which option would you like?
    ```
@@ -307,13 +312,25 @@ Next steps:
 
 # Error Handling
 
-{{snippet:errors#target-not-found}}
+```
+❌ Error: Target file not found: [path]
+Cannot create context for non-existent file
+```
 
-{{snippet:errors#context-already-exists}}
+```
+⚠️ Context already exists: [path]
+Use UPDATE mode or specify a different path
+```
 
-{{snippet:errors#invalid-context-path}}
+```
+❌ Error: Invalid context path format
+Expected: *.ctx.md (local) or ctx/**/*.md (global)
+```
 
-{{snippet:errors#registry-lookup-failed}}
+```
+⚠️ Warning: Could not find context in registry for target: [path]
+Creating new context file
+```
 
 ---
 
@@ -321,8 +338,8 @@ Next steps:
 
 | Input Pattern | Type | Scope | Action |
 |---------------|------|-------|--------|
-| `*.ctx.md` (not in {{global.directory}}/) | context-path | local | Direct file handling |
-| `{{global.directory}}/**/*.md` | context-path | global | Direct file handling |
+| `*.ctx.md` (not in ctx/) | context-path | local | Direct file handling |
+| `ctx/**/*.md` | context-path | global | Direct file handling |
 | `*.ts`, `*.js`, `*.py`, etc. | target-path | local | Registry lookup → context |
 | Other text | description-only | semantic | AI analysis → suggest options |
 
@@ -356,8 +373,8 @@ Next steps:
 
 **AI:**
 ```markdown
-[Runs: ctx check --path src/services/payment.ctx.md]
-✓ Context is fresh
+[Runs: ctx check --local]
+✓ All contexts are fresh
 
 Updating existing local context: `src/services/payment.ctx.md`
 
@@ -401,16 +418,16 @@ Summary:
 
 ## Example 2: Context-path (global)
 
-**User:** `/ctx.save {{global.directory}}/rules/typescript.md Use union types instead of enums`
+**User:** `/ctx.save ctx/rules/typescript.md Use union types instead of enums`
 
 **AI:**
 ```markdown
-[Runs: ctx check --path {{global.directory}}/rules/typescript.md]
-→ Context file not found (new context)
+[Runs: ctx check --global]
+✓ All contexts are fresh
 
-Creating new global context: `{{global.directory}}/rules/typescript.md`
+Creating new global context: `ctx/rules/typescript.md`
 
-## 📝 Creating: `{{global.directory}}/rules/typescript.md`
+## 📝 Creating: `ctx/rules/typescript.md`
 
 ```diff
 + ---
@@ -448,11 +465,11 @@ Proceed with this content?
 
 **AI:**
 ```markdown
+[Runs: ctx check --local]
+✓ All contexts are fresh
+
 [Runs: ctx status --target src/services/payment.ts]
 → {"found": true, "contextPath": "src/services/payment.ctx.md", ...}
-
-[Runs: ctx check --path src/services/payment.ctx.md]
-✓ Context is fresh
 
 Updating existing local context: `src/services/payment.ctx.md`
 
@@ -496,7 +513,7 @@ I found these options:
 
 1. **Update existing**: src/services/auth.ctx.md - Authentication service context
 2. **Create new local context** for: src/middleware/auth.ts
-3. **Create new global context** at: {{global.directory}}/architecture/authentication.md
+3. **Create new global context** at: ctx/architecture/authentication.md
 
 Which option would you like?
 ```
@@ -508,9 +525,9 @@ Which option would you like?
 [Runs: ctx check --global]
 ✓ All contexts are fresh
 
-Creating new global context: `{{global.directory}}/architecture/authentication.md`
+Creating new global context: `ctx/architecture/authentication.md`
 
-## 📝 Creating: `{{global.directory}}/architecture/authentication.md`
+## 📝 Creating: `ctx/architecture/authentication.md`
 
 ```diff
 + ---
@@ -539,10 +556,13 @@ Proceed with this content?
 
 **AI:**
 ```markdown
-[Checks if target file exists]
-→ File not found: src/services/nonexistent.ts
+[Runs: ctx check --local]
+✓ All contexts are fresh
 
-{{snippet:errors#target-not-found}}
+```
+❌ Error: Target file not found: [path]
+Cannot create context for non-existent file
+```
 ```
 
 ---
@@ -553,14 +573,14 @@ Proceed with this content?
 
 **AI:**
 ```markdown
+[Runs: ctx check --local]
+✓ All contexts are fresh
+
 [Runs: ctx status --target src/utils/validator.ts]
 → {"found": false, "target": "src/utils/validator.ts", "contextPath": null}
 
 ⚠️ No existing context found for: src/utils/validator.ts
-Inferred context path: src/utils/validator.ctx.md
-
-[Runs: ctx check --path src/utils/validator.ctx.md]
-→ Context file not found (new context)
+Creating new context at: src/utils/validator.ctx.md
 
 [Reads src/utils/validator.ts]
 
