@@ -215,7 +215,7 @@ function generateSuggestions(status: StatusData): void {
     status.suggestions.push('Create your first context → /ctx.local <file>');
   } else if (status.context.local.errors > 0) {
     status.suggestions.push(
-      `${status.context.local.errors} context(s) have issues → ctx validate`
+      `${status.context.local.errors} context(s) have issues → ctx check --pretty`
     );
   }
 

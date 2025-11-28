@@ -128,7 +128,7 @@ describe('init command', () => {
       await initCommand();
 
       // Check that template files exist
-      expect(await testEnv.fileExists('ctx/templates/local-context.yml')).toBe(true);
+      expect(await testEnv.fileExists('ctx/templates/local-context.md')).toBe(true);
       expect(await testEnv.fileExists('ctx/templates/global-context.md')).toBe(true);
     });
 
@@ -138,8 +138,8 @@ describe('init command', () => {
       await initCommand();
 
       // Check local-context template content
-      const localTemplate = await testEnv.readFile('ctx/templates/local-context.yml');
-      expect(localTemplate).toContain('meta:');
+      const localTemplate = await testEnv.readFile('ctx/templates/local-context.md');
+      expect(localTemplate).toContain('target:');
       expect(localTemplate).toContain('what:');
       expect(localTemplate).toContain('when:');
       expect(localTemplate).toContain('not_when:');
