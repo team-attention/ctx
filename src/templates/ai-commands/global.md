@@ -63,7 +63,7 @@ After fixing, run this command again.
 **Extract path and intent from $ARGUMENTS:**
 
 1. **Detect path format:**
-   - IF $ARGUMENTS starts with `{{glboal/` OR `./` OR `../`:
+   - IF $ARGUMENTS starts with `{{global.directory}}/` OR `./` OR `../`:
      - path = first token (everything before first space)
      - intent = remaining text (everything after first space)
    - ELSE:
