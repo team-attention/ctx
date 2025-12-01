@@ -82,6 +82,9 @@ export class ClaudeCodePlatform implements Platform {
       await fs.writeFile(targetPath, content, 'utf-8');
     }
 
+    // Add permission for npx ctx commands
+    await this.updatePermissions('Bash(npx ctx:*)');
+
     console.log(chalk.green(`✓ Installed ${templates.length} AI commands to .claude/commands/`));
   }
 
@@ -157,6 +160,40 @@ export class ClaudeCodePlatform implements Platform {
 
     // Merge hook configuration
     Object.assign(settings.hooks, hookConfig);
+
+    // Write back to file
+    await fs.writeFile(settingsPath, JSON.stringify(settings, null, 2) + '\n', 'utf-8');
+  }
+
+  /**
+   * Update permissions.allow in settings.local.json
+   * Adds permission if not already present
+   */
+  private async updatePermissions(permission: string): Promise<void> {
+    const settingsPath = this.getSettingsPath();
+    let settings: any = {};
+
+    // Read existing settings if file exists
+    try {
+      const content = await fs.readFile(settingsPath, 'utf-8');
+      settings = JSON.parse(content);
+    } catch {
+      // File doesn't exist or is invalid, start fresh
+      settings = {};
+    }
+
+    // Initialize permissions.allow array if not exists
+    if (!settings.permissions) {
+      settings.permissions = {};
+    }
+    if (!settings.permissions.allow) {
+      settings.permissions.allow = [];
+    }
+
+    // Add permission if not already present
+    if (!settings.permissions.allow.includes(permission)) {
+      settings.permissions.allow.push(permission);
+    }
 
     // Write back to file
     await fs.writeFile(settingsPath, JSON.stringify(settings, null, 2) + '\n', 'utf-8');
