@@ -57,7 +57,7 @@ First token analysis:
 
 ```bash
 # Check only the specific context file (auto-detects local/global scope)
-ctx check --path [contextPath]
+npx ctx check --path [contextPath]
 ```
 
 This checks only the context being saved, not the entire registry. Other contexts with issues won't block this save operation.
@@ -91,7 +91,7 @@ After fixing, run this command again.
 
 1. **Search for target in registry**:
    ```bash
-   ctx status --target [targetPath]
+   npx ctx status --target [targetPath]
    ```
 
 2. **Parse JSON response**:
@@ -124,7 +124,7 @@ When no path is provided, use semantic analysis:
 
 2. **Get current context status**:
    ```bash
-   ctx status
+   npx ctx status
    ```
    - Parse JSON response to see existing local/global contexts
    - Use this to suggest relevant options to the user
@@ -271,10 +271,10 @@ Proceed with this update?
 
 ```bash
 # For local scope
-ctx sync --local
+npx ctx sync --local
 
 # For global scope
-ctx sync --global
+npx ctx sync --global
 ```
 
 ### Handle Sync Results
@@ -300,7 +300,7 @@ Summary:
 Next steps:
 1. Check the error message above
 2. Verify file syntax
-3. Run: ctx sync --[local/global]
+3. Run: npx ctx sync --[local/global]
 ```
 
 ---
@@ -356,7 +356,7 @@ Next steps:
 
 **AI:**
 ```markdown
-[Runs: ctx check --path src/services/payment.ctx.md]
+[Runs: npx ctx check --path src/services/payment.ctx.md]
 ✓ Context is fresh
 
 Updating existing local context: `src/services/payment.ctx.md`
@@ -386,7 +386,7 @@ Proceed with this update?
 **AI:**
 ```markdown
 [Updates src/services/payment.ctx.md]
-[Runs: ctx sync --local]
+[Runs: npx ctx sync --local]
 
 ✓ Updated src/services/payment.ctx.md
 ✓ Synced local context registry
@@ -405,7 +405,7 @@ Summary:
 
 **AI:**
 ```markdown
-[Runs: ctx check --path {{global.directory}}/rules/typescript.md]
+[Runs: npx ctx check --path {{global.directory}}/rules/typescript.md]
 → Context file not found (new context)
 
 Creating new global context: `{{global.directory}}/rules/typescript.md`
@@ -448,10 +448,10 @@ Proceed with this content?
 
 **AI:**
 ```markdown
-[Runs: ctx status --target src/services/payment.ts]
+[Runs: npx ctx status --target src/services/payment.ts]
 → {"found": true, "contextPath": "src/services/payment.ctx.md", ...}
 
-[Runs: ctx check --path src/services/payment.ctx.md]
+[Runs: npx ctx check --path src/services/payment.ctx.md]
 ✓ Context is fresh
 
 Updating existing local context: `src/services/payment.ctx.md`
@@ -505,7 +505,7 @@ Which option would you like?
 
 **AI:**
 ```markdown
-[Runs: ctx check --global]
+[Runs: npx ctx check --global]
 ✓ All contexts are fresh
 
 Creating new global context: `{{global.directory}}/architecture/authentication.md`
@@ -553,13 +553,13 @@ Proceed with this content?
 
 **AI:**
 ```markdown
-[Runs: ctx status --target src/utils/validator.ts]
+[Runs: npx ctx status --target src/utils/validator.ts]
 → {"found": false, "target": "src/utils/validator.ts", "contextPath": null}
 
 ⚠️ No existing context found for: src/utils/validator.ts
 Inferred context path: src/utils/validator.ctx.md
 
-[Runs: ctx check --path src/utils/validator.ctx.md]
+[Runs: npx ctx check --path src/utils/validator.ctx.md]
 → Context file not found (new context)
 
 [Reads src/utils/validator.ts]

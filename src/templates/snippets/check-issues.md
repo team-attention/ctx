@@ -12,7 +12,7 @@
 
 ## check-output
 
-The `ctx check` command returns JSON with:
+The `npx ctx check` command returns JSON with:
 - `status`: overall health (`fresh`, `stale`, `error`)
 - `summary.local`: `{ total, fresh, stale, new, deleted, errors }`
 - `summary.global`: `{ total, fresh, stale, new, deleted, errors }`
@@ -30,11 +30,11 @@ Each issue contains:
 
 | Command | Description |
 |---------|-------------|
-| `ctx check` | Check health, output JSON |
-| `ctx check --pretty` | Human-readable output |
-| `ctx check --fix` | Auto-fix by syncing registry |
-| `ctx check --local` | Check local contexts only |
-| `ctx check --global` | Check global contexts only |
+| `npx ctx check` | Check health, output JSON |
+| `npx ctx check --pretty` | Human-readable output |
+| `npx ctx check --fix` | Auto-fix by syncing registry |
+| `npx ctx check --local` | Check local contexts only |
+| `npx ctx check --global` | Check global contexts only |
 
 ## check-status
 

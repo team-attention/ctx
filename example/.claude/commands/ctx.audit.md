@@ -20,10 +20,10 @@ You are performing a comprehensive audit of the context ecosystem.
 Run mechanical health check:
 
 ```bash
-ctx check
+npx ctx check
 ```
 
-The `ctx check` command returns JSON with:
+The `npx ctx check` command returns JSON with:
 - `status`: overall health (`fresh`, `stale`, `error`)
 - `summary.local`: `{ total, fresh, stale, new, deleted, errors }`
 - `summary.global`: `{ total, fresh, stale, new, deleted, errors }`
@@ -53,7 +53,7 @@ Each issue contains:
 
 1. **Get registry data:**
    ```bash
-   ctx status --json
+   npx ctx status --json
    ```
 
 2. **Filter relevant contexts:**
@@ -77,7 +77,7 @@ Each issue contains:
 
 1. **Get all previews:**
    ```bash
-   ctx status --json
+   npx ctx status --json
    ```
 
 2. **Extract all preview data:**
@@ -145,7 +145,7 @@ Each issue contains:
 - `[contextPath]`
   - Target changed: [targetPath]
   - Last synced: [lastModified]
-  - Action: Review context, run `ctx check --fix` if OK
+  - Action: Review context, run `npx ctx check --fix` if OK
 
 #### 💡 Unsynced (N)
 [For new/deleted/modified]
@@ -192,7 +192,7 @@ Each issue contains:
 3. [Third priority]
 
 **Quick Fixes:**
-- Run `ctx check --fix` to sync registry
+- Run `npx ctx check --fix` to sync registry
 - [Other one-liner fixes]
 
 **Needs Review:**
@@ -211,13 +211,13 @@ Each issue contains:
 
 | Command | Description |
 |---------|-------------|
-| `ctx check` | Check health, output JSON |
-| `ctx check --pretty` | Human-readable output |
-| `ctx check --fix` | Auto-fix by syncing registry |
-| `ctx check --local` | Check local contexts only |
-| `ctx check --global` | Check global contexts only |
+| `npx ctx check` | Check health, output JSON |
+| `npx ctx check --pretty` | Human-readable output |
+| `npx ctx check --fix` | Auto-fix by syncing registry |
+| `npx ctx check --local` | Check local contexts only |
+| `npx ctx check --global` | Check global contexts only |
 
-- `ctx sync` - Force sync all contexts
+- `npx ctx sync` - Force sync all contexts
 - `/ctx.save` - Update a specific context
 
 ---
@@ -230,8 +230,8 @@ Each issue contains:
 User: /ctx.audit
 
 AI:
-[Runs: ctx check]
-[Runs: ctx status --json]
+[Runs: npx ctx check]
+[Runs: npx ctx status --json]
 [Analyzes previews for semantic issues]
 
 ## 🔍 Context Audit Report
@@ -285,7 +285,7 @@ AI:
 2. Review stale contexts for payment and auth services
 
 **Quick Fixes:**
-- Run `ctx check --fix` to sync the new users context
+- Run `npx ctx check --fix` to sync the new users context
 
 **Needs Review:**
 - Consider splitting helpers.ctx.md into focused contexts
@@ -299,8 +299,8 @@ AI:
 User: /ctx.audit 인증 관련 컨텍스트 점검해줘
 
 AI:
-[Runs: ctx check]
-[Runs: ctx status --json]
+[Runs: npx ctx check]
+[Runs: npx ctx status --json]
 [Filters contexts where preview.what matches "인증", "auth", "authentication", "JWT", etc.]
 [Full reads: src/auth/jwt.ctx.md, src/auth/middleware.ctx.md, ctx/rules/auth.md]
 [Also reads target files for local contexts]
@@ -360,7 +360,7 @@ AI:
 2. Add refresh token scenario to jwt.ctx.md
 
 **Quick Fixes:**
-- Run `ctx check --fix` after updates
+- Run `npx ctx check --fix` after updates
 ```
 
 ---
@@ -371,8 +371,8 @@ AI:
 User: /ctx.audit
 
 AI:
-[Runs: ctx check]
-[Runs: ctx status --json]
+[Runs: npx ctx check]
+[Runs: npx ctx status --json]
 [Analyzes previews]
 
 ## 🔍 Context Audit Report
@@ -402,7 +402,7 @@ Your context ecosystem is in great shape!
 
 **Maintenance Tips:**
 - Run `/ctx.audit` periodically (weekly recommended)
-- Use `ctx check` after coding sessions
+- Use `npx ctx check` after coding sessions
 - Keep contexts focused and up-to-date
 ```
 
@@ -410,7 +410,7 @@ Your context ecosystem is in great shape!
 
 # Rules
 
-1. **Always run mechanical check first** - `ctx check` catches structural issues
+1. **Always run mechanical check first** - `npx ctx check` catches structural issues
 2. **Semantic analysis is additive** - It finds issues mechanical checks can't
 3. **Be conservative with contradictions** - Only flag clear conflicts, not style differences
 4. **Prioritize actionable findings** - Every issue should have a clear resolution
