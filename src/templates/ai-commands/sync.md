@@ -65,7 +65,7 @@ Parse the command output and present a clear summary to the user.
 # What Sync Does (Background Info)
 
 **Mechanical operation only:**
-- Scans `*.ctx.yml` and `ctx/**/*.md` files
+- Scans `*.ctx.md` and `ctx/**/*.md` files
 - Computes checksums for change detection
 - Updates registry files (`{{global.directory}}/local-context-registry.yml`, `{{global.directory}}/global-context-registry.yml`)
 - NO AI logic, just file I/O
@@ -128,11 +128,11 @@ AI:
 - ⚠️ 2 warning(s)
 
 **Warnings**:
-- src/old.ctx.yml: Target file not found
+- src/old.ctx.md: Target file not found
 - ctx/broken.md: Invalid frontmatter
 
 **Recommendation**:
-- Remove src/old.ctx.yml (target deleted)
+- Remove src/old.ctx.md (target deleted)
 - Fix ctx/broken.md frontmatter
 - Run `/ctx.sync` again
 ```

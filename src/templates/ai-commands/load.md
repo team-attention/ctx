@@ -55,7 +55,7 @@ Try: Different keywords, broader terms, or run `ctx sync`
 ```
 
 **For each local context:**
-1. Read context file: `[source]` (*.ctx.yml)
+1. Read context file: `[source]` (*.ctx.md)
 2. Read target file: `[meta.target]` (actual code)
 3. Present both with summary
 
@@ -97,7 +97,7 @@ Total: N contexts loaded
 1. **Always search BOTH registries** - Never skip local or global
 2. **Semantic matching** - Use AI understanding, not string matching
 3. **Load actual files** - Not just metadata
-   - Local: Load `.ctx.yml` AND target file
+   - Local: Load `.ctx.md` AND target file
    - Global: Load `.md` document
 4. **Auto-load matches** - Load all matches immediately without confirmation
 5. **Handle errors gracefully** - Skip missing files with warning
