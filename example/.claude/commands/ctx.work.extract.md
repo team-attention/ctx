@@ -112,20 +112,18 @@ Use TodoWrite to track progress through data collection steps.
 
 ### 2.1 Read Session History
 
-For each session file path in `.ctx.current`:
+Use `ctx session` command to extract user messages from the session files:
 
-1. Use Read tool to read the JSONL session file
-2. Each line is a JSON object representing a message
-3. Parse all lines to reconstruct the chat history
-4. Extract messages with role "user" and "assistant"
-
-**JSONL Format**:
-```jsonl
-{"type":"user","content":"Add dark mode toggle"}
-{"type":"assistant","content":"I'll help you add dark mode..."}
+```bash
+npx ctx session --role user --format text
 ```
 
-Combine all sessions into a unified chat history.
+This automatically reads sessions from `.ctx.current` and extracts only user messages in plain text format.
+
+**Why user messages only?**
+- User messages contain the actual requirements, questions, and feedback
+- Assistant messages are implementation details (already captured in git)
+- Focusing on user intent helps extract what decisions were made and why
 
 ### 2.2 Read Issue Information
 
@@ -332,35 +330,20 @@ Use TodoWrite to mark application step as in_progress.
 
 For each global context suggestion:
 
-1. Resolve the target file path (e.g., `ctx/global/patterns/error-handling.md`)
+1. Resolve the target file path (e.g., `ctx/patterns/error-handling.md`)
 2. Check if file exists using Read tool
 3. If exists:
    - Read current content
    - Append new section (don't overwrite)
    - Use Edit tool to add new content
 4. If doesn't exist:
-   - Create parent directories if needed (use Bash: `mkdir -p`)
-   - Use Write tool to create file with proper structure:
-
-```markdown
----
-title: <Title>
-type: global
-category: <patterns|conventions|rules>
----
-
-# <Title>
-
-<Description>
-
-## Usage
-
-<Examples if applicable>
-
-## Related
-
-<Links to related contexts if applicable>
-```
+   - **Use `npx ctx create` to generate from template:**
+     - Derive [topic-name] from the relative path (e.g., for `patterns/error-handling.md`, use `patterns/error-handling`)
+     ```bash
+     npx ctx create --global [topic-name] --force
+     ```
+   - Read the created file to see the actual template structure
+   - Use Edit tool to fill in the placeholder values with extracted content
 
 ### 5.2 Update Local Context Files
 
@@ -373,32 +356,25 @@ For each affected file (e.g., `src/services/payment.ts`):
    - Update relevant sections or append new information
    - Use Edit tool to modify
 4. If doesn't exist:
-   - Use Write tool to create new file with structure:
+   - **Use `npx ctx create` to generate from template:**
+     ```bash
+     npx ctx create [target-file-path] --force
+     ```
+   - Read the created file to see the actual template structure
+   - Use Edit tool to fill in the placeholder values with extracted content
 
-```markdown
----
-target: src/services/payment.ts
-type: local
----
+**Note**: Always use `npx ctx create` for new context files. Never hardcode context structure - the project may have customized templates.
 
-# Context
+### 5.3 Sync Registries
 
-<Description>
+After creating/updating context files, sync the registries:
 
-## Implementation Notes
-
-<Key decisions and patterns>
-
-## Dependencies
-
-<Related files and modules>
-
-## Edge Cases
-
-<Special handling required>
+```bash
+npx ctx sync --local
+npx ctx sync --global
 ```
 
-### 5.3 Show Summary
+### 5.4 Show Summary
 
 After all files are updated:
 

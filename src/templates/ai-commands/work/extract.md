@@ -33,20 +33,18 @@ Use TodoWrite to track progress through data collection steps.
 
 ### 2.1 Read Session History
 
-For each session file path in `.ctx.current`:
+Use `ctx session` command to extract user messages from the session files:
 
-1. Use Read tool to read the JSONL session file
-2. Each line is a JSON object representing a message
-3. Parse all lines to reconstruct the chat history
-4. Extract messages with role "user" and "assistant"
-
-**JSONL Format**:
-```jsonl
-{"type":"user","content":"Add dark mode toggle"}
-{"type":"assistant","content":"I'll help you add dark mode..."}
+```bash
+npx ctx session --role user --format text
 ```
 
-Combine all sessions into a unified chat history.
+This automatically reads sessions from `.ctx.current` and extracts only user messages in plain text format.
+
+**Why user messages only?**
+- User messages contain the actual requirements, questions, and feedback
+- Assistant messages are implementation details (already captured in git)
+- Focusing on user intent helps extract what decisions were made and why
 
 ### 2.2 Read Issue Information
 
