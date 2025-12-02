@@ -160,6 +160,7 @@ Use `AppError` class for consistent error responses.
 | `ctx check` | Check context integrity and staleness |
 | `ctx status` | Show context and work session status |
 | `ctx refresh` | Refresh AI commands with current config |
+| `ctx session [file]` | Extract messages from Claude Code session files |
 
 #### Command Flags
 
