@@ -460,7 +460,7 @@ Check for files: `pyproject.toml`, `setup.py`, `requirements.txt`
 ## Example 1: Successful submission (Node.js with quality checks)
 
 ```bash
-/work.submit
+ctx.work.submit
 ```
 
 Output:
@@ -484,7 +484,7 @@ Ready for review!
 ## Example 2: Custom commit message (Python project)
 
 ```bash
-/work.submit fix: resolve authentication bug
+ctx.work.submit fix: resolve authentication bug
 ```
 
 Output:
@@ -504,7 +504,7 @@ Title: 🐛 fix: resolve authentication bug (#123)
 ## Example 3: Tests fail
 
 ```bash
-/work.submit
+ctx.work.submit
 ```
 
 Output:
@@ -528,7 +528,7 @@ Aborted PR creation.
 ## Example 4: Quality checks fail with auto-fix
 
 ```bash
-/work.submit
+ctx.work.submit
 ```
 
 Output:
@@ -555,7 +555,7 @@ Fix issues automatically with `pnpm fix`? [y/n]: y
 ## Example 5: No quality checks or tests configured
 
 ```bash
-/work.submit
+ctx.work.submit
 ```
 
 Output:
@@ -580,4 +580,4 @@ PR: https://github.com/owner/repo/pull/458
 - PR creation: `gh pr create` (GitHub CLI required)
 - Issue tracking: `.ctx.current` (optional, for issue context)
 - Commit format: Conventional commits with emoji
-- Previous commands: `/work.init` - Initialize issue, `/work.plan` - Generate plan
+- Previous commands: `/ctx.work.init` - Initialize issue, `/ctx.work.plan` - Generate plan

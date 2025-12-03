@@ -1,12 +1,12 @@
 ---
-description: Commit changes, run checks/tests, and create PR
+description: Commit changes, run checks/tests, and create or update PR
 argument-hint: [commit-message]
 allowed-tools: [Bash, Read, TodoWrite, AskUserQuestion]
 ---
 
 # Task
 
-Stage all changes, create a conventional commit, run quality checks and tests (if available), and if all pass, create a pull request with a summary of changes.
+Stage all changes, create a conventional commit, run quality checks and tests (if available), and if all pass, create a pull request (or push to existing PR).
 
 ---
 
@@ -17,12 +17,13 @@ Stage all changes, create a conventional commit, run quality checks and tests (i
 Create todos to track progress:
 
 1. Check for uncommitted changes
-2. Stage all changes
-3. Create commit
-4. Run quality checks (lint/format)
-5. Run tests
-6. Push to remote
-7. Create pull request
+2. Check for existing PR
+3. Stage all changes
+4. Create commit
+5. Run quality checks (lint/format)
+6. Run tests
+7. Push to remote
+8. Create pull request (if needed)
 
 ---
 
@@ -34,11 +35,31 @@ git status --porcelain
 
 **If no changes:**
 - ℹ️ No changes to commit
-- Stop execution
+- Check if there are unpushed commits: `git log origin/$(git branch --show-current)..HEAD --oneline 2>/dev/null`
+- If unpushed commits exist, skip to Step 7 (Push)
+- If no unpushed commits, stop execution
 
 **If changes exist:**
 - ✓ Found changes to commit
 - Proceed to Step 3
+
+---
+
+## Step 2.5: Check for Existing PR
+
+```bash
+gh pr view --json url,state -q '.url' 2>/dev/null
+```
+
+**If PR exists:**
+- `existing_pr = true`
+- `pr_url = <url>`
+- ℹ️ Found existing PR: {pr_url}
+
+**If no PR:**
+- `existing_pr = false`
+
+This determines whether to create a new PR or just push to existing one.
 
 ---
 
@@ -252,7 +273,10 @@ cat .ctx.current 2>/dev/null
 
 {If issue exists:}
 ## Related Issue
-{Link to issue with title}
+Closes {issue-reference}
+
+> **Note**: This will auto-close the issue when PR is merged.
+> Remove `Closes` if you want to keep the issue open.
 
 ## Implementation Plan
 {Include implementation plan from issue file, if available}
@@ -267,9 +291,20 @@ cat .ctx.current 2>/dev/null
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 ```
 
+**Issue Reference Format:**
+- GitHub: `Closes #123` (auto-closes issue on merge)
+- Linear: `Closes ABC-123` (Linear also supports this keyword)
+
 ---
 
-## Step 11: Create Pull Request
+## Step 11: Create or Skip Pull Request
+
+**If `existing_pr` is true (from Step 2.5):**
+- Skip PR creation
+- ✓ Pushed to existing PR: {pr_url}
+- Proceed to Step 12
+
+**If `existing_pr` is false:**
 
 **Generate PR title:**
 
@@ -303,9 +338,6 @@ EOF
   - Display PR URL
 - **No remote branch**:
   - Push first (Step 8), then retry
-- **Already exists**:
-  - ℹ️ PR already exists
-  - Display existing PR URL
 - **gh CLI not installed**:
   - ❌ GitHub CLI not found
   - Message: "Install gh CLI: https://cli.github.com"
@@ -319,6 +351,7 @@ Mark todo as completed.
 
 Display:
 
+**If new PR was created:**
 ```
 ✓ Submission complete!
 
@@ -338,6 +371,24 @@ Next steps:
 1. Review PR at {pr-url}
 2. Wait for CI/CD checks
 3. Request review from team
+```
+
+**If pushed to existing PR:**
+```
+✓ Changes pushed to existing PR!
+
+Commit: {commit-hash} - {commit-message}
+Branch: {branch-name}
+Pull Request: {pr-url}
+
+Summary:
+✓ Staged changes
+✓ Created commit
+{✓ Quality checks passed | ℹ️ Quality checks skipped}
+{✓ Tests passed | ℹ️ Tests skipped}
+✓ Pushed to existing PR
+
+The PR has been updated with your latest changes.
 ```
 
 ---
@@ -413,6 +464,7 @@ Output:
 
 PR: https://github.com/owner/repo/pull/456
 Title: ✨ feat: add login feature (#123)
+Linked: Closes #123 (will auto-close on merge)
 
 Ready for review!
 ```
@@ -488,7 +540,7 @@ Fix issues automatically with `pnpm fix`? [y/n]: y
 ✓ Pull request created
 ```
 
-## Example 5: No quality checks or tests configured
+## Example 5: Push to existing PR (iteration)
 
 ```bash
 /work.submit
@@ -496,17 +548,24 @@ Fix issues automatically with `pnpm fix`? [y/n]: y
 
 Output:
 ```
+✓ Found changes to commit
+ℹ️ Found existing PR: https://github.com/owner/repo/pull/456
 ✓ Staged all changes
-✓ Created commit: "✨ feat: add new feature"
-ℹ️ No quality check commands found, skipping
-ℹ️ No test commands found, skipping
-✓ Pushed branch to remote
-✓ Pull request created
-
-PR: https://github.com/owner/repo/pull/458
-```
+✓ Created commit: "🐛 fix: address review comments"
+✓ Quality checks passed
+✓ Tests passed
+✓ Pushed to existing PR
 
 ---
+
+✓ Changes pushed to existing PR!
+
+Commit: abc1234 - 🐛 fix: address review comments
+Branch: feature/login
+Pull Request: https://github.com/owner/repo/pull/456
+
+The PR has been updated with your latest changes.
+```
 
 # Reference
 
@@ -516,4 +575,13 @@ PR: https://github.com/owner/repo/pull/458
 - PR creation: `gh pr create` (GitHub CLI required)
 - Issue tracking: `.ctx.current` (optional, for issue context)
 - Commit format: Conventional commits with emoji
-- Previous commands: `/work.init` - Initialize issue, `/work.plan` - Generate plan
+
+---
+
+# Related Commands
+
+- `/ctx.work.init` - Initialize issue (start of workflow)
+- `/ctx.work.plan` - Generate implementation plan
+- `/ctx.work.commit` - Create commits during development
+- `/ctx.work.extract` - Extract context from session
+- `/ctx.work.done` - Complete work session and cleanup (end of workflow)
