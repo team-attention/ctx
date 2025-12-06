@@ -32,6 +32,10 @@ export async function refreshCommand() {
       console.log(chalk.gray('  AI commands now reflect current ctx.config.yaml settings'));
     }
 
+    // Re-install hooks (will update with latest templates)
+    console.log(chalk.blue('Refreshing hooks...'));
+    await platform.installHooks();
+
     // Update .gitignore with current config
     console.log(chalk.blue('Updating .gitignore...'));
     const config = await loadConfig(projectRoot);

@@ -1,6 +1,6 @@
 ---
 description: Initialize a new issue (online or offline)
-argument-hint: <url|file-path|requirements>
+argument-hint: [-w|--worktree] <url|file-path|requirements>
 allowed-tools: [Read, Write, Bash, mcp__linear-server__get_issue, mcp__linear-server__list_comments]
 ---
 
@@ -13,13 +13,84 @@ Initialize a new issue by creating `.ctx.current` and optionally creating a loca
 2. **Local file path** (existing file): Local issue file → Offline flow (use existing)
 3. **Requirements text**: Create new issue file → Offline flow (create new)
 
+**Options**:
+- `-w, --worktree`: Create a git worktree for isolated work environment
+
 ---
 
 # Workflow
 
+## Step 0: Parse Flags
+
+Parse `$ARGUMENTS` to separate flags from actual input:
+
+1. Check for `-w` or `--worktree` flag
+2. If found: `worktree_mode = true`, remove flag from arguments
+3. Remaining arguments = `actual_input`
+
+Examples:
+- `--worktree https://github.com/user/repo/issues/123` → worktree_mode=true, actual_input=URL
+- `-w "Add dark mode toggle"` → worktree_mode=true, actual_input=requirements
+- `https://github.com/user/repo/issues/123` → worktree_mode=false, actual_input=URL
+
+---
+
+## Step 0.5: Create Worktree (if worktree_mode)
+
+**Skip this step if worktree_mode is false.**
+
+### 0.5.1 Check Git Repository
+
+Verify current directory is a git repository:
+```bash
+git rev-parse --git-dir
+```
+If not a git repo, show error and suggest using without `--worktree` flag.
+
+### 0.5.2 Determine Identifier
+
+Based on `actual_input` type:
+
+| Input Type | Identifier | Example |
+|------------|------------|---------|
+| GitHub URL | Issue number | `123` |
+| Linear URL | Issue ID | `ABC-123` |
+| File path | Filename stem | `2025-11-19-1430_feature` |
+| Requirements | Timestamp | `20251203-1430` |
+
+**Extraction patterns**:
+- GitHub: `/issues/(\d+)` → `123`
+- Linear: `/issue/([A-Z]+-\d+)` → `ABC-123`
+
+### 0.5.3 Create Worktree
+
+```bash
+mkdir -p .worktrees
+git worktree add .worktrees/issue-{identifier} -b issue-{identifier}
+```
+
+**On error** (branch already exists):
+```
+❌ Error: Branch 'issue-{identifier}' already exists.
+
+Solutions:
+1. Delete existing branch: git branch -d issue-{identifier}
+2. Remove stale worktree: git worktree remove .worktrees/issue-{identifier}
+3. Use different identifier
+```
+
+### 0.5.4 Set Working Directory Context
+
+From this point forward, all file operations use the worktree path:
+- `WORKTREE_PATH = .worktrees/issue-{identifier}`
+- `.ctx.current` → `{WORKTREE_PATH}/.ctx.current`
+- `ctx/issues/` → `{WORKTREE_PATH}/ctx/issues/`
+
+---
+
 ## Step 1: Detect Input Type
 
-Check `$ARGUMENTS`:
+Check `actual_input` (not `$ARGUMENTS`):
 
 1. Starts with `http` → **Online issue** (Flow A)
 2. Is a file path that exists → **Offline issue - existing file** (Flow B1)
@@ -123,9 +194,23 @@ Create the file with `issue` field set to the URL.
 
 ### 1.5 Show Summary
 
+**If worktree_mode is false:**
 ```
 ✓ Initialized issue: <title>
 📎 Source: <url>
+
+Next: Run /ctx.work.plan to generate implementation plan
+```
+
+**If worktree_mode is true:**
+```
+✓ Worktree created: .worktrees/issue-{identifier}
+✓ Branch: issue-{identifier}
+✓ Initialized issue: <title>
+📎 Source: <url>
+
+👉 To start working:
+   cd .worktrees/issue-{identifier}
 
 Next: Run /ctx.work.plan to generate implementation plan
 ```
@@ -177,10 +262,25 @@ Example: `ctx/issues/2025-11-19-1430_add-dark-mode.md`
 
 ### 1.4 Show Summary
 
+**If worktree_mode is false:**
 ```
 ✓ Initialized issue from file: <filename>
 📎 Title: <issue-title>
 📊 Status: <status>
+
+Next: Run /ctx.work.plan to generate implementation plan
+```
+
+**If worktree_mode is true:**
+```
+✓ Worktree created: .worktrees/issue-{identifier}
+✓ Branch: issue-{identifier}
+✓ Initialized issue from file: <filename>
+📎 Title: <issue-title>
+📊 Status: <status>
+
+👉 To start working:
+   cd .worktrees/issue-{identifier}
 
 Next: Run /ctx.work.plan to generate implementation plan
 ```
@@ -287,9 +387,25 @@ Create the file with `issue` field set to `ctx/issues/<filename>`
 
 ### 2.8 Show Summary
 
+**If worktree_mode is false:**
 ```
 ✓ Created issue file: ctx/issues/<filename>
 ✓ Initialized .ctx.current
+
+Next steps:
+1. Edit the Spec section in the issue file if needed
+2. Run /ctx.work.plan to generate implementation plan
+```
+
+**If worktree_mode is true:**
+```
+✓ Worktree created: .worktrees/issue-{identifier}
+✓ Branch: issue-{identifier}
+✓ Created issue file: ctx/issues/<filename>
+✓ Initialized .ctx.current
+
+👉 To start working:
+   cd .worktrees/issue-{identifier}
 
 Next steps:
 1. Edit the Spec section in the issue file if needed
@@ -303,18 +419,22 @@ Next steps:
 - **No arguments**: Show error with usage example:
   ```
   ❌ Error: No input provided
-  Usage: /ctx.work.init <url|file-path|requirements>
+  Usage: /ctx.work.init [-w|--worktree] <url|file-path|requirements>
 
   Examples:
     /ctx.work.init https://github.com/user/repo/issues/123
+    /ctx.work.init --worktree https://github.com/user/repo/issues/123
     /ctx.work.init ctx/issues/2025-11-19-1430_add-dark-mode.md
-    /ctx.work.init "Add dark mode toggle to settings page"
+    /ctx.work.init -w "Add dark mode toggle to settings page"
   ```
 - **Invalid file path**: File doesn't exist or missing required frontmatter
 - **Unsupported URL**: Show supported formats (GitHub, Linear)
 - **GitHub CLI not installed**: Show installation instructions (`gh` CLI required)
 - **Linear MCP not available**: Show MCP setup instructions
 - **File creation failed**: Show error with permissions/directory check
+- **Not a git repository** (with --worktree): Cannot create worktree outside git repo
+- **Branch already exists** (with --worktree): Suggest deleting branch or using different identifier
+- **Worktree path already exists**: Ask user if they want to use existing worktree
 
 ---
 
@@ -329,3 +449,8 @@ Next steps:
 - **AI generates summary and title**: Be concise, actionable, and descriptive
 - **Directory creation**: Ensure `ctx/issues/` directory exists before creating file (Flow B2 only)
 - **Timestamp format**: Always use ISO 8601 format (`YYYY-MM-DDTHH:mm:ssZ`)
+- **Worktree mode**: When `--worktree` flag is used:
+  - All files are created inside the worktree directory
+  - User must `cd` into worktree to continue work
+  - Each worktree is a fully independent work environment
+  - Branch name follows pattern: `issue-{identifier}`

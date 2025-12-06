@@ -16,9 +16,7 @@ if [ -z "$transcript_path" ]; then
 fi
 
 # Get the project root directory (where .claude directory exists)
-# This script is in .claude/hooks/, so project root is ../..
-script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-project_root="$(cd "$script_dir/../.." && pwd)"
+project_root="$PWD"
 ctx_current="$project_root/.ctx.current"
 
 # Update .ctx.current file and get result
