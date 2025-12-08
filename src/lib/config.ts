@@ -3,7 +3,7 @@ import { readFileSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import YAML from 'yaml';
-import { Config } from './types.js';
+import { Config, IssueStoreConfig } from './types.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -54,6 +54,7 @@ export async function loadConfig(projectRoot: string): Promise<Config> {
       },
       work: {
         directory: userConfig.work?.directory || DEFAULT_CONFIG.work?.directory || '.worktrees',
+        issue_store: userConfig.work?.issue_store || DEFAULT_CONFIG.work?.issue_store,
       },
       frontmatter: {
         local: userConfig.frontmatter?.local || DEFAULT_CONFIG.frontmatter.local,
@@ -66,18 +67,27 @@ export async function loadConfig(projectRoot: string): Promise<Config> {
   }
 }
 
+export interface CreateConfigOptions {
+  editor: string;
+  issueStore?: IssueStoreConfig;
+}
+
 /**
  * Create initial config file
  */
 export async function createConfigFile(
   projectRoot: string,
-  options: { editor: string }
+  options: CreateConfigOptions
 ): Promise<void> {
   const configPath = path.join(projectRoot, 'ctx.config.yaml');
 
   const config: Config = {
     ...DEFAULT_CONFIG,
     editor: options.editor,
+    work: {
+      ...DEFAULT_CONFIG.work,
+      issue_store: options.issueStore || DEFAULT_CONFIG.work?.issue_store,
+    },
   };
 
   const yamlContent = YAML.stringify(config);

@@ -31,7 +31,7 @@ export class ClaudeCodePlatform implements Platform {
   }
 
   getSettingsPath(): string {
-    return path.join(this.projectRoot, '.claude', 'settings.local.json');
+    return path.join(this.projectRoot, '.claude', 'settings.json');
   }
 
   async isInstalled(): Promise<boolean> {
@@ -138,7 +138,7 @@ export class ClaudeCodePlatform implements Platform {
   }
 
   /**
-   * Update or create settings.local.json with hook configuration
+   * Update or create settings.json with hook configuration
    */
   private async updateSettingsLocal(hookConfig: any): Promise<void> {
     const settingsPath = this.getSettingsPath();
@@ -166,7 +166,7 @@ export class ClaudeCodePlatform implements Platform {
   }
 
   /**
-   * Update permissions.allow in settings.local.json
+   * Update permissions.allow in settings.json
    * Adds permission if not already present
    */
   private async updatePermissions(permission: string): Promise<void> {
@@ -200,7 +200,7 @@ export class ClaudeCodePlatform implements Platform {
   }
 
   /**
-   * Install hooks from templates to .claude/hooks/ and configure settings.local.json
+   * Install hooks from templates to .claude/hooks/ and configure settings.json
    */
   async installHooks(): Promise<void> {
     const hooksDir = this.getHooksDir();
@@ -232,7 +232,7 @@ export class ClaudeCodePlatform implements Platform {
       }
     }
 
-    // Configure settings.local.json with hooks
+    // Configure settings.json with hooks
     const hookConfig: Record<string, any> = {};
 
     // UserPromptSubmit: track session transcripts
@@ -269,7 +269,7 @@ export class ClaudeCodePlatform implements Platform {
       await this.updateSettingsLocal(hookConfig);
     }
 
-    console.log(chalk.green(`✓ Installed ${templates.length} hook(s) to .claude/hooks/ and configured settings.local.json`));
+    console.log(chalk.green(`✓ Installed ${templates.length} hook(s) to .claude/hooks/ and configured settings.json`));
   }
 
   /**

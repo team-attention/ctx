@@ -19,6 +19,10 @@ global:
     - issues/**
 work:
   directory: .worktrees # automatically added to .gitignore
+  issue_store:
+    type: local # local | github-issue | linear
+    # url: https://github.com/{owner}/{repo}/issues  # for github-issue
+    # url: https://linear.app/{workspace}            # for linear
 frontmatter:
   local: optional
   global: optional

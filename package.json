@@ -1,6 +1,6 @@
 {
   "name": "@11x-lab/ctx",
-  "version": "0.2.8",
+  "version": "0.2.9",
   "description": "Context-driven development CLI tool",
   "type": "module",
   "bin": {

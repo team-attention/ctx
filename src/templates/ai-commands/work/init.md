@@ -1,17 +1,20 @@
 ---
 description: Initialize a new issue (online or offline)
 argument-hint: [-w|--worktree] <url|file-path|requirements>
-allowed-tools: [Read, Write, Bash, mcp__linear-server__get_issue, mcp__linear-server__list_comments]
+allowed-tools: [Read, Write, Bash, mcp__linear-server__get_issue, mcp__linear-server__list_comments, mcp__linear-server__create_issue]
 ---
 
 # Task
 
-Initialize a new issue by creating `.ctx.current` and optionally creating a local issue file.
+Initialize a new issue by creating `.ctx.current` and optionally creating a new issue (local file, GitHub, or Linear based on config).
 
 **Input Types**:
 1. **Online URL** (starts with `http`): GitHub/Linear issue → Online flow
 2. **Local file path** (existing file): Local issue file → Offline flow (use existing)
-3. **Requirements text**: Create new issue file → Offline flow (create new)
+3. **Requirements text**: Create new issue → Based on `{{work.issue_store.type}}` config:
+   - `local`: Create local file in `{{global.directory}}/issues/`
+   - `github-issue`: Create GitHub Issue via `gh` CLI
+   - `linear`: Create Linear Issue via MCP
 
 **Options**:
 - `-w, --worktree`: Create a git worktree for isolated work environment
@@ -93,8 +96,11 @@ From this point forward, all file operations use the worktree path:
 Check `actual_input` (not `$ARGUMENTS`):
 
 1. Starts with `http` → **Online issue** (Flow A)
-2. Is a file path that exists → **Offline issue - existing file** (Flow B1)
-3. Otherwise → **Offline issue - create new** (Flow B2)
+2. Is a file path that exists → **Existing local file** (Flow B1)
+3. Otherwise → **Create new issue** - branch based on `{{work.issue_store.type}}`:
+   - `local` → Flow B2-local (create local file)
+   - `github-issue` → Flow B2-github (create GitHub Issue)
+   - `linear` → Flow B2-linear (create Linear Issue)
 
 ---
 
@@ -207,7 +213,9 @@ Next: Run /ctx.work.plan to generate implementation plan
 
 ---
 
-## Flow B2: Offline Issue - Create New
+## Flow B2-local: Create Local Issue File
+
+> **When**: `{{work.issue_store.type}}` is `local`
 
 ### 2.1 Ensure Directory Exists
 
@@ -316,6 +324,157 @@ Next steps:
 
 ---
 
+## Flow B2-github: Create GitHub Issue
+
+> **When**: `{{work.issue_store.type}}` is `github-issue`
+
+### 2.1 Check GitHub CLI
+
+Verify `gh` CLI is installed and authenticated:
+```bash
+gh auth status
+```
+
+If not authenticated, show error:
+```
+❌ Error: GitHub CLI not authenticated
+Run: gh auth login
+```
+
+### 2.2 Generate Title
+
+**AI task**: Generate a concise, descriptive title from requirements.
+
+Examples:
+- "사용자가 설정 페이지에서 다크모드를 토글할 수 있어야 함" → "Add dark mode toggle"
+- "Fix memory leak in rendering process" → "Fix memory leak in rendering"
+
+### 2.3 Check Existing `.ctx.current`
+
+Same as Flow A step 1.2.
+
+### 2.4 Create GitHub Issue
+
+Extract repo info from `{{work.issue_store.url}}`:
+- Pattern: `https://github.com/{owner}/{repo}/issues`
+- Extract: `owner`, `repo`
+
+Create issue using `gh` CLI:
+```bash
+gh issue create --repo {owner}/{repo} --title "<generated-title>" --body "<requirements>"
+```
+
+Capture the returned issue URL from stdout (e.g., `https://github.com/owner/repo/issues/123`).
+
+### 2.5 Write `.ctx.current`
+
+{{snippet:ctx-current}}
+
+Create the file with `issue` field set to the **GitHub Issue URL** returned from step 2.4.
+
+### 2.6 Show Summary
+
+**If worktree_mode is false:**
+```
+✓ Created GitHub Issue: <title>
+📎 URL: <github-issue-url>
+✓ Initialized .ctx.current
+
+Next: Run /ctx.work.plan to generate implementation plan
+```
+
+**If worktree_mode is true:**
+```
+✓ Worktree created: {{work.directory}}/issue-{identifier}
+✓ Branch: issue-{identifier}
+✓ Created GitHub Issue: <title>
+📎 URL: <github-issue-url>
+
+👉 To start working:
+   cd {{work.directory}}/issue-{identifier}
+
+Next: Run /ctx.work.plan to generate implementation plan
+```
+
+---
+
+## Flow B2-linear: Create Linear Issue
+
+> **When**: `{{work.issue_store.type}}` is `linear`
+
+### 2.1 Check Linear MCP
+
+Verify Linear MCP server is available by attempting to use `mcp__linear-server__create_issue`.
+
+If not available, show error:
+```
+❌ Error: Linear MCP server not available
+Please configure Linear MCP server in your settings.
+```
+
+### 2.2 Generate Title
+
+**AI task**: Generate a concise, descriptive title from requirements.
+
+Examples:
+- "사용자가 설정 페이지에서 다크모드를 토글할 수 있어야 함" → "Add dark mode toggle"
+- "Fix memory leak in rendering process" → "Fix memory leak in rendering"
+
+### 2.3 Check Existing `.ctx.current`
+
+Same as Flow A step 1.2.
+
+### 2.4 Get Team ID from URL
+
+Extract team/workspace info from `{{work.issue_store.url}}`:
+- Pattern: `https://linear.app/{workspace}`
+- The workspace name is used to identify the team
+
+Use `mcp__linear-server__list_teams` (if available) to get the team ID, or ask user to provide it.
+
+### 2.5 Create Linear Issue
+
+Use `mcp__linear-server__create_issue` with:
+- `title`: Generated title from step 2.2
+- `description`: User's requirements
+- `teamId`: From step 2.4
+
+Capture the returned issue identifier (e.g., `ABC-123`) and URL.
+
+### 2.6 Write `.ctx.current`
+
+{{snippet:ctx-current}}
+
+Create the file with `issue` field set to the **Linear Issue URL** (e.g., `https://linear.app/workspace/issue/ABC-123`).
+
+### 2.7 Show Summary
+
+**If worktree_mode is false:**
+```
+✓ Created Linear Issue: <title>
+📎 ID: <issue-id> (e.g., ABC-123)
+📎 URL: <linear-issue-url>
+✓ Initialized .ctx.current
+
+Next: Run /ctx.work.plan to generate implementation plan
+```
+
+**If worktree_mode is true:**
+```
+✓ Worktree created: {{work.directory}}/issue-{identifier}
+✓ Branch: issue-{identifier}
+✓ Created Linear Issue: <title>
+📎 ID: <issue-id>
+📎 URL: <linear-issue-url>
+
+👉 To start working:
+   cd {{work.directory}}/issue-{identifier}
+
+Next: Run /ctx.work.plan to generate implementation plan
+```
+
+---
+
 # Error Handling
 
 - **No arguments**: Show error with usage example:
@@ -332,24 +491,31 @@ Next steps:
 - **Invalid file path**: File doesn't exist or missing required frontmatter
 - **Unsupported URL**: Show supported formats (GitHub, Linear)
 - **GitHub CLI not installed**: Show installation instructions (`gh` CLI required)
+- **GitHub CLI not authenticated**: Run `gh auth login` first
+- **GitHub issue creation failed**: Check repo permissions or network
 - **Linear MCP not available**: Show MCP setup instructions
+- **Linear team not found**: Ask user to verify workspace URL or provide team ID
 - **File creation failed**: Show error with permissions/directory check
 - **Not a git repository** (with --worktree): Cannot create worktree outside git repo
 - **Branch already exists** (with --worktree): Suggest deleting branch or using different identifier
 - **Worktree path already exists**: Ask user if they want to use existing worktree
+- **Invalid issue_store config**: Show supported types (local, github-issue, linear)
 
 ---
 
 # Important Notes
 
 - **DO NOT create implementation plan** - that's done by `/ctx.work.plan`
-- **Online issues**: Only create `.ctx.current` pointing to URL. The plan will be synced to GitHub/Linear as comments by `/ctx.work.plan`
-- **Offline issues**: Create local issue file in `{{global.directory}}/issues/` + `.ctx.current` pointing to it
+- **Issue store config** (`{{work.issue_store.type}}`):
+  - `local`: Create file in `{{global.directory}}/issues/`, `.ctx.current` points to file path
+  - `github-issue`: Create GitHub Issue via `gh` CLI, `.ctx.current` points to issue URL
+  - `linear`: Create Linear Issue via MCP, `.ctx.current` points to issue URL
+- **Online URL input** (starts with `http`): Always use Flow A regardless of `issue_store.type`
 - **Status management**:
-  - Offline issues: `initialized` → `in_progress` (after `/ctx.work.plan`)
-  - Online issues: Status managed on GitHub/Linear platform
+  - Local issues: `initialized` → `in_progress` (after `/ctx.work.plan`)
+  - GitHub/Linear issues: Status managed on respective platforms
 - **AI generates summary and title**: Be concise, actionable, and descriptive
-- **Directory creation**: Ensure `{{global.directory}}/issues/` directory exists before creating file (Flow B2 only)
+- **Directory creation**: Ensure `{{global.directory}}/issues/` directory exists before creating file (Flow B2-local only)
 - **Timestamp format**: Always use ISO 8601 format (`YYYY-MM-DDTHH:mm:ssZ`)
 - **Worktree mode**: When `--worktree` flag is used:
   - All files are created inside the worktree directory
