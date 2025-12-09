@@ -4,6 +4,8 @@ argument-hint: ""
 allowed-tools: [Read, Write, Edit, Bash, TodoWrite, mcp__linear-server__list_comments, mcp__linear-server__get_issue]
 ---
 
+{{snippet:load-config}}
+
 # Task
 
 Extract valuable context from the current work session (chat history, issue comments, PR reviews) and update global and local context files. This command helps preserve important decisions, patterns, and feedback for future development.

@@ -4,6 +4,8 @@ argument-hint: [--skip-extract]
 allowed-tools: [Read, Write, Edit, Bash, TodoWrite, SlashCommand, mcp__linear-server__list_comments, mcp__linear-server__get_issue]
 ---
 
+{{snippet:load-config}}
+
 # Task
 
 Complete the current work session by extracting valuable context and cleaning up the workspace (`.ctx.current`). This command marks the end of the issue lifecycle.

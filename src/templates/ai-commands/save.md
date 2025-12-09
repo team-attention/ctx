@@ -3,6 +3,8 @@ description: Save context (create or update) - unified command for local and glo
 argument-hint: [path] [description]
 ---
 
+{{snippet:load-config}}
+
 You are assisting with saving context documentation using a unified interface.
 
 # Arguments

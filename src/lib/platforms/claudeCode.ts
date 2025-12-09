@@ -4,7 +4,6 @@ import { fileURLToPath } from 'url';
 import chalk from 'chalk';
 import { Platform } from './types.js';
 import { getAICommandTemplates, loadAICommandTemplate, getHookTemplates, loadHookTemplate } from '../templates.js';
-import { loadConfig, flattenConfig } from '../config.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -50,10 +49,6 @@ export class ClaudeCodePlatform implements Platform {
     // Create .claude/commands directory
     await fs.mkdir(commandsDir, { recursive: true });
 
-    // Load config and flatten to placeholders
-    const config = await loadConfig(this.projectRoot);
-    const placeholders = flattenConfig(config);
-
     // Get all AI command templates
     const templates = await getAICommandTemplates();
 
@@ -62,18 +57,14 @@ export class ClaudeCodePlatform implements Platform {
       return;
     }
 
-    // Copy each template with ctx. prefix and substitute placeholders
+    // Copy each template with ctx. prefix
+    // Config placeholders ({{work.directory}}, etc.) are kept as-is
+    // AI will resolve them at runtime by reading ctx.config.yaml
     for (const templateName of templates) {
       let content = await loadAICommandTemplate(templateName);
 
-      // Resolve snippets first (before config placeholders)
+      // Resolve snippets only (config placeholders stay as-is for runtime resolution)
       content = await this.resolveSnippets(content);
-
-      // Substitute all config placeholders
-      for (const [key, value] of Object.entries(placeholders)) {
-        const placeholder = `{{${key}}}`;
-        content = content.replaceAll(placeholder, value);
-      }
 
       // Convert path separators to dots for command name
       // e.g., 'work/plan.md' -> 'ctx.work.plan.md'
@@ -97,10 +88,6 @@ export class ClaudeCodePlatform implements Platform {
       throw new Error('AI commands not installed. Run `ctx init` first.');
     }
 
-    // Load config and flatten to placeholders
-    const config = await loadConfig(this.projectRoot);
-    const placeholders = flattenConfig(config);
-
     const templates = await getAICommandTemplates();
     let updated = 0;
 
@@ -111,14 +98,8 @@ export class ClaudeCodePlatform implements Platform {
       const targetPath = path.join(commandsDir, `ctx.${commandName}`);
       let templateContent = await loadAICommandTemplate(templateName);
 
-      // Resolve snippets first (before config placeholders)
+      // Resolve snippets only (config placeholders stay as-is for runtime resolution)
       templateContent = await this.resolveSnippets(templateContent);
-
-      // Substitute all config placeholders
-      for (const [key, value] of Object.entries(placeholders)) {
-        const placeholder = `{{${key}}}`;
-        templateContent = templateContent.replaceAll(placeholder, value);
-      }
 
       // Check if file exists and content is different
       try {

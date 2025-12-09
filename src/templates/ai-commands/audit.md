@@ -3,6 +3,8 @@ description: Audit context health (mechanical + semantic analysis)
 argument-hint: [description for focused review]
 ---
 
+{{snippet:load-config}}
+
 You are performing a comprehensive audit of the context ecosystem.
 
 # Arguments

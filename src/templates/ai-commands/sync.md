@@ -3,6 +3,8 @@ description: Sync context registry (mechanical operation)
 argument-hint: [--local|--global]
 ---
 
+{{snippet:load-config}}
+
 You are assisting with syncing the context registry.
 
 # Arguments
