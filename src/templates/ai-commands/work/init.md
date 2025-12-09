@@ -434,18 +434,18 @@ Extract team/workspace info from `{{work.issue_store.url}}`:
 
 Use `mcp__linear-server__list_teams` (if available) to get the team ID, or ask user to provide it.
 
-### 2.5 Validate project_id
+### 2.5 Validate project
 
-Check if `{{work.issue_store.project_id}}` is configured. If not, show error:
+Check if `{{work.issue_store.project}}` is configured. If not, show error:
 ```
-❌ Error: project_id is required for Linear issue store
-Please add project_id to your ctx.config.yaml:
+❌ Error: project is required for Linear issue store
+Please add project to your ctx.config.yaml:
 
 work:
   issue_store:
     type: linear
     url: https://linear.app/{workspace}
-    project_id: YOUR_PROJECT_ID
+    project: YOUR_PROJECT_NAME
 ```
 
 ### 2.6 Create Linear Issue
@@ -454,9 +454,9 @@ Use `mcp__linear-server__create_issue` with:
 - `title`: Generated title from step 2.2
 - `description`: User's requirements
 - `teamId`: From step 2.4
-- `projectId`: From `{{work.issue_store.project_id}}`
+- `project`: From `{{work.issue_store.project}}`
 
-Capture the returned issue identifier (e.g., `ABC-123`) and URL.
+Capture the returned issue identifier (e.g., `ABC-123`) and URL.  
 
 ### 2.7 Write `.ctx.current`
 

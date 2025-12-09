@@ -9,7 +9,7 @@ Before executing this command, read `ctx.config.yaml` from the project root to r
 | `{{work.directory}}` | `work.directory` | `.worktrees` |
 | `{{work.issue_store.type}}` | `work.issue_store.type` | `local` |
 | `{{work.issue_store.url}}` | `work.issue_store.url` | - |
-| `{{work.issue_store.project_id}}` | `work.issue_store.project_id` | - |
+| `{{work.issue_store.project}}` | `work.issue_store.project` | - |
 
 **How to resolve:**
 1. Read `ctx.config.yaml` using the Read tool

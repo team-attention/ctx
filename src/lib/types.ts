@@ -16,7 +16,7 @@ export type IssueStoreType = 'local' | 'github-issue' | 'linear';
 export interface IssueStoreConfig {
   type: IssueStoreType;
   url?: string; // Optional for 'local', required for 'github-issue' and 'linear'
-  project_id?: string; // Required for 'linear'
+  project?: string; // Required for 'linear'
 }
 
 export interface Config {

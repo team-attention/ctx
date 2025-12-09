@@ -23,7 +23,7 @@ work:
     type: local # local | github-issue | linear
     # url: https://github.com/{owner}/{repo}/issues  # required for github-issue
     # url: https://linear.app/{workspace}  # required for linear
-    # project_id: PROJECT_ID  # required for linear
+    # project: PROJECT NAME  # required for linear
 frontmatter:
   local: optional
   global: optional
