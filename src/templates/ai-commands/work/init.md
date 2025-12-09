@@ -54,18 +54,22 @@ If not a git repo, show error and suggest using without `--worktree` flag.
 
 ### 0.5.2 Determine Identifier
 
-Based on `actual_input` type:
+Based on `actual_input` type, generate identifier with timestamp suffix:
 
-| Input Type | Identifier | Example |
-|------------|------------|---------|
-| GitHub URL | Issue number | `123` |
-| Linear URL | Issue ID | `ABC-123` |
-| File path | Filename stem | `2025-11-19-1430_feature` |
-| Requirements | Timestamp | `20251203-1430` |
+| Input Type | Base Identifier | Final Identifier (with suffix) |
+|------------|-----------------|-------------------------------|
+| GitHub URL | Issue number | `123-20251203_1430` |
+| Linear URL | Issue ID | `ABC-123-20251203_1430` |
+| File path | Summary from filename | `add-dark-mode-20251203_1430` |
+| Requirements | AI-generated summary | `add-jwt-auth-20251203_1430` |
+
+**Timestamp suffix format**: `-{YYYYMMDD_HHmm}` (current date and time)
 
 **Extraction patterns**:
-- GitHub: `/issues/(\d+)` → `123`
-- Linear: `/issue/([A-Z]+-\d+)` → `ABC-123`
+- GitHub: `/issues/(\d+)` → `123` → `123-20251203_1430`
+- Linear: `/issue/([A-Z]+-\d+)` → `ABC-123` → `ABC-123-20251203_1430`
+- File path: Extract summary from filename (e.g., `2025-11-19-1430_add-dark-mode.md` → `add-dark-mode`) → `add-dark-mode-20251203_1430`
+- Requirements: Generate summary using same rules as Flow B2-local Step 2.2 → `add-jwt-auth-20251203_1430`
 
 ### 0.5.3 Create Worktree
 
@@ -81,7 +85,7 @@ git worktree add {{work.directory}}/issue-{identifier} -b issue-{identifier}
 Solutions:
 1. Delete existing branch: git branch -d issue-{identifier}
 2. Remove stale worktree: git worktree remove {{work.directory}}/issue-{identifier}
-3. Use different identifier
+3. Wait a minute and retry (timestamp will change)
 ```
 
 ### 0.5.4 Create Symlinks (if configured)
@@ -93,7 +97,7 @@ If `{{work.symlinks}}` is configured and not empty, create symlinks from worktre
 WORKTREE="{{work.directory}}/issue-{identifier}"
 MAIN_REPO="$(pwd)"
 
-# Calculate relative path depth (e.g., .worktrees/issue-123 = 2 levels)
+# Calculate relative path depth (e.g., .worktrees/issue-123-20251203_1430 = 2 levels)
 RELATIVE_PREFIX="../.."
 
 # Example: .env.local
