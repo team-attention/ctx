@@ -4,6 +4,8 @@ argument-hint: [-w|--worktree] <url|file-path|requirements>
 allowed-tools: [Read, Write, Bash, mcp__linear-server__get_issue, mcp__linear-server__list_comments, mcp__linear-server__create_issue]
 ---
 
+{{snippet:load-config}}
+
 # Task
 
 Initialize a new issue by creating `.ctx.current` and optionally creating a new issue (local file, GitHub, or Linear based on config).
@@ -432,22 +434,37 @@ Extract team/workspace info from `{{work.issue_store.url}}`:
 
 Use `mcp__linear-server__list_teams` (if available) to get the team ID, or ask user to provide it.
 
-### 2.5 Create Linear Issue
+### 2.5 Validate project_id
+
+Check if `{{work.issue_store.project_id}}` is configured. If not, show error:
+```
+❌ Error: project_id is required for Linear issue store
+Please add project_id to your ctx.config.yaml:
+
+work:
+  issue_store:
+    type: linear
+    url: https://linear.app/{workspace}
+    project_id: YOUR_PROJECT_ID
+```
+
+### 2.6 Create Linear Issue
 
 Use `mcp__linear-server__create_issue` with:
 - `title`: Generated title from step 2.2
 - `description`: User's requirements
 - `teamId`: From step 2.4
+- `projectId`: From `{{work.issue_store.project_id}}`
 
 Capture the returned issue identifier (e.g., `ABC-123`) and URL.
 
-### 2.6 Write `.ctx.current`
+### 2.7 Write `.ctx.current`
 
 {{snippet:ctx-current}}
 
 Create the file with `issue` field set to the **Linear Issue URL** (e.g., `https://linear.app/workspace/issue/ABC-123`).
 
-### 2.7 Show Summary
+### 2.8 Show Summary
 
 **If worktree_mode is false:**
 ```
