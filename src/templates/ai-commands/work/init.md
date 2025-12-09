@@ -84,7 +84,45 @@ Solutions:
 3. Use different identifier
 ```
 
-### 0.5.4 Set Working Directory Context
+### 0.5.4 Create Symlinks (if configured)
+
+If `{{work.symlinks}}` is configured and not empty, create symlinks from worktree to main repo:
+
+```bash
+# For each path in {{work.symlinks}}:
+WORKTREE="{{work.directory}}/issue-{identifier}"
+MAIN_REPO="$(pwd)"
+
+# Calculate relative path depth (e.g., .worktrees/issue-123 = 2 levels)
+RELATIVE_PREFIX="../.."
+
+# Example: .env.local
+if [ -f "$MAIN_REPO/.env.local" ]; then
+  ln -sf "$RELATIVE_PREFIX/.env.local" "$WORKTREE/.env.local"
+fi
+
+# Example: .claude/settings.local.json (nested path)
+if [ -f "$MAIN_REPO/.claude/settings.local.json" ]; then
+  mkdir -p "$WORKTREE/.claude"
+  ln -sf "../../.claude/settings.local.json" "$WORKTREE/.claude/settings.local.json"
+fi
+```
+
+**Rules**:
+- Only create symlink if source file exists in main repo
+- Create parent directories in worktree if needed (e.g., `.claude/`)
+- Use relative symlinks for portability
+- Show warning for missing files:
+  ```
+  ⚠️ Skipping symlink: .env.local (not found in main repo)
+  ```
+- Show success for created symlinks:
+  ```
+  🔗 Symlinked: .env.local
+  🔗 Symlinked: .claude/settings.local.json
+  ```
+
+### 0.5.5 Set Working Directory Context
 
 From this point forward, all file operations use the worktree path:
 - `WORKTREE_PATH = {{work.directory}}/issue-{identifier}`

@@ -24,6 +24,9 @@ work:
     # url: https://github.com/{owner}/{repo}/issues  # required for github-issue
     # url: https://linear.app/{workspace}  # required for linear
     # project: PROJECT NAME  # required for linear
+  symlinks: # files to symlink from main repo to worktree (optional)
+    # - .env.local
+    # - .claude/settings.local.json
 frontmatter:
   local: optional
   global: optional
