@@ -64,22 +64,14 @@ This determines whether to create a new PR or just push to existing one.
 
 ## Step 3: Create Commit
 
-Use the `/ctx.work.commit` command to stage changes and create a conventional commit.
+Read `.claude/commands/ctx.work.commit.md` and follow those instructions to create a commit.
 
 **If user provided commit message in `$ARGUMENTS`:**
-- Pass the message to `/ctx.work.commit`
+- Pass the message when following the commit instructions
 
-**If no message provided:**
-- `/ctx.work.commit` will automatically analyze changes and generate an appropriate message
-
-The `/ctx.work.commit` command handles:
-- Staging files (if not already staged)
-- Analyzing changes for appropriate commit type
-- Generating conventional commit message with emoji
-- Including issue link from `.ctx.current` (if exists)
-- Running pre-commit hooks
-
-Mark todo as completed after commit is created.
+**After commit is created:**
+- Mark todo as completed
+- **Continue immediately to Step 4** (do not stop here)
 
 ---
 
