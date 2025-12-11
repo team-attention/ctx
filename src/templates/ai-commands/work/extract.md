@@ -95,6 +95,40 @@ Extract:
 
 ---
 
+## Step 2.5: Check Existing Context Files
+
+Before analyzing, read existing context files to understand what's already documented.
+
+### 2.5.1 List Global Context Files
+
+```bash
+ls -la {{global.directory}}/
+```
+
+Or if the directory has subdirectories:
+```bash
+find {{global.directory}} -name "*.md" -type f
+```
+
+Read key existing files to understand current documentation structure and what topics are already covered.
+
+### 2.5.2 Find Local Context Files
+
+Check if `.ctx.md` files already exist for affected files:
+
+```bash
+find . -name "*.ctx.md" -type f 2>/dev/null | head -20
+```
+
+Read relevant existing local context files, especially those near files changed in this session.
+
+**Why check existing files?**
+- Avoid creating duplicate documentation
+- Extend existing context rather than fragmenting knowledge
+- Maintain consistency with established documentation patterns
+
+---
+
 ## Step 3: Analyze & Extract Context
 
 Use TodoWrite to mark analysis step as in_progress.
@@ -119,86 +153,177 @@ Use TodoWrite to mark analysis step as in_progress.
 
 ### Output Format
 
-Generate a structured proposal in markdown:
+Generate a structured report with **two main sections**: feedback summary first, then context proposals.
 
 ```markdown
-# Context Extraction Proposal
+# Context Extraction Report
 
-## Global Context Suggestions
+## 1. Session Feedback Summary
 
-### Pattern: Error Handling with Result<T, E>
-**Relevance**: High - Used across multiple modules
-**Description**:
-We adopted the Result<T, E> pattern for error handling instead of throwing exceptions. This provides better type safety and forces explicit error handling.
+A summary of user feedback, decisions, and requirements from this work session.
 
-**Suggested file**: `{{global.directory}}/patterns/error-handling.md`
+### Key Decisions Made
+
+| Topic | Decision | Reason |
+|-------|----------|--------|
+| Error handling | Use Result<T, E> pattern | Type safety, explicit handling |
+| Validation | Type guards over assertions | Runtime safety |
+
+### User Feedback & Requirements
+
+Direct quotes or paraphrased feedback from the user during this session:
+
+- "에러 핸들링은 Result 패턴으로 통일하자"
+- "타입 가드를 더 적극적으로 쓰면 좋겠다"
+- "Stripe webhook은 idempotency key로 중복 처리해야 함"
+
+### Questions Resolved
+
+| Question | Resolution |
+|----------|------------|
+| How to handle duplicate webhooks? | Use idempotency keys |
+| Which error pattern to use? | Result<T, E> over try-catch |
 
 ---
 
-### Convention: Type Guards Over Type Assertions
-**Relevance**: Medium - Coding standard
-**Description**:
+## 2. Context Update Proposals
+
+Based on the feedback above, here are the suggested context updates.
+
+### Global Context
+
+#### Proposal G1: Update existing file (Recommended)
+**Target**: `{{global.directory}}/patterns/error-handling.md`
+**Action**: UPDATE - Add new section
+**Why update instead of create**: File already covers error handling patterns; this extends it.
+
+**Current file preview**:
+```
+# Error Handling Patterns
+## Try-Catch Guidelines
+...
+```
+
+**Proposed addition**:
+```markdown
+## Result Pattern
+
+We adopted the Result<T, E> pattern for error handling instead of throwing exceptions.
+This provides better type safety and forces explicit error handling at compile time.
+```
+
+---
+
+#### Proposal G2: Create new file
+**Target**: `{{global.directory}}/conventions/type-guards.md`
+**Action**: CREATE
+**Why create**: No existing file covers type guard conventions.
+
+**Proposed content**:
+```markdown
+# Type Guard Conventions
+
 Prefer type guard functions (`isFoo(x)`) over type assertions (`x as Foo`) for better runtime safety.
-
-**Suggested file**: `{{global.directory}}/conventions/typescript.md`
-
----
-
-## Local Context Suggestions
-
-### File: `src/services/payment.ts`
-**Context**:
-- Uses Result pattern for payment processing (see global pattern)
-- Special handling for Stripe webhook signature verification
-- Retry logic: 3 attempts with exponential backoff (2^n seconds)
-- Edge case: Handle duplicate webhook events using idempotency keys
-
-**Dependencies**:
-- Depends on `src/lib/stripe-client.ts` for API calls
-- Exports types used by `src/api/payment-routes.ts`
+```
 
 ---
 
-### File: `src/lib/stripe-client.ts`
-**Context**:
-- Singleton pattern for Stripe client initialization
-- API key loaded from environment variable `STRIPE_SECRET_KEY`
-- Timeout configured to 30 seconds (higher than default due to webhook processing)
+### Local Context
 
-**Performance**:
-- Connection pooling enabled for better performance under load
+#### Proposal L1: `src/services/payment.ts`
+
+**Existing context file**: `src/services/payment.ctx.md`
+**Status**: EXISTS / DOES NOT EXIST
+
+**If EXISTS - Proposed changes**:
+- Add to "Implementation Details" section: Result pattern usage
+- Add new "Edge Cases" section: Idempotency key handling for webhooks
+
+**If DOES NOT EXIST - Create with**:
+```markdown
+# payment.ts Context
+
+## Implementation Details
+- Uses Result pattern for payment processing
+- Stripe webhook signature verification
+
+## Edge Cases
+- Handle duplicate webhook events using idempotency keys
+
+## Dependencies
+- `src/lib/stripe-client.ts` for Stripe API calls
+```
+
+---
+
+#### Proposal L2: `src/lib/stripe-client.ts`
+
+**Existing context file**: `src/lib/stripe-client.ctx.md`
+**Status**: DOES NOT EXIST
+
+**Proposed content**:
+```markdown
+# stripe-client.ts Context
+
+## Implementation Details
+- Singleton pattern for client initialization
+- API key from `STRIPE_SECRET_KEY` env var
+- 30 second timeout (higher than default for webhook processing)
+
+## Performance
+- Connection pooling enabled for better throughput
+```
 
 ---
 
 ## Summary
 
-- **Global contexts**: 2 patterns/conventions to add
-- **Local contexts**: 2 files to update
-- **Affected files**: `src/services/payment.ts`, `src/lib/stripe-client.ts`
+| # | Type | Action | Target File |
+|---|------|--------|-------------|
+| G1 | Global | UPDATE | patterns/error-handling.md |
+| G2 | Global | CREATE | conventions/type-guards.md |
+| L1 | Local | CREATE | src/services/payment.ctx.md |
+| L2 | Local | CREATE | src/lib/stripe-client.ctx.md |
+
+**Total**: 2 global updates, 2 local context files
 ```
 
 ---
 
 ## Step 4: Get User Approval
 
-**Present the proposal** to the user and ask for review:
+**Present the report** to the user and ask for review:
 
 ```
 📋 Context Extraction Complete
 
-I've analyzed the work session and identified valuable context to preserve:
+## Session Feedback Summary
 
-## Global Context (2)
-✓ Pattern: Error Handling with Result<T, E>
-✓ Convention: Type Guards Over Type Assertions
+| Topic | Decision |
+|-------|----------|
+| Error handling | Use Result<T, E> pattern |
+| Validation | Type guards over assertions |
 
-## Local Context (2 files)
-✓ src/services/payment.ts
-✓ src/lib/stripe-client.ts
+Key feedback captured:
+- "에러 핸들링은 Result 패턴으로 통일하자"
+- "Stripe webhook은 idempotency key로 중복 처리"
+
+---
+
+## Proposed Context Updates
+
+| # | Action | Target |
+|---|--------|--------|
+| G1 | UPDATE | patterns/error-handling.md |
+| G2 | CREATE | conventions/type-guards.md |
+| L1 | CREATE | src/services/payment.ctx.md |
+| L2 | CREATE | src/lib/stripe-client.ctx.md |
+
+---
 
 Would you like to:
-1. ✅ Approve all suggestions
-2. ✏️  Review and edit before applying
+1. ✅ Approve all proposals
+2. ✏️  Review details and edit before applying
 3. ❌ Cancel
 
 Please respond with 1, 2, or 3.
@@ -362,18 +487,44 @@ rules/             # Team guidelines
 
 ## Example 1: After Feature Implementation
 
-**Input**: Session about adding JWT authentication
-**Global Context**: "Authentication pattern: Use JWT with refresh tokens"
-**Local Contexts**:
-- `src/auth/jwt.ts`: "JWT signing uses RS256 algorithm, keys from env vars"
-- `src/middleware/auth.ts`: "Validates token on every protected route"
+**Session**: Adding JWT authentication
 
-## Example 2: After Bug Fix
+**Feedback Summary**:
+| Topic | Decision | Reason |
+|-------|----------|--------|
+| Token type | JWT with refresh tokens | Stateless, scalable |
+| Algorithm | RS256 | Asymmetric, more secure |
 
-**Input**: Session about fixing memory leak
-**Global Context**: "Performance: Always cleanup event listeners in cleanup hooks"
-**Local Context**:
-- `src/components/Chart.ts`: "Fixed memory leak by removing listeners in componentWillUnmount"
+User feedback:
+- "리프레시 토큰 만료는 7일로 하자"
+- "토큰 검증은 미들웨어에서 통일"
+
+**Context Proposals**:
+| # | Action | Target |
+|---|--------|--------|
+| G1 | CREATE | patterns/authentication.md |
+| L1 | CREATE | src/auth/jwt.ctx.md |
+| L2 | CREATE | src/middleware/auth.ctx.md |
+
+## Example 2: After Bug Fix with Existing Context
+
+**Session**: Fixing memory leak in Chart component
+
+**Feedback Summary**:
+| Topic | Decision | Reason |
+|-------|----------|--------|
+| Event cleanup | Always in unmount | Prevent memory leaks |
+
+User feedback:
+- "이벤트 리스너 정리 패턴을 전역 컨벤션으로 추가하자"
+
+**Context Proposals**:
+| # | Action | Target |
+|---|--------|--------|
+| G1 | UPDATE | conventions/react-lifecycle.md (add cleanup section) |
+| L1 | UPDATE | src/components/Chart.ctx.md (add bug fix context) |
+
+Note: In this example, existing context files are updated rather than creating new ones.
 
 ---
 
