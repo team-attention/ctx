@@ -161,12 +161,51 @@ mcp__linear-server__create_comment(issueId: "<id>", body: "✅ Work completed...
 
 ---
 
-## Step 5: Cleanup Workspace
+## Step 5: Cleanup Workspace (MUST ALWAYS EXECUTE)
 
-### 5.1 Archive Session Info (optional)
+**IMPORTANT**: This step MUST execute even if previous steps fail. Do not exit early.
 
-If `.ctx.current` contains session paths, they are already saved.
-No additional action needed - sessions are preserved for future reference.
+### 5.1 Archive to history.jsonl
+
+Append the session info to `{{global.directory}}/history.jsonl`:
+
+```bash
+# Get current branch and PR info
+branch=$(git branch --show-current 2>/dev/null || echo "unknown")
+pr_url=$(gh pr view --json url -q .url 2>/dev/null || echo "")
+commit_count=$(git rev-list --count origin/main..HEAD 2>/dev/null || echo "0")
+```
+
+Create a JSON entry and append to history:
+
+```python
+import json
+import os
+from datetime import datetime
+
+# Read .ctx.current
+with open('.ctx.current', 'r') as f:
+    ctx_data = json.load(f)
+
+# Build history entry
+entry = {
+    "issue": ctx_data.get("issue", ""),
+    "sessions": ctx_data.get("sessions", []),
+    "completed_at": datetime.now().isoformat(),
+    "branch": "<branch>",
+    "pr_url": "<pr_url>" if "<pr_url>" else None,
+    "commits": int("<commit_count>")
+}
+
+# Append to history.jsonl
+history_path = "{{global.directory}}/history.jsonl"
+with open(history_path, 'a') as f:
+    f.write(json.dumps(entry) + '\n')
+
+print(f"✓ Session archived to {history_path}")
+```
+
+**If archive fails**: Log warning but continue to cleanup.
 
 ### 5.2 Delete .ctx.current
 
@@ -175,6 +214,8 @@ rm .ctx.current
 ```
 
 This marks the workspace as clean and ready for a new issue.
+
+**If delete fails**: Log error with details (likely permission issue).
 
 ### 5.3 Check for Worktree
 
@@ -255,11 +296,15 @@ Ready for next issue! Run /ctx.work.init to start.
 
 # Error Handling
 
+**CRITICAL**: Step 5 (Cleanup) MUST always execute regardless of errors in earlier steps.
+
 - **No .ctx.current**: Show error and suggest running `/ctx.work.init`
-- **Extract fails**: Ask user if they want to continue without extraction
-- **Issue file not found**: Warning but continue with cleanup
-- **Git commands fail**: Warning but continue with cleanup
-- **Online provider unavailable**: Skip status update, continue with cleanup
+- **Extract fails**: Ask user if they want to continue, then proceed to Step 5
+- **Issue file not found**: Warning but continue with cleanup (Step 5)
+- **Git commands fail**: Warning but continue with cleanup (Step 5)
+- **Online provider unavailable**: Skip status update, continue with cleanup (Step 5)
+- **Archive to history.jsonl fails**: Warning but continue to delete .ctx.current
+- **Delete .ctx.current fails**: Log error with permission details
 
 ---
 

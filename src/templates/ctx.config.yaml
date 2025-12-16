@@ -17,6 +17,7 @@ global:
     - README.md
     - "*-context-registry.yml"
     - issues/**
+    - history.jsonl
 work:
   directory: .worktrees # automatically added to .gitignore
   issue_store:

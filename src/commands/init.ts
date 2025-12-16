@@ -243,6 +243,13 @@ Feel free to create your own structure that fits your project needs.
       console.log(chalk.green(`✓ Added .ctx.current to .gitignore`));
     }
 
+    // Add history.jsonl to .gitignore
+    const globalDir = config.global?.directory || 'ctx';
+    const historyAdded = await addToGitignore(projectRoot, `${globalDir}/history.jsonl`);
+    if (historyAdded) {
+      console.log(chalk.green(`✓ Added ${globalDir}/history.jsonl to .gitignore`));
+    }
+
     console.log(chalk.blue.bold('\n✨ Initialization complete!\n'));
     console.log(chalk.gray('Next steps:'));
     console.log(chalk.gray('  1. Create your first context file: ') + chalk.white('<filename>.ctx.md'));

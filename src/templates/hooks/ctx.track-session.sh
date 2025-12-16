@@ -23,16 +23,24 @@ ctx_current="$project_root/.ctx.current"
 result=$(python3 << EOF
 import json
 import os
+import sys
 
 ctx_path = "$ctx_current"
 transcript = "$transcript_path"
 
 # Read current .ctx.current
-if os.path.exists(ctx_path):
-    with open(ctx_path, 'r') as f:
-        data = json.load(f)
-else:
-    data = {}
+if not os.path.exists(ctx_path):
+    # No .ctx.current file - skip session tracking
+    print("No .ctx.current found - session not tracked (run /ctx.work.init first)")
+    sys.exit(0)
+
+with open(ctx_path, 'r') as f:
+    data = json.load(f)
+
+# Check if issue field exists
+if 'issue' not in data or not data['issue']:
+    print("⚠️ .ctx.current has no issue field - session not tracked")
+    sys.exit(0)
 
 # Initialize sessions array if not exists
 if 'sessions' not in data:
