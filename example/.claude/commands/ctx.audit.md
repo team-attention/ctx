@@ -3,6 +3,26 @@ description: Audit context health (mechanical + semantic analysis)
 argument-hint: [description for focused review]
 ---
 
+## Runtime Config Resolution
+
+Before executing this command, read `ctx.config.yaml` from the project root to resolve configuration variables.
+
+**Config Variables Used:**
+| Variable | Config Path | Default |
+|----------|-------------|---------|
+| `{{global.directory}}` | `global.directory` | `ctx` |
+| `{{work.directory}}` | `work.directory` | `.worktrees` |
+| `{{work.issue_store.type}}` | `work.issue_store.type` | `local` |
+| `{{work.issue_store.url}}` | `work.issue_store.url` | - |
+| `{{work.issue_store.project}}` | `work.issue_store.project` | - |
+
+**How to resolve:**
+1. Read `ctx.config.yaml` using the Read tool
+2. Parse YAML content
+3. Replace `{{variable}}` placeholders with actual config values
+4. Use defaults if config values are not set
+
+
 You are performing a comprehensive audit of the context ecosystem.
 
 # Arguments
@@ -204,8 +224,8 @@ Each issue contains:
 # Reference
 
 ## Registry Locations
-- Local: `ctx/local-context-registry.yml`
-- Global: `ctx/global-context-registry.yml`
+- Local: `{{global.directory}}/local-context-registry.yml`
+- Global: `{{global.directory}}/global-context-registry.yml`
 
 ## Related Commands
 
@@ -265,7 +285,7 @@ AI:
 
 #### ⚡ Contradictions (1)
 - **Conflict**: Error handling strategy
-  - `ctx/rules/errors.md`: "Always throw exceptions for errors"
+  - `{{global.directory}}/rules/errors.md`: "Always throw exceptions for errors"
   - `src/services/api.ctx.md`: "Return Result<T, E> type for errors"
   - **Impact**: Inconsistent error handling across codebase
   - **Recommendation**: Decide on one strategy, update the other context
@@ -302,7 +322,7 @@ AI:
 [Runs: npx ctx check]
 [Runs: npx ctx status --json]
 [Filters contexts where preview.what matches "인증", "auth", "authentication", "JWT", etc.]
-[Full reads: src/auth/jwt.ctx.md, src/auth/middleware.ctx.md, ctx/rules/auth.md]
+[Full reads: src/auth/jwt.ctx.md, src/auth/middleware.ctx.md, {{global.directory}}/rules/auth.md]
 [Also reads target files for local contexts]
 
 ## 🔍 Context Audit Report (Focused: 인증)
@@ -346,7 +366,7 @@ AI:
 - ✅ `when`: Scenarios still valid
 - ⚠️ Content: References removed code
 
-#### ctx/rules/auth.md
+#### {{global.directory}}/rules/auth.md
 - ✅ `what`: Clear and accurate
 - ✅ `when`: Comprehensive
 - ✅ Content: Up to date

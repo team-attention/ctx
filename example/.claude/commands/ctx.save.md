@@ -3,6 +3,26 @@ description: Save context (create or update) - unified command for local and glo
 argument-hint: [path] [description]
 ---
 
+## Runtime Config Resolution
+
+Before executing this command, read `ctx.config.yaml` from the project root to resolve configuration variables.
+
+**Config Variables Used:**
+| Variable | Config Path | Default |
+|----------|-------------|---------|
+| `{{global.directory}}` | `global.directory` | `ctx` |
+| `{{work.directory}}` | `work.directory` | `.worktrees` |
+| `{{work.issue_store.type}}` | `work.issue_store.type` | `local` |
+| `{{work.issue_store.url}}` | `work.issue_store.url` | - |
+| `{{work.issue_store.project}}` | `work.issue_store.project` | - |
+
+**How to resolve:**
+1. Read `ctx.config.yaml` using the Read tool
+2. Parse YAML content
+3. Replace `{{variable}}` placeholders with actual config values
+4. Use defaults if config values are not set
+
+
 You are assisting with saving context documentation using a unified interface.
 
 # Arguments
@@ -11,7 +31,7 @@ You are assisting with saving context documentation using a unified interface.
 
 Examples:
 - `src/services/payment.ctx.md Add webhook handling` (local context-path)
-- `ctx/rules/api.md Add REST versioning guidelines` (global context-path)
+- `{{global.directory}}/rules/api.md Add REST versioning guidelines` (global context-path)
 - `src/services/payment.ts Document payment processing` (target-path)
 - `Document the auth flow` (description-only, semantic mode)
 
@@ -27,8 +47,8 @@ Save context based on the provided arguments, automatically detecting scope (loc
 
 ```
 First token analysis:
-1. Ends with `.ctx.md` → context-path (local if not in ctx/, global if in ctx/)
-2. Starts with `ctx/` and ends with `.md` → context-path (global)
+1. Ends with `.ctx.md` → context-path (local if not in {{global.directory}}/, global if in {{global.directory}}/)
+2. Starts with `{{global.directory}}/` and ends with `.md` → context-path (global)
 3. Matches code file extension (*.ts, *.js, *.py, *.go, *.rs, *.java, *.tsx, *.jsx) → target-path
 4. None of above → description-only (semantic mode)
 ```
@@ -213,7 +233,7 @@ Use UPDATE mode or specify a different path
 
 ```
 ❌ Error: Invalid context path format
-Expected: *.ctx.md (local) or ctx/**/*.md (global)
+Expected: *.ctx.md (local) or {{global.directory}}/**/*.md (global)
 ```
 
 ```
@@ -227,8 +247,8 @@ Creating new context file
 
 | Input Pattern | Type | Scope | Action |
 |---------------|------|-------|--------|
-| `*.ctx.md` (not in ctx/) | context-path | local | Direct file handling |
-| `ctx/**/*.md` | context-path | global | Direct file handling |
+| `*.ctx.md` (not in {{global.directory}}/) | context-path | local | Direct file handling |
+| `{{global.directory}}/**/*.md` | context-path | global | Direct file handling |
 | `*.ts`, `*.js`, `*.py`, etc. | target-path | local | Registry lookup → context |
 | Other text | description-only | semantic | AI analysis → suggest options |
 

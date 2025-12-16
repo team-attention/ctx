@@ -72,7 +72,7 @@ Use UPDATE mode or specify a different path
 ## invalid-context-path
 ```
 ❌ Error: Invalid context path format
-Expected: *.ctx.md (local) or ctx/**/*.md (global)
+Expected: *.ctx.md (local) or {{global.directory}}/**/*.md (global)
 ```
 
 ## registry-lookup-failed
@@ -95,7 +95,7 @@ Creating new context file
 - `issue`: URL (online) or file path (offline) to the issue
   - Example (online): `https://github.com/user/repo/issues/123`
   - Example (online): `https://linear.app/team/issue/ABC-123`
-  - Example (offline): `ctx/issues/2025-11-20-0000_feature.md`
+  - Example (offline): `{{global.directory}}/issues/2025-11-20-0000_feature.md`
 - `sessions`: Array of JSONL session file paths (optional)
   - Example: `[".claude/sessions/2025-11-20-session.jsonl"]`
 
