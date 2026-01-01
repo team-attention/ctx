@@ -11,14 +11,6 @@ export interface FrontmatterConfig {
   global: FrontmatterMode;
 }
 
-export type IssueStoreType = 'local' | 'github-issue' | 'linear';
-
-export interface IssueStoreConfig {
-  type: IssueStoreType;
-  url?: string; // Optional for 'local', required for 'github-issue' and 'linear'
-  project?: string; // Required for 'linear'
-}
-
 export interface Config {
   version: string;
   editor: string;
@@ -30,10 +22,6 @@ export interface Config {
     directory: string;
     patterns: string | string[];
     ignore: string[];
-  };
-  work?: {
-    directory?: string;
-    issue_store?: IssueStoreConfig;
   };
   frontmatter: FrontmatterConfig;
 }

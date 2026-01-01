@@ -213,44 +213,7 @@ export class ClaudeCodePlatform implements Platform {
       }
     }
 
-    // Configure settings.json with hooks
-    const hookConfig: Record<string, any> = {};
-
-    // UserPromptSubmit: track session transcripts
-    if (templates.includes('ctx.track-session.sh')) {
-      hookConfig.UserPromptSubmit = [
-        {
-          matcher: '',
-          hooks: [
-            {
-              type: 'command',
-              command: '.claude/hooks/ctx.track-session.sh'
-            }
-          ]
-        }
-      ];
-    }
-
-    // SessionStart: show current issue on startup/resume
-    if (templates.includes('ctx.show-current-issue.sh')) {
-      hookConfig.SessionStart = [
-        {
-          matcher: 'startup|resume',
-          hooks: [
-            {
-              type: 'command',
-              command: '.claude/hooks/ctx.show-current-issue.sh'
-            }
-          ]
-        }
-      ];
-    }
-
-    if (Object.keys(hookConfig).length > 0) {
-      await this.updateSettingsLocal(hookConfig);
-    }
-
-    console.log(chalk.green(`✓ Installed ${templates.length} hook(s) to .claude/hooks/ and configured settings.json`));
+    console.log(chalk.green(`✓ Installed ${templates.length} hook(s) to .claude/hooks/`));
   }
 
   /**

@@ -10,7 +10,6 @@ import { syncCommand } from '../commands/sync.js';
 import { checkCommand } from '../commands/check.js';
 import { refreshCommand } from '../commands/refresh.js';
 import { statusCommand } from '../commands/status.js';
-import { sessionCommand } from '../commands/session.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -63,16 +62,9 @@ program
 
 program
   .command('status')
-  .description('Show current ctx and work session status (JSON by default)')
+  .description('Show current ctx status (JSON by default)')
   .option('--pretty', 'Human-readable dashboard output')
   .option('--target <path>', 'Find context file for a target file path')
   .action(statusCommand);
-
-program
-  .command('session [file]')
-  .description('Extract messages from Claude Code session files')
-  .option('--role <role>', 'Filter by role: user or assistant')
-  .option('--format <format>', 'Output format: jsonl, text, or markdown', 'jsonl')
-  .action(sessionCommand);
 
 program.parse(process.argv);

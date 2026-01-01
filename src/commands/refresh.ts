@@ -43,8 +43,6 @@ export async function refreshCommand() {
     // Collect all ctx-managed entries
     const globalDir = config.global?.directory || 'ctx';
     const gitignoreEntries = [
-      '.ctx.current',
-      config.work?.directory || '.worktrees',
       `${globalDir}/history.jsonl`,
     ];
 

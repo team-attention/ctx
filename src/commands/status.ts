@@ -10,25 +10,12 @@ interface StatusOptions {
   target?: string;
 }
 
-interface CtxCurrent {
-  issue?: string;
-  sessions?: string[];
-}
-
 interface StatusData {
   initialized: boolean;
   context: {
     local: { count: number; stale: number; errors: number };
     global: { count: number };
     lastSync: string | null;
-  };
-  work: {
-    active: boolean;
-    issue?: string;
-    issueTitle?: string;
-    branch?: string;
-    sessionsCount?: number;
-    status?: string;
   };
   suggestions: string[];
 }
@@ -83,7 +70,6 @@ async function collectStatus(projectRoot: string): Promise<StatusData> {
       global: { count: 0 },
       lastSync: null,
     },
-    work: { active: false },
     suggestions: [],
   };
 
@@ -98,9 +84,6 @@ async function collectStatus(projectRoot: string): Promise<StatusData> {
 
   // Read registries
   await collectContextStatus(projectRoot, config, status);
-
-  // Read work session
-  await collectWorkStatus(projectRoot, status);
 
   // Generate suggestions
   generateSuggestions(status);
@@ -163,49 +146,6 @@ async function collectContextStatus(
   }
 }
 
-async function collectWorkStatus(projectRoot: string, status: StatusData): Promise<void> {
-  const ctxCurrentPath = path.join(projectRoot, '.ctx.current');
-
-  try {
-    const content = await fs.readFile(ctxCurrentPath, 'utf-8');
-    const ctxCurrent: CtxCurrent = JSON.parse(content);
-
-    status.work.active = true;
-    status.work.issue = ctxCurrent.issue;
-    status.work.sessionsCount = ctxCurrent.sessions?.length ?? 0;
-
-    // Get issue title if it's a local file
-    if (ctxCurrent.issue && !ctxCurrent.issue.startsWith('http')) {
-      try {
-        const issueContent = await fs.readFile(
-          path.join(projectRoot, ctxCurrent.issue),
-          'utf-8'
-        );
-        const titleMatch = issueContent.match(/^title:\s*(.+)$/m);
-        const statusMatch = issueContent.match(/^status:\s*(.+)$/m);
-        if (titleMatch) status.work.issueTitle = titleMatch[1].trim();
-        if (statusMatch) status.work.status = statusMatch[1].trim();
-      } catch {
-        // Issue file not found
-      }
-    }
-
-    // Get current branch
-    try {
-      const { execSync } = await import('child_process');
-      status.work.branch = execSync('git branch --show-current', {
-        cwd: projectRoot,
-        encoding: 'utf-8',
-      }).trim();
-    } catch {
-      // Not in git repo
-    }
-  } catch {
-    // No active work session
-    status.work.active = false;
-  }
-}
-
 function generateSuggestions(status: StatusData): void {
   if (!status.initialized) return;
 
@@ -217,13 +157,6 @@ function generateSuggestions(status: StatusData): void {
     status.suggestions.push(
       `${status.context.local.errors} context(s) have issues → ctx check --pretty`
     );
-  }
-
-  // Work suggestions
-  if (status.work.active) {
-    status.suggestions.push('Extract learnings before merge → /ctx.work.extract');
-  } else {
-    status.suggestions.push('Start a task → /ctx.work.init <issue-url>');
   }
 
   // Limit to 3 suggestions
@@ -250,35 +183,6 @@ function printStatusPretty(status: StatusData): void {
   console.log(`Local contexts:  ${status.context.local.count} ${localHealth}`);
   console.log(`Global contexts: ${status.context.global.count}`);
   console.log(`Last sync:       ${formatLastSync(status.context.lastSync)}`);
-
-  console.log();
-
-  // Work Session
-  console.log(chalk.bold('🔧 Work Session'));
-  console.log(chalk.gray('━'.repeat(50)));
-
-  if (status.work.active) {
-    const issueDisplay = status.work.issueTitle || status.work.issue || 'Unknown';
-    console.log(`Issue:    ${issueDisplay}`);
-
-    if (status.work.issue?.startsWith('http')) {
-      console.log(chalk.gray(`Source:   ${status.work.issue}`));
-    } else if (status.work.issue) {
-      console.log(chalk.gray(`Source:   local (${status.work.issue})`));
-    }
-
-    if (status.work.branch) {
-      console.log(`Branch:   ${status.work.branch}`);
-    }
-    if (status.work.sessionsCount !== undefined) {
-      console.log(`Sessions: ${status.work.sessionsCount} recorded`);
-    }
-    if (status.work.status) {
-      console.log(`Status:   ${status.work.status}`);
-    }
-  } else {
-    console.log(chalk.gray('No active work session'));
-  }
 
   console.log();
 
