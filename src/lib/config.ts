@@ -9,6 +9,15 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 /**
+ * Default patterns for context discovery (hardcoded)
+ * Used by new 3-level context system
+ */
+export const DEFAULT_PATTERNS = {
+  local: ['**/*.ctx.md', '**/ctx.md'],
+  ignore: ['node_modules/**', 'dist/**', 'build/**', '.git/**', '.ctx/**'],
+};
+
+/**
  * Load default configuration from template file
  */
 function loadDefaultConfig(): Config {

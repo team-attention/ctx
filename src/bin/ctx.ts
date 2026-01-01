@@ -25,9 +25,9 @@ program
   .version(packageJson.version);
 
 program
-  .command('init')
+  .command('init [target]')
   .alias('initialize')
-  .description('Initialize context management in your project')
+  .description('Initialize context management (no arg: global, ".": project)')
   .action(initCommand);
 
 program

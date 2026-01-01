@@ -1,17 +1,189 @@
 import inquirer from 'inquirer';
 import fs from 'fs/promises';
 import path from 'path';
+import os from 'os';
 import { fileURLToPath } from 'url';
 import chalk from 'chalk';
 import YAML from 'yaml';
 import { getPlatform, isPlatformSupported } from '../lib/platforms/index.js';
 import { createConfigFile } from '../lib/config.js';
-import { addToGitignore } from '../lib/fileUtils.js';
+import { addToGitignore, isGlobalInitialized } from '../lib/fileUtils.js';
+import {
+  CTX_DIR,
+  REGISTRY_FILE,
+  CONTEXTS_DIR,
+  GLOBAL_CTX_DIR,
+  isGlobalCtxInitialized,
+  isProjectCtxInitialized,
+} from '../lib/registry.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-export async function initCommand() {
+/**
+ * Init command dispatcher
+ * - ctx init → Global initialization (~/.ctx/)
+ * - ctx init . → Project initialization ({project}/.ctx/)
+ */
+export async function initCommand(targetPath?: string) {
+  if (targetPath === '.') {
+    return initProjectCommand();
+  }
+  return initGlobalCommand();
+}
+
+/**
+ * Initialize global context (~/.ctx/)
+ */
+async function initGlobalCommand() {
+  console.log(chalk.blue.bold('\n🌍 Initializing Global Context\n'));
+
+  try {
+    const isInitialized = await isGlobalCtxInitialized();
+
+    if (isInitialized) {
+      console.log(chalk.yellow('⚠️  Global context is already initialized.'));
+
+      const { overwrite } = await inquirer.prompt([
+        {
+          type: 'confirm',
+          name: 'overwrite',
+          message: 'Do you want to reinitialize?',
+          default: false,
+        },
+      ]);
+
+      if (!overwrite) {
+        console.log(chalk.gray('Initialization cancelled.'));
+        return;
+      }
+    }
+
+    // Create ~/.ctx/
+    await fs.mkdir(GLOBAL_CTX_DIR, { recursive: true });
+    console.log(chalk.green(`✓ Created ${GLOBAL_CTX_DIR}`));
+
+    // Create ~/.ctx/contexts/
+    const contextsDir = path.join(GLOBAL_CTX_DIR, CONTEXTS_DIR);
+    await fs.mkdir(contextsDir, { recursive: true });
+    console.log(chalk.green(`✓ Created ${contextsDir}`));
+
+    // Create ~/.ctx/registry.yaml
+    const registry = {
+      meta: {
+        version: '2.0.0',
+        last_synced: new Date().toISOString(),
+      },
+      contexts: {},
+      index: {},
+    };
+
+    await fs.writeFile(
+      path.join(GLOBAL_CTX_DIR, REGISTRY_FILE),
+      YAML.stringify(registry),
+      'utf-8'
+    );
+    console.log(chalk.green(`✓ Created ${REGISTRY_FILE}`));
+
+    console.log(chalk.blue.bold('\n✨ Global initialization complete!\n'));
+    console.log(chalk.gray('Next steps:'));
+    console.log(chalk.gray('  1. Go to your project directory'));
+    console.log(chalk.gray('  2. Run: ') + chalk.white('ctx init .'));
+    console.log(chalk.gray('  3. Create context files and run: ') + chalk.white('ctx sync\n'));
+
+  } catch (error) {
+    console.error(chalk.red('Error during global initialization:'), error);
+    process.exit(1);
+  }
+}
+
+/**
+ * Initialize project context ({project}/.ctx/)
+ */
+async function initProjectCommand() {
+  console.log(chalk.blue.bold('\n📁 Initializing Project Context\n'));
+
+  try {
+    const projectRoot = process.cwd();
+
+    // Check if global is initialized
+    const globalInitialized = await isGlobalCtxInitialized();
+    if (!globalInitialized) {
+      console.log(chalk.red('✗ Global context is not initialized.'));
+      console.log(chalk.gray('  Run: ') + chalk.white('ctx init') + chalk.gray(' first to initialize global context.'));
+      process.exit(1);
+    }
+
+    // Check if project is already initialized (new format)
+    const projectInitialized = await isProjectCtxInitialized(projectRoot);
+    if (projectInitialized) {
+      console.log(chalk.yellow('⚠️  Project context is already initialized.'));
+
+      const { overwrite } = await inquirer.prompt([
+        {
+          type: 'confirm',
+          name: 'overwrite',
+          message: 'Do you want to reinitialize?',
+          default: false,
+        },
+      ]);
+
+      if (!overwrite) {
+        console.log(chalk.gray('Initialization cancelled.'));
+        return;
+      }
+    }
+
+    // Create .ctx/
+    const ctxDir = path.join(projectRoot, CTX_DIR);
+    await fs.mkdir(ctxDir, { recursive: true });
+    console.log(chalk.green(`✓ Created ${CTX_DIR}/`));
+
+    // Create .ctx/contexts/
+    const contextsDir = path.join(ctxDir, CONTEXTS_DIR);
+    await fs.mkdir(contextsDir, { recursive: true });
+    console.log(chalk.green(`✓ Created ${CTX_DIR}/${CONTEXTS_DIR}/`));
+
+    // Create .ctx/registry.yaml
+    const registry = {
+      meta: {
+        version: '2.0.0',
+        last_synced: new Date().toISOString(),
+      },
+      contexts: {},
+    };
+
+    await fs.writeFile(
+      path.join(ctxDir, REGISTRY_FILE),
+      YAML.stringify(registry),
+      'utf-8'
+    );
+    console.log(chalk.green(`✓ Created ${CTX_DIR}/${REGISTRY_FILE}`));
+
+    // Install AI commands (Claude Code)
+    const platform = getPlatform('claude-code');
+    await platform.install();
+
+    // Install hooks
+    if ('installHooks' in platform) {
+      await (platform as any).installHooks();
+    }
+
+    console.log(chalk.blue.bold('\n✨ Project initialization complete!\n'));
+    console.log(chalk.gray('Next steps:'));
+    console.log(chalk.gray('  1. Create context files: ') + chalk.white('<filename>.ctx.md'));
+    console.log(chalk.gray('  2. Or add to: ') + chalk.white('.ctx/contexts/'));
+    console.log(chalk.gray('  3. Run: ') + chalk.white('ctx sync\n'));
+
+  } catch (error) {
+    console.error(chalk.red('Error during project initialization:'), error);
+    process.exit(1);
+  }
+}
+
+// ===== Legacy Init Command (backward compatibility) =====
+
+export async function initCommandLegacy() {
   console.log(chalk.blue.bold('\n🚀 Initializing Context-Driven Development\n'));
 
   try {
