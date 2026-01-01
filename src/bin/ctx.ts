@@ -10,6 +10,9 @@ import { syncCommand } from '../commands/sync.js';
 import { checkCommand } from '../commands/check.js';
 import { refreshCommand } from '../commands/refresh.js';
 import { statusCommand } from '../commands/status.js';
+import { addCommand } from '../commands/add.js';
+import { removeCommand } from '../commands/remove.js';
+import { migrateCommand } from '../commands/migrate.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -66,5 +69,22 @@ program
   .option('--pretty', 'Human-readable dashboard output')
   .option('--target <path>', 'Find context file for a target file path')
   .action(statusCommand);
+
+program
+  .command('add <patterns...>')
+  .description('Add context files to registry')
+  .option('--global', 'Add to global registry instead of project')
+  .action(addCommand);
+
+program
+  .command('remove <patterns...>')
+  .description('Remove context files from registry (files are NOT deleted)')
+  .option('--global', 'Remove from global registry instead of project')
+  .action(removeCommand);
+
+program
+  .command('migrate')
+  .description('Migrate from legacy ctx/ structure to new .ctx/ structure')
+  .action(migrateCommand);
 
 program.parse(process.argv);
