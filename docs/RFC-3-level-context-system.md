@@ -671,8 +671,8 @@ contexts:
 │  │ Scope       │ 파일 저장 위치    │ Registry 위치         │ │
 │  ├─────────────┼──────────────────┼───────────────────────┤ │
 │  │ Global      │ ~/.ctx/contexts/ │ ~/.ctx/registry.yaml  │ │
-│  │ Project     │ <proj>/.ctx/     │ <proj>/.ctx/reg.yaml  │ │
-│  │ Local       │ <file>.ctx.md    │ <proj>/.ctx/reg.yaml  │ │
+│  │ Project     │ <proj>/.ctx/     │ <proj>/.ctx/registry.yaml  │ │
+│  │ Local       │ <file>.ctx.md    │ <proj>/.ctx/registry.yaml  │ │
 │  └─────────────┴──────────────────┴───────────────────────┘ │
 │                                                             │
 │  * Local/Project → 프로젝트 registry (Git 공유됨)          │

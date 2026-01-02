@@ -9,10 +9,10 @@ Display status of context registries and registered contexts.
 ## Usage
 
 ```
-/ctx:status           # Current project status
-/ctx:status --global  # Global contexts only
-/ctx:status --all     # All contexts across all projects
-/ctx:status --json    # Machine-readable output
+/ctx.status           # Current project status
+/ctx.status --global  # Global contexts only
+/ctx.status --all     # All contexts across all projects
+/ctx.status --json    # Machine-readable output
 ```
 
 ## Execution

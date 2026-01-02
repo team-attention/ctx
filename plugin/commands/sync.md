@@ -9,9 +9,9 @@ Synchronize all context registries across the 3-level system.
 ## Usage
 
 ```
-/ctx:sync           # Smart sync (Project if found, else Global)
-/ctx:sync --global  # Sync Global registry only
-/ctx:sync --rebuild-index  # Force rebuild Global index
+/ctx.sync           # Smart sync (Project if found, else Global)
+/ctx.sync --global  # Sync Global registry only
+/ctx.sync --rebuild-index  # Force rebuild Global index
 ```
 
 ## Execution

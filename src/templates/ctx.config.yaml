@@ -16,7 +16,6 @@ global:
     - templates/**
     - README.md
     - "*-context-registry.yml"
-    - history.jsonl
 frontmatter:
   local: optional
   global: optional
