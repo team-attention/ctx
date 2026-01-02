@@ -2,7 +2,7 @@
 
 > RFC-3-level-context-system.md 기반 전면 리팩토링
 > 작성일: 2026-01-01
-> 최종 수정: 2026-01-02 (RFC 변경사항 반영 - keyword search 제거, /ctx.load 제거, Hook 설계 일치)
+> 최종 수정: 2026-01-02 (ctx-load Skill 추가 - 수동 로드용)
 
 ---
 
@@ -529,7 +529,8 @@ Phase 3 완료:
 | `ctx add/remove` 명시적 등록 | Section 5 | ✅ |
 | `ctx migrate` 마이그레이션 | Section 7 | ✅ |
 | Plugin 기본 구조 | Section 9 | ✅ |
-| SKILL.md 작성 (ctx-save만) | Section 10 | ✅ |
+| SKILL.md 작성 (ctx-save) | Section 10 | ✅ |
+| SKILL.md 작성 (ctx-load) | Section 10 | ⬜ (P4 추가) |
 | PostToolUse(Read) hook | Section 10 | ✅ |
 | `updateGlobalIndex()` 함수 | Section 6 | ✅ |
 | Preview 정보 처리 (what만, when 제거) | Section 6 | ✅ |
@@ -546,6 +547,7 @@ Phase 3 완료:
 | `ctx status` context_paths 표시 | Section 8 | ❌ | 설정된 경로 표시 없음 |
 | `ctx create` 후 자동 등록 | Section 8 | ⚠️ | 파일만 생성, registry 등록 없음 |
 | Plugin `/ctx.save` command | Section 9 | ❌ | Skill wrapper 미구현 |
+| Plugin `/ctx.load` command | Section 9 | ❌ | Skill wrapper 미구현 (수동 로드용) |
 | Auto-load 3-Level 우선순위 | Section 10 | ⚠️ | Local만 로드, Project/Global 미지원 |
 | Frontmatter 자동 추출 | Section 5 | ❌ | what 추출 로직 미구현 |
 
@@ -562,10 +564,12 @@ Phase 3 완료:
 
 | 기존 계획 | RFC 변경 이유 |
 |----------|--------------|
-| ~~`ctx load [keywords...]`~~ | CLI keyword search 제거 - AI가 status 확인 후 직접 Read |
-| ~~`/ctx.load` command~~ | 수동 로드 불필요 - 자동 로드 + /ctx.status로 대체 |
+| ~~`ctx load [keywords...]` CLI~~ | CLI keyword search 제거 - AI Skill이 담당 |
 | ~~`when` 필드~~ | keyword search 제거로 불필요 |
-| ~~ctx-load skill~~ | 자동 로드 Hook으로 대체 |
+
+**Note**: `/ctx.load` Skill과 ctx-load skill은 다시 추가됨
+- 자동 로드: Hook + CLI (`ctx load --file`)가 담당 (파일 읽을 때 자동)
+- 수동 로드: `/ctx.load` Skill이 사용자 요청에 따라 context 검색/로드
 
 ---
 
@@ -1320,7 +1324,6 @@ Phase 7 완료:
 ## Phase 8: Plugin Commands 완성
 
 > RFC Section 9, 10의 Skill/Command 구현
-> **RFC 변경**: `/ctx.load` 수동 로드 커맨드 제거됨 - 수동 조회는 `/ctx.status` 사용
 
 ### 8.1 ctx.save.md 추가 (`plugin/commands/ctx.save.md`)
 
@@ -1356,20 +1359,84 @@ This command invokes the `ctx-save` skill. The skill will:
 4. Create and register the context file
 ```
 
-### 8.2 ~~ctx.load.md~~ (RFC 변경으로 제거)
+### 8.2 ctx.load.md 추가 (`plugin/commands/ctx.load.md`)
 
-> **RFC 변경**: `/ctx.load` 수동 로드 커맨드 제거됨
-> - 자동 로드: Hook이 `ctx load --file` 호출하여 처리
-> - 수동 조회: `/ctx.status`로 목록 확인 후 AI가 직접 Read
+#### 체크리스트
 
-### 8.3 기존 Commands 업데이트
+- [ ] Skill wrapper command 생성
+- [ ] ctx-load skill 명시적 호출
+
+```markdown
+---
+name: ctx.load
+description: Load context by searching with keywords or natural language
+---
+
+# /ctx.load
+
+Invoke the ctx-load skill to find and load relevant contexts.
+
+## Usage
+
+```
+/ctx.load auth jwt     # 키워드로 검색
+/ctx.load 인증 관련    # 자연어로 검색
+```
+
+## Execution
+
+This command invokes the `ctx-load` skill. The skill will:
+1. Run `ctx status` to get the context list
+2. Analyze `what` fields to find relevant contexts
+3. Use Read tool to load matched context files
+4. Present the content to the user
+```
+
+### 8.3 ctx-load Skill 구현 (`plugin/skills/ctx-load/SKILL.md`)
+
+#### 체크리스트
+
+- [ ] SKILL.md 생성
+- [ ] ctx status 호출 → what 필드 분석 → Read tool 호출 흐름 구현
+
+```markdown
+---
+name: ctx-load
+description: 컨텍스트 조회, 검색, 로드 요청 시 활성화. "~~ 컨텍스트 찾아줘", "~~ 관련 문서 불러와" 같은 요청에 반응.
+allowed-tools:
+  - Bash
+  - Read
+---
+
+# ctx-load Skill
+
+사용자가 컨텍스트 조회/검색/로드를 요청할 때 활성화됩니다.
+
+## 동작 흐름
+
+1. `ctx status` 실행하여 context 목록 확인
+2. 각 context의 `what` 필드를 분석하여 사용자 요청과 매칭
+3. 관련된 context 파일을 Read tool로 읽기
+4. 사용자에게 context 내용 제공
+
+## 예시
+
+사용자: "인증 관련 컨텍스트 찾아줘"
+
+1. ctx status 실행
+2. what 필드에서 "인증", "auth", "authentication" 관련 context 찾기
+3. 매칭된 context 파일 Read
+4. 내용 제공
+```
+
+### 8.4 기존 Commands 업데이트
 
 #### 체크리스트
 
 - [ ] `sync.md`: 3-Level 시스템 반영
-- [ ] `status.md`: 새 옵션 (--global, --all) 추가 + 수동 조회 안내
+- [ ] `status.md`: 새 옵션 (--global, --all) 추가
 
-### 8.4 Save Quick/Deliberate 모드 상세 구현 (Council 피드백 반영)
+### 8.5 Save Quick/Deliberate 모드 상세 구현 (Council 피드백 반영)
 
 > RFC Section 10의 Save 흐름 상세 구현
 
@@ -1477,7 +1544,7 @@ function detectSaveMode(userRequest: string): 'quick' | 'deliberate' {
 }
 ```
 
-### 8.5 단위/통합 테스트 (Council 피드백 반영)
+### 8.6 단위/통합 테스트 (Council 피드백 반영)
 
 #### 체크리스트
 
@@ -1514,21 +1581,28 @@ describe('Plugin Commands', () => {
 ```bash
 # 파일 구조 확인
 ls -la plugin/commands/
-# → ctx.save.md, sync.md, status.md (ctx.load.md 없음 - RFC 변경)
+# → ctx.save.md, ctx.load.md, sync.md, status.md
+
+ls -la plugin/skills/
+# → ctx-save/, ctx-load/
 
 # Frontmatter 확인
 head -5 plugin/commands/ctx.save.md
+head -5 plugin/commands/ctx.load.md
+head -5 plugin/skills/ctx-load/SKILL.md
 
 # Claude Code에서 테스트 (수동)
 # /ctx.save → ctx-save skill 활성화
-# /ctx.status → context 목록 확인 후 AI가 직접 Read
+# /ctx.load auth → ctx-load skill 활성화 → 관련 context 검색/로드
+# "인증 관련 컨텍스트 찾아줘" → ctx-load skill 자동 활성화
 ```
 
 Phase 8 완료:
 - [ ] ctx.save.md 생성
-- [ ] ~~ctx.load.md 생성~~ (RFC 변경으로 제거)
+- [ ] ctx.load.md 생성
+- [ ] ctx-load SKILL.md 생성
 - [ ] sync.md 업데이트
-- [ ] status.md 업데이트 (수동 조회 안내 추가)
+- [ ] status.md 업데이트
 - [ ] Save Quick 모드 구현
 - [ ] Save Deliberate 모드 구현
 - [ ] 모드 자동 감지 로직 구현
@@ -1679,10 +1753,11 @@ Phase 9 완료:
 | `tests/commands/init.test.ts` | P5 | init --context-paths 테스트 |
 | `tests/commands/create.test.ts` | P6 | create 자동 등록 테스트 |
 | `tests/commands/status.test.ts` | P6 | status --global/--all 테스트 |
-| `src/commands/load.ts` | P7 | ctx load --file (Hook용 자동 로드만) |
+| `src/commands/load.ts` | P7 | ctx load --file (Hook용 자동 로드) |
 | `tests/commands/load.test.ts` | P7 | load 커맨드 테스트 |
 | `plugin/commands/ctx.save.md` | P8 | /ctx.save command |
-| ~~`plugin/commands/ctx.load.md`~~ | ~~P8~~ | ~~RFC 변경으로 제거~~ |
+| `plugin/commands/ctx.load.md` | P8 | /ctx.load command (수동 로드) |
+| `plugin/skills/ctx-load/SKILL.md` | P8 | ctx-load skill (수동 조회/검색) |
 | `tests/e2e/full-workflow.test.ts` | P9 | E2E 테스트 |
 
 ## 수정 파일 목록 (Phase 5-9)
@@ -1701,15 +1776,17 @@ Phase 9 완료:
 | `plugin/hooks/hooks.json` | P7 | RFC 스키마로 수정 (Shell Script 경로) |
 | `plugin/scripts/auto-load-context.sh` | P7 | 3-Level 지원 + CLI 연동 |
 | `plugin/commands/sync.md` | P8 | 3-Level 시스템 반영 |
-| `plugin/commands/status.md` | P8 | 수동 조회 안내 추가 |
+| `plugin/commands/status.md` | P8 | 새 옵션 추가 |
 | `tests/lib/settings.test.ts` | P5 | settings 파싱 테스트 |
-| `tests/plugin/commands.test.ts` | P8 | Plugin commands 테스트 (ctx.save만) |
+| `tests/plugin/commands.test.ts` | P8 | Plugin commands 테스트 (ctx.save, ctx.load) |
 
 ## 삭제/정리 파일 목록
 
 | 파일 | Phase | 처리 |
 |------|-------|------|
-| ~~`plugin/skills/ctx-load/`~~ | P4 | RFC 변경으로 제거 (자동 로드 Hook으로 대체) |
+| (없음) | - | - |
+
+> **Note**: `plugin/skills/ctx-load/`는 다시 추가됨 (수동 로드 Skill)
 
 ---
 

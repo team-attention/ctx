@@ -43,7 +43,8 @@ program
   .description('Create a new context file from template')
   .option('--template <type>', 'Template type (default: default)', 'default')
   .option('--force', 'Overwrite existing context file without confirmation')
-  .option('--global', 'Create a global context document in ctx/ directory')
+  .option('--global', 'Create a global context in ~/.ctx/contexts/')
+  .option('--project', 'Create a project context in .ctx/contexts/')
   .action(createCommand);
 
 program
@@ -51,6 +52,7 @@ program
   .description('Sync context files to registries')
   .option('--local', 'Sync only local contexts')
   .option('--global', 'Sync only global contexts')
+  .option('--rebuild-index', 'Rebuild global index from all registered projects')
   .action(syncCommand);
 
 program
@@ -73,6 +75,8 @@ program
   .description('Show current ctx status (JSON by default)')
   .option('--pretty', 'Human-readable dashboard output')
   .option('--target <path>', 'Find context file for a target file path')
+  .option('--global', 'Show global registry contexts only')
+  .option('--all', 'Show all registered projects from global index')
   .action(statusCommand);
 
 program

@@ -1,4 +1,5 @@
 import path from 'path';
+import fs from 'fs/promises';
 import chalk from 'chalk';
 import { isProjectInitialized, fileExists, resolveTargetFromContext } from '../lib/fileUtils.js';
 import {
@@ -21,9 +22,11 @@ import {
   isGlobalCtxInitialized,
   readProjectRegistry,
   writeProjectRegistry,
+  readGlobalCtxRegistry,
+  writeGlobalCtxRegistry,
   updateGlobalIndex,
 } from '../lib/registry.js';
-import { SyncOptions, LocalContextEntry, GlobalContextEntry, ContextEntry } from '../lib/types.js';
+import { SyncOptions, LocalContextEntry, GlobalContextEntry, ContextEntry, ProjectIndexEntry } from '../lib/types.js';
 import { loadConfig } from '../lib/config.js';
 
 interface ExtendedSyncOptions extends SyncOptions {
@@ -31,6 +34,11 @@ interface ExtendedSyncOptions extends SyncOptions {
 }
 
 export async function syncCommand(options: ExtendedSyncOptions = {}) {
+  // Handle --rebuild-index option (global index rebuild)
+  if (options.rebuildIndex) {
+    return rebuildGlobalIndex();
+  }
+
   // Check if new 3-level system is initialized
   const projectRoot = await findProjectRoot();
 
@@ -41,6 +49,78 @@ export async function syncCommand(options: ExtendedSyncOptions = {}) {
 
   // Fall back to legacy system
   return syncCommandLegacy(options);
+}
+
+/**
+ * Rebuild the global index by traversing all registered projects
+ */
+async function rebuildGlobalIndex(): Promise<void> {
+  console.log(chalk.blue.bold('Rebuilding global index...\n'));
+
+  const globalInitialized = await isGlobalCtxInitialized();
+  if (!globalInitialized) {
+    console.error(chalk.red('✗ Error: Global ctx not initialized.'));
+    console.log(chalk.gray("  Run 'ctx init' first to initialize global context management."));
+    process.exit(1);
+  }
+
+  const globalRegistry = await readGlobalCtxRegistry();
+
+  if (!globalRegistry.index || Object.keys(globalRegistry.index).length === 0) {
+    console.log(chalk.yellow('⚠️  No projects registered in global index.'));
+    console.log(chalk.gray('  Use ctx sync inside a project to register it.'));
+    return;
+  }
+
+  const newIndex: Record<string, ProjectIndexEntry> = {};
+  let successCount = 0;
+  let skipCount = 0;
+
+  for (const [projectName, entry] of Object.entries(globalRegistry.index)) {
+    const projectPath = entry.path;
+
+    // Check if project directory exists
+    try {
+      await fs.access(projectPath);
+    } catch {
+      console.log(chalk.yellow(`⚠️  Skipped (not found): ${projectName} (${projectPath})`));
+      skipCount++;
+      continue;
+    }
+
+    // Check if project is still initialized
+    const projectRegistry = await readProjectRegistry(projectPath);
+    if (!projectRegistry || Object.keys(projectRegistry.contexts).length === 0) {
+      console.log(chalk.yellow(`⚠️  Skipped (no contexts): ${projectName}`));
+      skipCount++;
+      continue;
+    }
+
+    // Rebuild index entry for this project
+    const contexts = Object.entries(projectRegistry.contexts).map(([key, ctx]) => ({
+      path: key,
+      what: ctx.preview.what,
+      when: ctx.preview.when || [],
+    }));
+
+    newIndex[projectName] = {
+      path: projectPath,
+      last_synced: new Date().toISOString(),
+      context_count: contexts.length,
+      contexts,
+    };
+
+    console.log(chalk.green(`✓ Rebuilt index for: ${projectName} (${contexts.length} contexts)`));
+    successCount++;
+  }
+
+  globalRegistry.index = newIndex;
+  await writeGlobalCtxRegistry(globalRegistry);
+
+  console.log();
+  console.log(chalk.blue.bold('Rebuild complete!'));
+  console.log(chalk.gray(`  Rebuilt: ${successCount} project(s)`));
+  console.log(chalk.gray(`  Skipped: ${skipCount} project(s)`));
 }
 
 /**
