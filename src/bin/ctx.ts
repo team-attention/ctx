@@ -100,6 +100,8 @@ program
   .command('load [keywords...]')
   .description('Load context files by keywords or auto-match by file path')
   .option('--file <path>', 'File path to match against targets (for hook integration)')
+  .option('--json', 'Output as JSON (paths + metadata only, no content)')
+  .option('--paths', 'Output paths only (newline separated)')
   .action(loadCommand);
 
 program.parse(process.argv);

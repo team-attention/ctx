@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "ctx load",
+            "command": "plugin/scripts/auto-load-context.sh",
             "timeout": 5000
           }
         ]

@@ -23,6 +23,8 @@ interface MatchedContext {
 
 interface LoadOptions {
   file?: string;
+  json?: boolean;   // Output as JSON (paths + metadata only)
+  paths?: boolean;  // Output paths only (newline separated)
 }
 
 /**
@@ -153,7 +155,10 @@ async function loadContextContent(contextPath: string): Promise<string | null> {
 /**
  * Auto mode: read from stdin (hook integration)
  */
-async function handleAutoModeFromStdin(projectRoot: string | null): Promise<void> {
+async function handleAutoModeFromStdin(
+  projectRoot: string | null,
+  options: LoadOptions = {}
+): Promise<void> {
   let input = '';
 
   for await (const chunk of process.stdin) {
@@ -161,6 +166,7 @@ async function handleAutoModeFromStdin(projectRoot: string | null): Promise<void
   }
 
   if (!input.trim()) {
+    if (options.json) console.log('[]');
     process.exit(0);
   }
 
@@ -174,23 +180,30 @@ async function handleAutoModeFromStdin(projectRoot: string | null): Promise<void
 
   const filePath = parsedInput.tool_input?.file_path;
   if (!filePath) {
+    if (options.json) console.log('[]');
     process.exit(0);
   }
 
-  await handleAutoMode(filePath, projectRoot);
+  await handleAutoMode(filePath, projectRoot, options);
 }
 
 /**
  * Auto mode: path-based matching
  */
-async function handleAutoMode(filePath: string, projectRoot: string | null): Promise<void> {
+async function handleAutoMode(
+  filePath: string,
+  projectRoot: string | null,
+  options: LoadOptions = {}
+): Promise<void> {
   // Skip context files
   if (filePath.endsWith('.ctx.md') || filePath.endsWith('/ctx.md')) {
+    if (options.json) console.log('[]');
     process.exit(0);
   }
 
   // Skip .ctx directory
   if (filePath.includes('/.ctx/')) {
+    if (options.json) console.log('[]');
     process.exit(0);
   }
 
@@ -222,20 +235,41 @@ async function handleAutoMode(filePath: string, projectRoot: string | null): Pro
   allMatches.push(...globalMatches);
 
   if (allMatches.length === 0) {
+    if (options.json) console.log('[]');
     process.exit(0);
   }
 
   // Sort by priority (lower = higher priority)
   allMatches.sort((a, b) => a.priority - b.priority);
 
-  // Output contexts
-  await outputContexts(allMatches, projectRoot);
+  // Output based on options
+  if (options.json) {
+    // JSON output: paths + metadata only (no content)
+    const output = allMatches.map(m => ({
+      path: m.contextPath,
+      what: m.preview?.what || '',
+      scope: m.source,
+      matchType: m.matchType,
+      target: m.target,
+    }));
+    console.log(JSON.stringify(output, null, 2));
+  } else if (options.paths) {
+    // Paths only output
+    allMatches.forEach(m => console.log(m.contextPath));
+  } else {
+    // Default: full content output
+    await outputContexts(allMatches, projectRoot);
+  }
 }
 
 /**
  * Manual mode: keyword-based search
  */
-async function handleManualMode(keywords: string[], projectRoot: string | null): Promise<void> {
+async function handleManualMode(
+  keywords: string[],
+  projectRoot: string | null,
+  options: LoadOptions = {}
+): Promise<void> {
   const allMatches: MatchedContext[] = [];
 
   // Check project registry
@@ -261,15 +295,32 @@ async function handleManualMode(keywords: string[], projectRoot: string | null):
   allMatches.push(...globalMatches);
 
   if (allMatches.length === 0) {
-    console.log('No matching contexts found.');
+    if (options.json) {
+      console.log('[]');
+    } else {
+      console.log('No matching contexts found.');
+    }
     return;
   }
 
   // Sort by priority (higher = better match)
   allMatches.sort((a, b) => b.priority - a.priority);
 
-  // Output contexts
-  await outputContexts(allMatches, projectRoot);
+  // Output based on options
+  if (options.json) {
+    const output = allMatches.map(m => ({
+      path: m.contextPath,
+      what: m.preview?.what || '',
+      scope: m.source,
+      matchType: m.matchType,
+      target: m.target,
+    }));
+    console.log(JSON.stringify(output, null, 2));
+  } else if (options.paths) {
+    allMatches.forEach(m => console.log(m.contextPath));
+  } else {
+    await outputContexts(allMatches, projectRoot);
+  }
 }
 
 /**
@@ -308,19 +359,19 @@ export async function loadCommand(
 
   // --file option: path-based auto matching
   if (options.file) {
-    await handleAutoMode(options.file, projectRoot);
+    await handleAutoMode(options.file, projectRoot, options);
     return;
   }
 
   // No keywords and stdin has data: hook integration (parse JSON from stdin)
   if (keywords.length === 0 && !process.stdin.isTTY) {
-    await handleAutoModeFromStdin(projectRoot);
+    await handleAutoModeFromStdin(projectRoot, options);
     return;
   }
 
   // Keywords provided: manual keyword search
   if (keywords.length > 0) {
-    await handleManualMode(keywords, projectRoot);
+    await handleManualMode(keywords, projectRoot, options);
     return;
   }
 
