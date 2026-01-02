@@ -16,6 +16,98 @@ import {
   isGlobalCtxInitialized,
   isProjectCtxInitialized,
 } from '../lib/registry.js';
+import { ContextPathConfig, UnifiedRegistry } from '../lib/types.js';
+
+/** Default context paths for Global */
+const DEFAULT_GLOBAL_CONTEXT_PATHS: ContextPathConfig[] = [
+  { path: 'contexts/', purpose: 'General context documents' },
+];
+
+/** Default context paths for Project */
+const DEFAULT_PROJECT_CONTEXT_PATHS: ContextPathConfig[] = [
+  { path: '.ctx/contexts/', purpose: 'Project-specific context' },
+];
+
+/**
+ * Parse --context-paths CLI option
+ * Format: "path1:purpose1,path2:purpose2"
+ * Example: "contexts/:General,rules/:Coding rules"
+ */
+export function parseContextPathsOption(optionValue: string): ContextPathConfig[] {
+  if (!optionValue || optionValue.trim() === '') {
+    throw new Error('context-paths option cannot be empty');
+  }
+
+  const paths: ContextPathConfig[] = [];
+  const entries = optionValue.split(',');
+
+  for (const entry of entries) {
+    const trimmed = entry.trim();
+    if (!trimmed) continue;
+
+    const colonIndex = trimmed.indexOf(':');
+    if (colonIndex === -1) {
+      throw new Error(
+        `Invalid format: "${trimmed}". Expected "path:purpose" (e.g., "contexts/:General context")`
+      );
+    }
+
+    const pathPart = trimmed.slice(0, colonIndex).trim();
+    const purpose = trimmed.slice(colonIndex + 1).trim();
+
+    if (!pathPart) {
+      throw new Error(`Path cannot be empty in: "${trimmed}"`);
+    }
+    if (!purpose) {
+      throw new Error(`Purpose cannot be empty in: "${trimmed}"`);
+    }
+
+    paths.push({ path: pathPart, purpose });
+  }
+
+  if (paths.length === 0) {
+    throw new Error('At least one context path must be specified');
+  }
+
+  return paths;
+}
+
+/**
+ * Interactive prompt for context paths
+ */
+async function promptContextPaths(
+  scope: 'global' | 'project',
+  defaults: ContextPathConfig[]
+): Promise<ContextPathConfig[]> {
+  const defaultStr = defaults.map((cp) => `${cp.path}:${cp.purpose}`).join(', ');
+
+  console.log(chalk.gray('\nContext paths define where context files are stored.'));
+  console.log(chalk.gray('Format: path:purpose (comma-separated for multiple)'));
+  console.log(chalk.gray(`Example: contexts/:General context,rules/:Coding rules\n`));
+
+  const { contextPathsInput } = await inquirer.prompt([
+    {
+      type: 'input',
+      name: 'contextPathsInput',
+      message: `Context paths for ${scope}:`,
+      default: defaultStr,
+      validate: (input: string) => {
+        try {
+          parseContextPathsOption(input);
+          return true;
+        } catch (error) {
+          return (error as Error).message;
+        }
+      },
+    },
+  ]);
+
+  return parseContextPathsOption(contextPathsInput);
+}
+
+export interface InitOptions {
+  contextPaths?: string;
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -25,17 +117,17 @@ const __dirname = path.dirname(__filename);
  * - ctx init → Global initialization (~/.ctx/)
  * - ctx init . → Project initialization ({project}/.ctx/)
  */
-export async function initCommand(targetPath?: string) {
+export async function initCommand(targetPath?: string, options?: InitOptions) {
   if (targetPath === '.') {
-    return initProjectCommand();
+    return initProjectCommand(options);
   }
-  return initGlobalCommand();
+  return initGlobalCommand(options);
 }
 
 /**
  * Initialize global context (~/.ctx/)
  */
-async function initGlobalCommand() {
+async function initGlobalCommand(options?: InitOptions) {
   console.log(chalk.blue.bold('\n🌍 Initializing Global Context\n'));
 
   try {
@@ -59,20 +151,35 @@ async function initGlobalCommand() {
       }
     }
 
+    // Determine context paths
+    let contextPaths: ContextPathConfig[];
+    if (options?.contextPaths) {
+      // Non-interactive mode: parse CLI option
+      contextPaths = parseContextPathsOption(options.contextPaths);
+    } else {
+      // Interactive mode: prompt user
+      contextPaths = await promptContextPaths('global', DEFAULT_GLOBAL_CONTEXT_PATHS);
+    }
+
     // Create ~/.ctx/
     await fs.mkdir(GLOBAL_CTX_DIR, { recursive: true });
     console.log(chalk.green(`✓ Created ${GLOBAL_CTX_DIR}`));
 
-    // Create ~/.ctx/contexts/
-    const contextsDir = path.join(GLOBAL_CTX_DIR, CONTEXTS_DIR);
-    await fs.mkdir(contextsDir, { recursive: true });
-    console.log(chalk.green(`✓ Created ${contextsDir}`));
+    // Create directories for each context path
+    for (const cp of contextPaths) {
+      const fullPath = path.join(GLOBAL_CTX_DIR, cp.path);
+      await fs.mkdir(fullPath, { recursive: true });
+      console.log(chalk.green(`✓ Created ${fullPath}`));
+    }
 
-    // Create ~/.ctx/registry.yaml
-    const registry = {
+    // Create ~/.ctx/registry.yaml with settings
+    const registry: UnifiedRegistry = {
       meta: {
         version: '2.0.0',
         last_synced: new Date().toISOString(),
+      },
+      settings: {
+        context_paths: contextPaths,
       },
       contexts: {},
       index: {},
@@ -85,7 +192,22 @@ async function initGlobalCommand() {
     );
     console.log(chalk.green(`✓ Created ${REGISTRY_FILE}`));
 
+    // Display configured paths
+    console.log(chalk.gray('\nConfigured context paths:'));
+    for (const cp of contextPaths) {
+      console.log(chalk.gray(`  - ${cp.path}: ${cp.purpose}`));
+    }
+
     console.log(chalk.blue.bold('\n✨ Global initialization complete!\n'));
+
+    // Plugin installation guidance
+    console.log(chalk.yellow.bold('📦 Claude Code Plugin Installation\n'));
+    console.log(chalk.gray('  For automatic context loading, install the CTX plugin:'));
+    console.log(chalk.white('    claude plugins install ctx'));
+    console.log(chalk.gray('\n  Or manually link:'));
+    console.log(chalk.white('    ln -s $(npm root -g)/ctx/plugin ~/.claude/plugins/ctx'));
+    console.log('');
+
     console.log(chalk.gray('Next steps:'));
     console.log(chalk.gray('  1. Go to your project directory'));
     console.log(chalk.gray('  2. Run: ') + chalk.white('ctx init .'));
@@ -100,7 +222,7 @@ async function initGlobalCommand() {
 /**
  * Initialize project context ({project}/.ctx/)
  */
-async function initProjectCommand() {
+async function initProjectCommand(options?: InitOptions) {
   console.log(chalk.blue.bold('\n📁 Initializing Project Context\n'));
 
   try {
@@ -134,21 +256,36 @@ async function initProjectCommand() {
       }
     }
 
+    // Determine context paths
+    let contextPaths: ContextPathConfig[];
+    if (options?.contextPaths) {
+      // Non-interactive mode: parse CLI option
+      contextPaths = parseContextPathsOption(options.contextPaths);
+    } else {
+      // Interactive mode: prompt user
+      contextPaths = await promptContextPaths('project', DEFAULT_PROJECT_CONTEXT_PATHS);
+    }
+
     // Create .ctx/
     const ctxDir = path.join(projectRoot, CTX_DIR);
     await fs.mkdir(ctxDir, { recursive: true });
     console.log(chalk.green(`✓ Created ${CTX_DIR}/`));
 
-    // Create .ctx/contexts/
-    const contextsDir = path.join(ctxDir, CONTEXTS_DIR);
-    await fs.mkdir(contextsDir, { recursive: true });
-    console.log(chalk.green(`✓ Created ${CTX_DIR}/${CONTEXTS_DIR}/`));
+    // Create directories for each context path
+    for (const cp of contextPaths) {
+      const fullPath = path.join(projectRoot, cp.path);
+      await fs.mkdir(fullPath, { recursive: true });
+      console.log(chalk.green(`✓ Created ${cp.path}`));
+    }
 
-    // Create .ctx/registry.yaml
-    const registry = {
+    // Create .ctx/registry.yaml with settings
+    const registry: UnifiedRegistry = {
       meta: {
         version: '2.0.0',
         last_synced: new Date().toISOString(),
+      },
+      settings: {
+        context_paths: contextPaths,
       },
       contexts: {},
     };
@@ -159,6 +296,12 @@ async function initProjectCommand() {
       'utf-8'
     );
     console.log(chalk.green(`✓ Created ${CTX_DIR}/${REGISTRY_FILE}`));
+
+    // Display configured paths
+    console.log(chalk.gray('\nConfigured context paths:'));
+    for (const cp of contextPaths) {
+      console.log(chalk.gray(`  - ${cp.path}: ${cp.purpose}`));
+    }
 
     // Install AI commands (Claude Code)
     const platform = getPlatform('claude-code');
@@ -172,7 +315,7 @@ async function initProjectCommand() {
     console.log(chalk.blue.bold('\n✨ Project initialization complete!\n'));
     console.log(chalk.gray('Next steps:'));
     console.log(chalk.gray('  1. Create context files: ') + chalk.white('<filename>.ctx.md'));
-    console.log(chalk.gray('  2. Or add to: ') + chalk.white('.ctx/contexts/'));
+    console.log(chalk.gray('  2. Or add to configured paths'));
     console.log(chalk.gray('  3. Run: ') + chalk.white('ctx sync\n'));
 
   } catch (error) {

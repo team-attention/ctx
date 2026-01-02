@@ -56,6 +56,17 @@ export interface ContextPreview {
 
 // ===== Registry Types =====
 
+/** Context path configuration for settings */
+export interface ContextPathConfig {
+  path: string; // Relative path from registry (e.g., 'contexts/', 'docs/')
+  purpose: string; // Description of this path's purpose (for AI)
+}
+
+/** Registry settings */
+export interface RegistrySettings {
+  context_paths: ContextPathConfig[];
+}
+
 /** Context scope in 3-level hierarchy */
 export type ContextScope = 'local' | 'project' | 'global';
 
@@ -76,6 +87,7 @@ export interface UnifiedRegistry {
     version: string;
     last_synced: string; // ISO timestamp
   };
+  settings?: RegistrySettings; // Optional settings (context paths, etc.)
   contexts: Record<string, ContextEntry>; // Key: relative path to context file
   index?: Record<string, ProjectIndexEntry>; // Global only: index of known projects
 }

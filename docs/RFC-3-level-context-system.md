@@ -3,7 +3,7 @@
 > CTX 프로젝트 방향 전환 제안서
 > 작성일: 2025-12-29
 > 작성자: Claude (Opus 4.5)
-> 최종 수정: 2025-12-31 (config.yaml 제거, 스마트 Sync, Global Index 자동 업데이트, /ctx.save 통합)
+> 최종 수정: 2026-01-02 (Load 단순화 - keyword search 제거, Hook Script 역할 분리)
 
 ---
 
@@ -149,21 +149,65 @@ src/components/   ←→  src/components/ctx.md
 
 **해결책**: Claude Code Hook을 활용한 자동 주입
 
-```bash
-# PostToolUse hook for Read tool
-# tool_input.file_path 기준으로 companion context 찾기
-FILE_PATH="$1"
-CONTEXT_FILE="${FILE_PATH%.ts}.ctx.md"
+**Autoload 핵심 원칙**:
+- **Path 기반, Programmatic** - target 필드로 매칭
+- **현재 Project 기준** - Root index는 사용 안 함 (status --all 용)
 
-if [ -f "$CONTEXT_FILE" ]; then
-  cat "$CONTEXT_FILE"  # hookSpecificOutput.additionalContext로 주입
-fi
+**Autoload 우선순위**:
+```
+Read("src/api.ts") 호출
+  │
+  │  ※ target 없는 context는 Autoload 대상 아님
+  │
+  ├─ Tier 1: Exact Match (높은 우선순위)
+  │   ├─ 1순위: Project registry - exact match
+  │   │         target: "src/api.ts" → 정확히 일치
+  │   └─ 2순위: Global registry - exact match
+  │
+  └─ Tier 2: Glob Match (낮은 우선순위)
+      ├─ 3순위: Project registry - glob match
+      │         target: "src/**/*.ts" → 패턴 매칭
+      └─ 4순위: Global registry - glob match
 ```
 
-**자동 로드 트리거**:
-- PostToolUse(Read) → 파일의 companion context 자동 주입
-- SessionStart → 프로젝트 핵심 컨텍스트 자동 로드
-- 키워드 매칭 → registry preview의 when/not_when 활용
+**예시**:
+```yaml
+# Project registry
+contexts:
+  'src/api.ctx.md':
+    target: 'src/api.ts'           # exact → 1순위
+  '.ctx/contexts/ts-patterns.md':
+    target: 'src/**/*.ts'          # glob  → 3순위
+
+# Global registry
+contexts:
+  '~/.ctx/contexts/api-style.md':
+    target: '**/api.ts'            # glob  → 4순위 (Global)
+```
+
+**동작 방식**:
+```
+1. cwd에서 위로 탐색 → .ctx/registry.yaml 찾기 (현재 Project)
+
+2. Registry 읽기 + target 매칭
+   ├─ Project registry의 contexts
+   │   - target 있는 것만 추출
+   │   - 읽은 파일과 exact/glob 매칭 체크
+   │
+   └─ Global registry의 contexts
+       - target 있는 것만 추출
+       - 읽은 파일과 exact/glob 매칭 체크
+
+3. 우선순위대로 정렬하여 로드
+   1순위: Project exact → 2순위: Global exact
+   3순위: Project glob  → 4순위: Global glob
+```
+
+**트리거**: PostToolUse(Read) Hook → Hook Script → `ctx load --file`
+- 파일 읽을 때마다 Hook 실행
+- CLI는 매칭된 context **경로/메타데이터만 반환** (내용 X)
+- Hook Script가 실제 파일 읽기 + 조합 담당
+- `hookSpecificOutput.additionalContext`로 주입
 
 #### 2순위: Save (컨텍스트 저장)
 
@@ -221,9 +265,9 @@ ctx sync (프로젝트 내에서 실행)
 ```
 
 **왜 Global Index를 자동 업데이트하는가?**
-- 전역 검색(`/ctx.load --all`)의 신뢰성 보장
+- 전역 조회(`ctx status --all`)의 신뢰성 보장
 - "모든 context를 아는 본체"가 필요
-- Lazy update는 검색 시 느려짐 → 미리 갱신이 효율적
+- Lazy update는 조회 시 느려짐 → 미리 갱신이 효율적
 
 **Context 등록 방식** (config 패턴 스캔 대신 명시적 등록):
 ```bash
@@ -401,6 +445,65 @@ Project가 없는 디렉토리에서도 `ctx sync`가 자연스럽게 동작:
 | `ctx sync --global` | ❌ (Global context만) |
 | `ctx sync --rebuild-index` | ✅ 전체 재빌드 |
 
+### Frontmatter 없는 문서 처리
+
+기존 docs를 `ctx add`로 등록할 때 frontmatter가 없는 경우가 있다. 이 경우 자동 추출을 통해 `what` 필드를 채운다.
+
+#### 추출 우선순위
+
+```
+1. frontmatter의 what 필드 (있으면 그대로 사용)
+2. 첫 번째 # heading (마크다운 문서)
+3. 파일명 humanize (api-guide.md → "Api Guide")
+```
+
+#### 예시
+
+**Frontmatter 있는 경우:**
+```markdown
+---
+what: "API 인증 가이드"
+---
+# Authentication
+...
+```
+→ `what: "API 인증 가이드"` (frontmatter 우선)
+
+**Frontmatter 없는 경우:**
+```markdown
+# API Authentication Guide
+
+This document explains...
+```
+→ `what: "API Authentication Guide"` (heading에서 추출)
+
+**Heading도 없는 경우:**
+```markdown
+This is a plain text document...
+```
+→ `what: "Api Guide"` (파일명 `api-guide.md`에서 추출)
+
+#### CLI 출력
+
+```bash
+$ ctx add docs/**/*.md
+✓ docs/api-guide.md (what: "API Authentication Guide")
+✓ docs/setup.md (what: "Setup")  # 파일명 fallback
+✓ docs/architecture.md (what: "시스템 아키텍처")  # frontmatter
+Added 3 contexts
+
+# strict 모드로 검증 시
+$ ctx check --strict
+✗ docs/setup.md: missing frontmatter (what was auto-extracted)
+  Run: ctx add --with-frontmatter docs/setup.md
+```
+
+#### 장점
+
+1. **기존 문서 즉시 등록** - frontmatter 없어도 바로 사용 가능
+2. **점진적 개선** - 나중에 frontmatter 추가해도 됨
+3. **예측 가능** - 추출 규칙이 명확함
+
 ---
 
 ## 6. 하이브리드 Registry
@@ -436,19 +539,27 @@ meta:
   version: "1.0.0"
   last_synced: "2025-12-30T10:00:00Z"
 
+# ⭐ AI가 저장 위치 판단할 때 참조
+settings:
+  context_paths:
+    - path: 'contexts/'
+      purpose: "일반적인 개인 컨텍스트"
+    - path: 'rules/'
+      purpose: "코딩 규칙, 스타일 가이드, 린트 룰"
+    - path: 'docs/'
+      purpose: "문서화된 가이드, 레퍼런스"
+    - path: 'tools/'
+      purpose: "도구 사용법, CLI 치트시트"
+
 contexts:
   # Global context만 관리
   '.ctx/contexts/coding-style.md':
     checksum: abc123
-    preview:
-      what: "개인 코딩 스타일 가이드"
-      when: ["코드 작성", "리뷰"]
+    what: "개인 코딩 스타일 가이드"
 
   '.ctx/contexts/tools/docker.md':
     checksum: def456
-    preview:
-      what: "Docker 사용 패턴"
-      when: ["컨테이너 작업"]
+    what: "Docker 사용 패턴"
 
 # ⭐ 전역 검색용 인덱스 (ctx sync 시 자동 업데이트!)
 index:
@@ -456,17 +567,14 @@ index:
     path: '/Users/me/projects/myapp'      # 절대 경로
     last_synced: "2025-12-31T12:00:00Z"   # 마지막 sync 시간
     context_count: 5
-    # 검색용 요약 정보 (전역 검색 시 빠른 매칭용)
+    # 요약 정보 (status --all 표시용)
     contexts:
       - path: 'src/api.ctx.md'
         what: "API 라우팅 로직"
-        when: ["API", "라우팅", "엔드포인트"]
       - path: '.ctx/contexts/architecture.md'
         what: "프로젝트 아키텍처"
-        when: ["아키텍처", "구조", "설계"]
       - path: 'src/auth/middleware.ctx.md'
         what: "인증 미들웨어"
-        when: ["인증", "auth", "미들웨어"]
 
   'projects/another':
     path: '/Users/me/projects/another'
@@ -475,7 +583,6 @@ index:
     contexts:
       - path: '.ctx/contexts/readme.md'
         what: "프로젝트 소개"
-        when: ["소개", "개요"]
 ```
 
 **Index 자동 업데이트 시점:**
@@ -485,7 +592,7 @@ index:
 
 **Index의 역할:**
 - 전역 검색 시 각 프로젝트 registry 파일 열지 않아도 됨
-- 빠른 키워드 매칭 (preview.when 기반)
+- `ctx status --all` 표시용
 - "모든 context를 아는 본체" 역할
 
 ### Project Registry (<project>/.ctx/registry.yaml)
@@ -499,34 +606,56 @@ meta:
   version: "1.0.0"
   last_synced: "2025-12-30T10:00:00Z"
 
+# ⭐ AI가 저장 위치 판단할 때 참조 (팀과 공유됨!)
+settings:
+  context_paths:
+    - path: '.ctx/contexts/'
+      purpose: "프로젝트 아키텍처, 설계 문서"
+    - path: 'docs/'
+      purpose: "API 문서, 사용자 가이드"
+    - path: '.ctx/decisions/'
+      purpose: "ADR, 기술 결정 기록"
+
 contexts:
-  # Project context (target 없음)
+  # ─────────────────────────────────────────────────────────
+  # target 없음 → Autoload 대상 아님
+  # ─────────────────────────────────────────────────────────
   '.ctx/contexts/architecture.md':
     checksum: xyz789
-    preview:
-      what: "프로젝트 아키텍처"
-      when: ["새 기능 추가", "구조 변경"]
+    what: "프로젝트 아키텍처"
 
   'docs/api-guide.md':
     checksum: uvw012
-    preview:
-      what: "API 가이드"
-      when: ["API 작업"]
+    what: "API 가이드"
 
-  # Local context (target 있음)
+  # ─────────────────────────────────────────────────────────
+  # target 있음 → Autoload 대상
+  # exact path 또는 glob pattern 가능
+  # ─────────────────────────────────────────────────────────
+
+  # exact match - src/api.ts 읽을 때만 로드
   'src/api.ctx.md':
     target: 'src/api.ts'
     checksum: rst345
-    preview:
-      what: "API 라우팅 로직"
-      when: ["라우트 수정"]
+    what: "API 라우팅 로직"
 
+  # glob pattern - src/**/*.ts 읽을 때 로드
+  '.ctx/contexts/typescript-patterns.md':
+    target: 'src/**/*.ts'
+    checksum: ghi012
+    what: "TypeScript 패턴 가이드"
+
+  # glob pattern - 테스트 파일 읽을 때 로드
+  '.ctx/contexts/test-guide.md':
+    target: '**/*.test.ts'
+    checksum: jkl345
+    what: "테스트 작성 가이드"
+
+  # folder target - src/utils/ 아래 파일 읽을 때 로드
   'src/utils/ctx.md':
     target: 'src/utils/'
     checksum: abc789
-    preview:
-      what: "유틸리티 함수들"
-      when: ["헬퍼 함수 작업"]
+    what: "유틸리티 함수들"
 ```
 
 ### 저장 위치 결정 규칙
@@ -559,14 +688,15 @@ contexts:
 │                    Load Priority                             │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│  1. Local (*.ctx.md)                    [가장 구체적]       │
-│     ↓                                                       │
-│  2. Project (<proj>/.ctx/registry.yaml)                    │
-│     ↓                                                       │
-│  3. Global (~/.ctx/registry.yaml)       [가장 일반적]       │
+│  Autoload (target 매칭 시):                                 │
 │                                                             │
-│  * 같은 키워드 매칭 시 위 순서로 우선                       │
-│  * Load 시 항상 Project → Global 순으로 탐색               │
+│  1순위: Project registry - exact match                      │
+│  2순위: Global registry - exact match                       │
+│  3순위: Project registry - glob match                       │
+│  4순위: Global registry - glob match                        │
+│                                                             │
+│  * target 필드가 있는 context만 Autoload 대상              │
+│  * 더 구체적인 매칭(exact)이 우선                          │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -578,6 +708,75 @@ contexts:
 | Global registry | - | Global context |
 | Project registry | `target` ❌ | Project context |
 | Project registry | `target` ✅ | Local context (companion) |
+
+### Settings 스키마
+
+```yaml
+settings:
+  context_paths:              # AI가 저장 위치 판단할 때 참조
+    - path: string            # 상대 경로 (registry 기준)
+      purpose: string         # 이 경로의 용도 설명 (AI 판단용)
+```
+
+**용도**:
+- AI Skill이 "어디에 저장할지" 판단할 때 `purpose`를 참고
+- `ctx create` 시 경로 선택지로 제시
+- 팀 프로젝트에서 context 저장 위치 표준화
+
+**AI 판단 흐름 예시**:
+```
+사용자: "typescript rule 저장해줘"
+
+AI 분석:
+  1. scope 결정: Global (개인 코딩 스타일)
+  2. ~/.ctx/registry.yaml의 settings.context_paths 확인
+  3. "rule" 키워드 → purpose: "코딩 규칙..." 매칭
+  4. → ~/.ctx/rules/typescript.md 추천
+  5. ctx create --path rules/ typescript.md 실행
+```
+
+**기본값** (ctx init 시 생성):
+```yaml
+# Global (~/.ctx/registry.yaml)
+settings:
+  context_paths:
+    - path: 'contexts/'
+      purpose: "일반적인 개인 컨텍스트"
+
+# Project (.ctx/registry.yaml)
+settings:
+  context_paths:
+    - path: '.ctx/contexts/'
+      purpose: "프로젝트 컨텍스트"
+```
+
+**Interactive 플로우** (ctx init 시):
+```
+$ ctx init .
+
+📦 Initializing project context...
+
+Where do you want to store contexts?
+  Default: .ctx/contexts/
+
+Add context paths (path:purpose, empty to finish):
+  [1] .ctx/contexts/ : 프로젝트 컨텍스트 (default)
+  [2] > docs/ : API 문서
+  [3] > .ctx/decisions/ : ADR, 기술 결정
+  [4] >
+
+✓ Created .ctx/registry.yaml
+  Paths:
+    - .ctx/contexts/  → 프로젝트 컨텍스트
+    - docs/           → API 문서
+    - .ctx/decisions/ → ADR, 기술 결정
+```
+
+**Non-interactive** (AI용, --context-paths 옵션):
+```bash
+# AI가 프로젝트 초기화할 때
+ctx init . --context-paths ".ctx/contexts/:프로젝트 컨텍스트,docs/:API 문서"
+```
 
 ### Git 관리 정책
 
@@ -655,7 +854,13 @@ ctx migrate
 # ─────────────────────────────────────────
 ctx init                    # ~/.ctx/ 생성 (Global Root, 최초 1회)
                            # + Claude Code plugin 설치 안내
+                           # Interactive: context_paths 설정
 ctx init .                  # .ctx/ 생성 (Project - registry.yaml만!)
+                           # Interactive: context_paths 설정
+
+# context_paths 직접 지정 (non-interactive, AI용)
+ctx init --context-paths "contexts/:일반 컨텍스트,rules/:코딩 규칙"
+ctx init . --context-paths ".ctx/contexts/:프로젝트 컨텍스트,docs/:API 문서"
 
 # ─────────────────────────────────────────
 # 컨텍스트 등록/해제 (NEW - config 대체)
@@ -677,6 +882,17 @@ ctx create --project <name> # Project context 생성 → registry 등록 → Glo
 ctx create --global <name>  # Global context 생성 → Global registry 등록
 
 # ─────────────────────────────────────────
+# 컨텍스트 로드 (Hook용)
+# ─────────────────────────────────────────
+ctx load --file <path>      # target 매칭하여 context 경로/메타데이터 반환
+                           # ex) ctx load --file src/api.ts
+                           # → 매칭된 context 목록을 JSON으로 출력
+                           # → 우선순위: Project exact > Global exact > Project glob > Global glob
+
+ctx load --file <path> --json   # JSON 형식 출력 (기본값)
+ctx load --file <path> --paths  # 경로만 출력 (줄바꿈 구분)
+
+# ─────────────────────────────────────────
 # 동기화 & 검증
 # ─────────────────────────────────────────
 ctx sync                    # 스마트 동작:
@@ -691,7 +907,7 @@ ctx check --strict          # frontmatter 필수 검증 (기존 config의 역할
 # ─────────────────────────────────────────
 # 상태 확인
 # ─────────────────────────────────────────
-ctx status                  # 현재 프로젝트 context 상태 (Project registry)
+ctx status                  # 현재 프로젝트 context 상태 + context_paths 표시
 ctx status --global         # Global context만 (Global registry)
 ctx status --all            # 전체 (index 기반)
 
@@ -712,10 +928,18 @@ ctx migrate                 # 기존 구조 → 새 구조 변환
                            # - --from clipboard: 클립보드에서 추출
                            # → Skill이 scope 제안 → CLI create → 내용 작성
 
-/ctx.load [keywords]        # Project + Global registry 검색 → 관련 context 로드
+/ctx.load [keywords...]     # 컨텍스트 조회/로드 Skill
+                           # - 자연어: "인증 관련 컨텍스트 찾아줘"
+                           # - 키워드: /ctx.load auth jwt
+                           # → ctx status로 목록 확인 → what 필드로 판단 → Read
+
 /ctx.sync                   # ctx sync 래퍼
 /ctx.status                 # ctx status 래퍼
 ```
+
+**자동 로드 vs 수동 로드**:
+- 자동 로드: Hook이 `ctx load --file` 호출하여 처리 (파일 읽을 때 자동)
+- 수동 로드: `/ctx.load` Skill이 사용자 요청에 따라 context 검색/로드
 
 ---
 
@@ -731,6 +955,7 @@ ctx/
 │   │   ├── add.ts           # ctx add (NEW)
 │   │   ├── remove.ts        # ctx remove (NEW)
 │   │   ├── create.ts        # ctx create
+│   │   ├── load.ts          # ctx load (NEW - 수동/자동 로드)
 │   │   ├── sync.ts          # ctx sync
 │   │   ├── check.ts         # ctx check
 │   │   ├── status.ts        # ctx status
@@ -746,14 +971,84 @@ ctx/
 │   │   ├── save/
 │   │   │   └── SKILL.md     # /ctx.save (통합: 자연어/session/slack/url/clipboard)
 │   │   └── load/
-│   │       └── SKILL.md     # /ctx.load
+│   │       └── SKILL.md     # /ctx.load (컨텍스트 조회/검색/로드)
 │   ├── commands/
 │   │   ├── sync.md          # /ctx.sync (CLI wrapper)
 │   │   └── status.md        # /ctx.status (CLI wrapper)
-│   └── hooks/
-│       └── hooks.json       # PostToolUse(Read) 자동 로드
+│   ├── hooks/
+│   │   ├── hooks.json                  # PostToolUse(Read) 자동 로드
+│   │   └── auto-load-context.sh        # context 로드 스크립트
+│   └── scripts/
+│       └── auto-load-context.sh        # (hooks에서 참조)
 │
 └── package.json
+```
+
+### hooks.json 상세
+
+Hook Script를 활용한 자동 로드:
+
+```json
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "plugin/hooks/auto-load-context.sh",
+            "timeout": 5000
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+**Hook Script** (`plugin/hooks/auto-load-context.sh`):
+```bash
+#!/bin/bash
+# stdin에서 tool_input 읽기
+input=$(cat)
+file_path=$(echo "$input" | jq -r '.tool_input.file_path // empty')
+
+if [ -z "$file_path" ]; then
+  exit 0
+fi
+
+# CLI로 매칭되는 context 경로 조회
+contexts=$(ctx load --file "$file_path" --json)
+
+if [ -z "$contexts" ] || [ "$contexts" = "[]" ]; then
+  exit 0
+fi
+
+# 각 context 파일 읽어서 조합
+echo "$contexts" | jq -r '.[].path' | while read -r ctx_path; do
+  echo "--- $ctx_path ---"
+  cat "$ctx_path"
+  echo ""
+done
+```
+
+**동작 흐름**:
+```
+1. Claude Code가 Read tool로 파일 읽음
+2. PostToolUse hook 트리거 → Hook Script 실행
+3. Hook Script가 stdin에서 file_path 추출
+4. ctx load --file 호출 → 매칭된 context 경로/메타 반환 (JSON)
+5. Hook Script가 각 context 파일 읽어서 조합
+6. stdout으로 출력 → additionalContext로 주입
+```
+
+**CLI 출력 예시** (`ctx load --file src/api.ts --json`):
+```json
+[
+  {"path": "src/api.ctx.md", "what": "API 라우팅 로직"},
+  {"path": ".ctx/contexts/ts-patterns.md", "what": "TypeScript 패턴 가이드"}
+]
 ```
 
 ### Plugin 설치 방식
@@ -797,16 +1092,17 @@ Claude Code에서 Skill과 Command는 다른 개념:
 │                                                             │
 │  Skill (핵심)                                               │
 │  └─ ctx-save: "이거 저장해줘" 같은 자연어에 자동 반응      │
-│  └─ ctx-load: "인증 관련 컨텍스트 보여줘"에 자동 반응      │
 │                                                             │
 │  Command (편의용 Wrapper)                                   │
 │  └─ /ctx.save → ctx-save Skill 명시적 호출                 │
-│  └─ /ctx.load → ctx-load Skill 명시적 호출                 │
+│                                                             │
+│  Hook (자동화)                                              │
+│  └─ PostToolUse(Read) → 자동 context 로드                  │
 │                                                             │
 │  사용자 경험:                                               │
 │  - 자연어로 말해도 됨 ("이 내용 컨텍스트로 저장해")        │
 │  - 명시적으로 /ctx.save 해도 됨                            │
-│  - 둘 다 같은 Skill이 실행됨                               │
+│  - 파일 읽으면 context 자동 로드됨                         │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -955,23 +1251,44 @@ Claude Code에서 Skill과 Command는 다른 개념:
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
 │  [자동 로드 - Hook] ⭐ 핵심 가치                           │
-│  파일 읽을 때 (Read tool)                                   │
-│  └─ companion context (*.ctx.md) 있으면 자동 주입          │
+│  트리거: PostToolUse(Read) → Hook Script                   │
+│  방식: Path 기반, Programmatic                             │
+│  대상: target 필드가 있는 context만                        │
 │                                                             │
-│  [수동 로드 - Skill]                                        │
-│  "인증 관련 컨텍스트 보여줘" (자연어)                      │
+│  Read("src/api.ts") 호출 시:                               │
 │                                                             │
-│  1. 현재 Project 찾기                                       │
-│     → registry.yaml 위치 기준                              │
+│  1. Hook Script가 stdin에서 file_path 추출                 │
 │                                                             │
-│  2. Registry 탐색 (우선순위순)                              │
-│     ├─ 1순위: Project registry (Local + Project context)   │
-│     └─ 2순위: Global registry                              │
+│  2. ctx load --file 호출                                   │
+│     → CLI가 registry에서 target 매칭                       │
+│     → 매칭된 context 경로/메타데이터 JSON 반환             │
 │                                                             │
-│  3. 키워드 매칭                                             │
-│     preview.what, preview.when에서 검색                    │
+│  3. Hook Script가 각 context 파일 읽기                     │
+│     → 내용 조합하여 stdout 출력                            │
+│     → additionalContext로 주입                             │
 │                                                             │
-│  4. 매칭된 context 파일들 로드                             │
+│  우선순위:                                                  │
+│  1순위: Project exact → 2순위: Global exact                │
+│  3순위: Project glob  → 4순위: Global glob                 │
+│                                                             │
+│  ※ target 없는 context → Autoload 대상 아님               │
+│                                                             │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  [수동 로드 - Skill] ⭐ 사용자 요청 기반                   │
+│  트리거: "인증 관련 컨텍스트 찾아줘" (자연어)              │
+│         /ctx.load auth jwt (명시적 호출)                   │
+│  방식: ctx-load Skill 활성화 → 검색 → Read                │
+│                                                             │
+│  "인증 관련 컨텍스트 보여줘" 요청 시:                      │
+│  1. ctx-load Skill 활성화                                  │
+│  2. ctx status 실행 → context 목록 확인                   │
+│  3. what 필드 보고 관련 context 판단                       │
+│  4. Read tool로 직접 파일 읽기                             │
+│  5. 사용자에게 context 내용 제공                          │
+│                                                             │
+│  ※ CLI에서 keyword search 구현 안 함                      │
+│  ※ AI Skill이 registry 읽고 판단하는 방식                 │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -990,11 +1307,18 @@ plugin/skills/
 ├── ctx-load/
 │   └── SKILL.md              # Load Skill
 │       description: "컨텍스트 조회, 검색, 로드 요청 시 활성화"
+│       - ctx status로 목록 확인
+│       - what 필드로 관련 context 판단
+│       - Read tool로 파일 읽어서 제공
 │
 └── commands/                  # Skill의 명시적 진입점
     ├── ctx.save.md           # /ctx.save → ctx-save Skill 호출
     └── ctx.load.md           # /ctx.load → ctx-load Skill 호출
 ```
+
+**자동 로드 vs 수동 로드**:
+- 자동 로드: Hook Script가 `ctx load --file` 호출 (파일 읽을 때 자동)
+- 수동 로드: `/ctx.load` Skill이 사용자 요청에 따라 context 검색/로드
 
 ### CLI vs Skill 역할
 
@@ -1053,10 +1377,10 @@ plugin/skills/
 
 2. **Skills 구현**
    - `/ctx.save` skill
-   - `/ctx.load` skill
 
 3. **Hooks 구현**
    - PostToolUse(Read) 자동 로드 hook
+   - Hook Script (`auto-load-context.sh`)
 
 4. **설치 연동**
    - `ctx init` 시 plugin 설치 안내
@@ -1067,9 +1391,9 @@ plugin/skills/
    - Read tool 호출 시 companion context 자동 주입
    - `.ctx.md` 파일이 있으면 함께 표시
 
-2. **검색 개선**
-   - 중앙 registry 기반 검색
-   - project 필터링 + keyword 매칭
+2. **Status 개선**
+   - `ctx status` 출력 개선
+   - what 필드로 context 설명 표시
 
 3. **SessionStart hook** (선택적)
    - 프로젝트 진입 시 핵심 컨텍스트 요약
@@ -1085,12 +1409,13 @@ plugin/skills/
 | Work workflow | 7단계 복잡한 흐름 | **완전 제거** |
 | Issue store | local/github/linear | **제거** |
 | Worktree | 지원 | **제거** |
-| Config | `ctx.config.yaml` | **제거 (config 없음!)** |
+| Config | `ctx.config.yaml` | **제거 → settings로 최소화** |
 | Registry | 분산 (project마다) | **하이브리드** (Global + Project) |
 | Global | 없음 | `~/.ctx/` (필수, Root, Git ❌) |
 | Project registry | 없음 | `.ctx/registry.yaml` (Git ✅) |
 | Project init | 암묵적 | `ctx init .` (registry만!) |
 | Context 등록 | config 패턴 스캔 | **`ctx add` 명시적 등록** |
+| 저장 위치 판단 | 없음 | **`settings.context_paths`** (AI 참조) |
 | Save 실행 | AI가 직접 파일 작성 | CLI 템플릿 + Skill 내용 |
 | 팀 협업 | 제한적 | **Git으로 registry 공유** |
 | Sync 동작 | Project 없으면 에러 | **스마트 Fallback** (Global로) |

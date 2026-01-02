@@ -13,6 +13,7 @@ import { statusCommand } from '../commands/status.js';
 import { addCommand } from '../commands/add.js';
 import { removeCommand } from '../commands/remove.js';
 import { migrateCommand } from '../commands/migrate.js';
+import { loadCommand } from '../commands/load.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -31,6 +32,10 @@ program
   .command('init [target]')
   .alias('initialize')
   .description('Initialize context management (no arg: global, ".": project)')
+  .option(
+    '--context-paths <paths>',
+    'Context paths with purposes (format: "path1:purpose1,path2:purpose2")'
+  )
   .action(initCommand);
 
 program
@@ -86,5 +91,11 @@ program
   .command('migrate')
   .description('Migrate from legacy ctx/ structure to new .ctx/ structure')
   .action(migrateCommand);
+
+program
+  .command('load [keywords...]')
+  .description('Load context files by keywords or auto-match by file path')
+  .option('--file <path>', 'File path to match against targets (for hook integration)')
+  .action(loadCommand);
 
 program.parse(process.argv);

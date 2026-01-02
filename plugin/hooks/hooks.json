@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "ctx load",
+            "timeout": 5000
+          }
+        ]
+      }
+    ]
+  }
+}
