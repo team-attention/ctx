@@ -1,6 +1,6 @@
 ---
 name: ctx-load
-description: Load and search context files by keywords or topics. Triggers on requests like "load context about", "show me the context for", "what do we know about", "find context", "get documentation on". Searches across Global, Project, and Local levels.
+description: This skill should be used when the user asks to "load context about", "find context for", "show me the context", "what do we know about", "get documentation on", "/ctx.load", or wants to search and retrieve context files. Searches across Global (~/.ctx/), Project (.ctx/), and Local (*.ctx.md) levels with keyword matching.
 allowed-tools: Read, Glob, Grep, Bash
 ---
 
@@ -8,20 +8,56 @@ allowed-tools: Read, Glob, Grep, Bash
 
 Search and load context from the 3-Level Context System.
 
-## When to Use
+## Trigger Conditions
 
 Activate this skill when:
-- User wants to find/load/show context on a topic
-- User says "load context about...", "what context do we have for..."
-- User asks "show me documentation on...", "find context for..."
-- User explicitly requests `/ctx.load` or `/ctx:load`
+- Request contains "load context about...", "find context for..."
+- Request contains "what context do we have for...", "what do we know about..."
+- Request contains "show me documentation on...", "get context on..."
+- Explicit command `/ctx.load` or `/ctx:load`
 
-## Priority Order
+## Context Priority
 
-Contexts are searched and loaded in this priority:
-1. **Local** (`*.ctx.md`) - Most specific
-2. **Project** (`.ctx/contexts/`) - Team knowledge
-3. **Global** (`~/.ctx/contexts/`) - Personal/universal
+Load and present contexts in this priority order:
+
+| Level | Location | Description |
+|-------|----------|-------------|
+| Local | `*.ctx.md` | Most specific, file-attached |
+| Project | `.ctx/contexts/` | Team/project knowledge |
+| Global | `~/.ctx/contexts/` | Personal/universal patterns |
+
+---
+
+## CLI Reference
+
+Use `npx ctx` commands to interact with the context system:
+
+| Command | Description | Key Options |
+|---------|-------------|-------------|
+| `ctx init` | Initialize context management | - |
+| `ctx status` | Show context status (JSON) | `--pretty`, `--target <path>` |
+| `ctx sync` | Sync context files to registries | `--local`, `--global` |
+| `ctx check` | Check context health/freshness | `--local`, `--global`, `--path <file>`, `--fix`, `--pretty` |
+| `ctx create <target>` | Create new context file | `--template <type>`, `--force`, `--global` |
+| `ctx refresh` | Refresh AI commands with config | - |
+
+### Common Usage Patterns
+
+```bash
+# Get project status as JSON (for parsing)
+npx ctx status --json | jq '.projectRoot'
+
+# Check if context system is initialized
+npx ctx status --json 2>/dev/null | jq -r '.projectRoot // empty'
+
+# Sync after changes
+npx ctx sync
+
+# Check and auto-fix registry
+npx ctx check --fix
+```
+
+For complete CLI reference, see `../../shared/cli-reference.md`.
 
 ---
 
@@ -29,73 +65,48 @@ Contexts are searched and loaded in this priority:
 
 ### Step 1: Parse Keywords
 
-Extract search keywords from user request:
+Extract search keywords from the request:
 
 ```
-"load context about authentication" → keywords: ["authentication"]
-"what do we know about payment and refunds" → keywords: ["payment", "refunds"]
-"/ctx.load api design" → keywords: ["api", "design"]
+"load context about authentication" → ["authentication"]
+"what do we know about payment and refunds" → ["payment", "refunds"]
+"/ctx.load api design" → ["api", "design"]
 ```
 
-Expand keywords with synonyms:
-- "auth" → "authentication", "authorization", "login"
-- "api" → "endpoint", "route", "rest"
+Expand with common synonyms:
+- auth → authentication, authorization, login
+- api → endpoint, route, rest
+- db → database, sql, query
 
----
-
-### Step 2: Find Project Root
+### Step 2: Determine Project Root
 
 ```bash
-# Check if in a project
 PROJECT_ROOT=$(npx ctx status --json 2>/dev/null | jq -r '.projectRoot // empty')
 ```
 
-If no project found, search Global only.
-
----
+If empty, search Global only.
 
 ### Step 3: Search Registries
 
 Read registries and match keywords against:
-- `preview.what` - What the context describes
-- `preview.when` - When to use it
-- File paths and names
-- Folder names
+- `preview.what` - Context description
+- `preview.when` - Trigger keywords (array)
+- File path and name
 
-#### Search Project Registry (if exists)
-
+**Project Registry:**
 ```bash
-if [ -n "$PROJECT_ROOT" ]; then
-  cat "$PROJECT_ROOT/.ctx/registry.yaml"
-fi
+[ -n "$PROJECT_ROOT" ] && cat "$PROJECT_ROOT/.ctx/registry.yaml"
 ```
 
-Match keywords against each context entry's `preview.what` and `preview.when`.
-
-#### Search Global Registry
-
+**Global Registry:**
 ```bash
 cat ~/.ctx/registry.yaml
 ```
 
-Match in `contexts` section and optionally search `index` for cross-project contexts.
+### Step 4: Load and Present
 
----
+For each matched context, read the file and output:
 
-### Step 4: Load Matches
-
-For each matched context:
-
-#### Local Context (has `target` field)
-1. Read context file (`*.ctx.md`)
-2. Read target file (actual code)
-3. Present both with summary
-
-#### Project/Global Context (no `target`)
-1. Read context file (`.ctx/contexts/*.md` or `~/.ctx/contexts/*.md`)
-2. Present with summary
-
-**Output format per context:**
 ```markdown
 ### Loaded: [path]
 
@@ -103,14 +114,12 @@ For each matched context:
 **When:** [preview.when as bullets]
 **Scope:** [Global/Project/Local]
 
-[Key content preview]
+[Key content summary or full content]
 ```
 
----
+**Local contexts** (has `target` field): Also read the target file.
 
 ### Step 5: Summarize
-
-After loading all matches:
 
 ```markdown
 Loaded N contexts for "[keywords]"
@@ -120,7 +129,7 @@ By Level:
 - Project: Y contexts
 - Global: Z contexts
 
-[List paths]
+[List of loaded paths]
 
 These contexts are now in our conversation.
 ```
@@ -130,41 +139,35 @@ These contexts are now in our conversation.
 ## Search Patterns
 
 ### Keyword Search (default)
-```
+```bash
 /ctx.load authentication
-→ Searches all levels for "authentication" keyword
+# Searches all levels for "authentication"
 ```
 
 ### Level Filter
-```
-/ctx.load --global typescript
-→ Only search Global (~/.ctx/)
-
-/ctx.load --project architecture
-→ Only search Project (.ctx/)
-
-/ctx.load --local api
-→ Only search Local (*.ctx.md)
+```bash
+/ctx.load --global typescript   # Global only
+/ctx.load --project architecture   # Project only
+/ctx.load --local api   # Local only
 ```
 
 ### All Contexts
-```
+```bash
 /ctx.load --all
-→ Load summary of ALL registered contexts
-→ Uses Global index for cross-project search
+# Load summary of ALL registered contexts
 ```
 
 ### Path Pattern
-```
+```bash
 /ctx.load src/auth/*
-→ Load all contexts under src/auth/
+# Load all contexts under src/auth/
 ```
 
 ---
 
 ## Cross-Project Search
 
-When using `--all`, search Global registry's `index` section:
+For `--all` flag, also search Global registry's `index` section:
 
 ```yaml
 # ~/.ctx/registry.yaml
@@ -176,106 +179,37 @@ index:
         when: ["api", "routing"]
 ```
 
-This allows finding contexts across all registered projects.
+This enables finding contexts across all registered projects.
 
 ---
 
-## Example: Single Topic
+## Error Handling
 
-```
-User: Load context about payment processing
-
-AI: Searching for "payment processing"...
-
-Found 3 matches:
-
-### Loaded: src/services/payment.ctx.md
-**What:** Payment service implementation
-**When:** Payment processing, Stripe integration, checkout
-**Scope:** Local
-
-Key patterns:
-- Stripe webhook handling
-- Idempotency keys
-- Error recovery
+| Scenario | Response |
+|----------|----------|
+| Registry not found | "No context registry found. Run `ctx init` first." |
+| File missing | "Warning: Context registered but file missing: [path]. Run `ctx sync` to clean up." |
+| No project (for --project) | "No project found. Use `ctx init .` to create one, or search Global with --global." |
+| No results | Show search stats and suggest: try different keywords, run `ctx sync`, or create with `/ctx.save` |
 
 ---
 
-### Loaded: .ctx/contexts/payment-flow.md
-**What:** End-to-end payment flow
-**When:** Payment, checkout, refunds
-**Scope:** Project
+## Performance Guidelines
 
-Flow diagram and edge cases...
-
----
-
-### Loaded: ~/.ctx/contexts/stripe.md
-**What:** Stripe API patterns
-**When:** Stripe, payment gateway
-**Scope:** Global
-
-Personal notes on Stripe integration...
-
----
-
-Loaded 3 contexts for "payment processing"
-- Local: 1
-- Project: 1
-- Global: 1
-
-These contexts are now in our conversation!
-```
-
----
-
-## Example: All Contexts
-
-```
-User: /ctx.load --all
-
-AI: Loading all contexts...
-
-Global (~/.ctx/):
-- coding-style.md: Personal coding conventions
-- tools/docker.md: Docker patterns
-- tools/aws.md: AWS best practices
-
-Project (.ctx/):
-- architecture.md: System architecture
-- api-patterns.md: REST API conventions
-- auth.md: Authentication flow
-
-Local (*.ctx.md):
-- src/api.ctx.md: API router
-- src/auth/middleware.ctx.md: Auth middleware
-- src/services/payment.ctx.md: Payment service
-
-Total: 9 contexts across 3 levels
-```
-
----
-
-## No Results Handling
-
-```
-User: /ctx.load blockchain
-
-AI: No contexts found for "blockchain"
-
-Searched: 5 local + 3 project + 8 global contexts
-
-Suggestions:
-- Try different keywords
-- Run `ctx sync` to update registries
-- Create new context with `/ctx.save`
-```
+1. **Read registries first** - Never scan filesystem; use registry data
+2. **Parallel file reads** - Load multiple context files simultaneously
+3. **Session caching** - Skip re-loading already loaded contexts
+4. **Use Global index** - For cross-project search, read index not each project
+5. **Smart summarization** - For large contexts (>500 lines), show key sections only
 
 ---
 
 ## Related Suggestions
 
-After loading, suggest related contexts:
+After loading, suggest related contexts based on:
+- Same category/folder
+- Similar `when` keywords
+- Referenced in loaded content
 
 ```markdown
 Related contexts you might want:
@@ -287,31 +221,13 @@ Load these? [Y/n]
 
 ---
 
-## Performance Tips
+## Additional Resources
 
-1. **Read registries first** - Don't scan filesystem; use registries
-2. **Parallel reads** - Load multiple context files simultaneously
-3. **Cache within session** - Don't re-load already loaded contexts
-4. **Use Global index** - For cross-project search, read index not each project
-5. **Smart summarization** - For large contexts, show key sections only
+### Reference Files
 
----
+For detailed examples and usage patterns:
+- **`references/examples.md`** - Complete interaction examples for all search patterns
 
-## Error Handling
+### Related Skills
 
-**Registry not found:**
-```
-No context registry found. Run `ctx init` first.
-```
-
-**File missing:**
-```
-Warning: Context registered but file missing: [path]
-Run `ctx sync` to clean up registry.
-```
-
-**No project (for --project):**
-```
-No project found in current directory.
-Use `ctx init .` to create one, or search Global with --global.
-```
+- **ctx-save** - Save new context from conversation or external sources
