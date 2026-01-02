@@ -1,6 +1,12 @@
 import fs from 'fs/promises';
 import path from 'path';
+import os from 'os';
 import { glob } from 'glob';
+
+// New 3-level constants
+const CTX_DIR = '.ctx';
+const REGISTRY_FILE = 'registry.yaml';
+const GLOBAL_CTX_DIR = path.join(os.homedir(), CTX_DIR);
 
 /**
  * Check if a file or directory exists
@@ -15,12 +21,29 @@ export async function fileExists(filepath: string): Promise<boolean> {
 }
 
 /**
- * Check if the project is initialized (ctx.config.yaml exists)
+ * Check if the project is initialized
+ * Checks both new format (.ctx/registry.yaml) and legacy format (ctx.config.yaml)
  */
 export async function isProjectInitialized(projectRoot?: string): Promise<boolean> {
   const root = projectRoot || process.cwd();
+
+  // Check new format first
+  const newRegistryPath = path.join(root, CTX_DIR, REGISTRY_FILE);
+  if (await fileExists(newRegistryPath)) {
+    return true;
+  }
+
+  // Fall back to legacy format
   const configPath = path.join(root, 'ctx.config.yaml');
   return fileExists(configPath);
+}
+
+/**
+ * Check if global ctx is initialized (~/.ctx/registry.yaml exists)
+ */
+export async function isGlobalInitialized(): Promise<boolean> {
+  const registryPath = path.join(GLOBAL_CTX_DIR, REGISTRY_FILE);
+  return fileExists(registryPath);
 }
 
 /**

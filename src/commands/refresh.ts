@@ -1,7 +1,6 @@
 import chalk from 'chalk';
 import { isProjectInitialized, updateCtxGitignore } from '../lib/fileUtils.js';
 import { ClaudeCodePlatform } from '../lib/platforms/claudeCode.js';
-import { loadConfig } from '../lib/config.js';
 
 /**
  * Refresh AI commands by re-installing them with current config
@@ -36,21 +35,17 @@ export async function refreshCommand() {
     console.log(chalk.blue('Refreshing hooks...'));
     await platform.installHooks();
 
-    // Update .gitignore with current config
-    console.log(chalk.blue('Updating .gitignore...'));
-    const config = await loadConfig(projectRoot);
+    // Update .gitignore with ctx-managed entries (if any)
+    const gitignoreEntries: string[] = [];
 
-    // Collect all ctx-managed entries
-    const gitignoreEntries = [
-      '.ctx.current',
-      config.work?.directory || '.worktrees',
-    ];
-
-    const gitignoreUpdated = await updateCtxGitignore(projectRoot, gitignoreEntries);
-    if (gitignoreUpdated > 0) {
-      console.log(chalk.green(`✓ Updated .gitignore with ${gitignoreUpdated} ctx-managed entries`));
-    } else {
-      console.log(chalk.green('✓ .gitignore is already up to date'));
+    if (gitignoreEntries.length > 0) {
+      console.log(chalk.blue('Updating .gitignore...'));
+      const gitignoreUpdated = await updateCtxGitignore(projectRoot, gitignoreEntries);
+      if (gitignoreUpdated > 0) {
+        console.log(chalk.green(`✓ Updated .gitignore with ${gitignoreUpdated} ctx-managed entries`));
+      } else {
+        console.log(chalk.green('✓ .gitignore is already up to date'));
+      }
     }
   } catch (error) {
     console.error(chalk.red(`✗ Error: ${error instanceof Error ? error.message : String(error)}`));

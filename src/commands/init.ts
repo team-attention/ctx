@@ -1,57 +1,347 @@
 import inquirer from 'inquirer';
 import fs from 'fs/promises';
 import path from 'path';
+import os from 'os';
 import { fileURLToPath } from 'url';
 import chalk from 'chalk';
 import YAML from 'yaml';
-import { execSync } from 'child_process';
 import { getPlatform, isPlatformSupported } from '../lib/platforms/index.js';
 import { createConfigFile } from '../lib/config.js';
-import { addToGitignore } from '../lib/fileUtils.js';
-import { IssueStoreType, IssueStoreConfig } from '../lib/types.js';
+import { addToGitignore, isGlobalInitialized } from '../lib/fileUtils.js';
+import {
+  CTX_DIR,
+  REGISTRY_FILE,
+  CONTEXTS_DIR,
+  GLOBAL_CTX_DIR,
+  isGlobalCtxInitialized,
+  isProjectCtxInitialized,
+} from '../lib/registry.js';
+import { ContextPathConfig, UnifiedRegistry } from '../lib/types.js';
+
+/** Default context paths for Global */
+const DEFAULT_GLOBAL_CONTEXT_PATHS: ContextPathConfig[] = [
+  { path: 'contexts/', purpose: 'General context documents' },
+];
+
+/** Default context paths for Project */
+const DEFAULT_PROJECT_CONTEXT_PATHS: ContextPathConfig[] = [
+  { path: '.ctx/contexts/', purpose: 'Project-specific context' },
+];
+
+/**
+ * Parse --context-paths CLI option
+ * Format: "path1:purpose1,path2:purpose2"
+ * Example: "contexts/:General,rules/:Coding rules"
+ */
+export function parseContextPathsOption(optionValue: string): ContextPathConfig[] {
+  if (!optionValue || optionValue.trim() === '') {
+    throw new Error('context-paths option cannot be empty');
+  }
+
+  const paths: ContextPathConfig[] = [];
+  const entries = optionValue.split(',');
+
+  for (const entry of entries) {
+    const trimmed = entry.trim();
+    if (!trimmed) continue;
+
+    const colonIndex = trimmed.indexOf(':');
+    if (colonIndex === -1) {
+      throw new Error(
+        `Invalid format: "${trimmed}". Expected "path:purpose" (e.g., "contexts/:General context")`
+      );
+    }
+
+    const pathPart = trimmed.slice(0, colonIndex).trim();
+    const purpose = trimmed.slice(colonIndex + 1).trim();
+
+    if (!pathPart) {
+      throw new Error(`Path cannot be empty in: "${trimmed}"`);
+    }
+    if (!purpose) {
+      throw new Error(`Purpose cannot be empty in: "${trimmed}"`);
+    }
+
+    paths.push({ path: pathPart, purpose });
+  }
+
+  if (paths.length === 0) {
+    throw new Error('At least one context path must be specified');
+  }
+
+  return paths;
+}
+
+/**
+ * Interactive prompt for context paths
+ */
+async function promptContextPaths(
+  scope: 'global' | 'project',
+  defaults: ContextPathConfig[]
+): Promise<ContextPathConfig[]> {
+  const defaultStr = defaults.map((cp) => `${cp.path}:${cp.purpose}`).join(', ');
+
+  console.log(chalk.gray('\nContext paths define where context files are stored.'));
+  console.log(chalk.gray('Format: path:purpose (comma-separated for multiple)'));
+  console.log(chalk.gray(`Example: contexts/:General context,rules/:Coding rules\n`));
+
+  const { contextPathsInput } = await inquirer.prompt([
+    {
+      type: 'input',
+      name: 'contextPathsInput',
+      message: `Context paths for ${scope}:`,
+      default: defaultStr,
+      validate: (input: string) => {
+        try {
+          parseContextPathsOption(input);
+          return true;
+        } catch (error) {
+          return (error as Error).message;
+        }
+      },
+    },
+  ]);
+
+  return parseContextPathsOption(contextPathsInput);
+}
+
+export interface InitOptions {
+  contextPaths?: string;
+  yes?: boolean;
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 /**
- * Get GitHub remote URL from git config
+ * Init command dispatcher
+ * - ctx init → Global initialization (~/.ctx/)
+ * - ctx init . → Project initialization ({project}/.ctx/)
  */
-function getGitHubRemoteUrl(): string | null {
-  try {
-    const remoteUrl = execSync('git remote get-url origin', { encoding: 'utf-8' }).trim();
+export async function initCommand(targetPath?: string, options?: InitOptions) {
+  if (targetPath === '.') {
+    return initProjectCommand(options);
+  }
+  return initGlobalCommand(options);
+}
 
-    // Parse GitHub URL (supports both HTTPS and SSH formats)
-    // https://github.com/owner/repo.git
-    // git@github.com:owner/repo.git
-    let match = remoteUrl.match(/github\.com[/:]([\w-]+)\/([\w.-]+?)(\.git)?$/);
-    if (match) {
-      const owner = match[1];
-      const repo = match[2];
-      return `https://github.com/${owner}/${repo}/issues`;
+/**
+ * Initialize global context (~/.ctx/)
+ */
+async function initGlobalCommand(options?: InitOptions) {
+  console.log(chalk.blue.bold('\n🌍 Initializing Global Context\n'));
+
+  try {
+    const isInitialized = await isGlobalCtxInitialized();
+
+    if (isInitialized) {
+      console.log(chalk.yellow('⚠️  Global context is already initialized.'));
+
+      if (!options?.yes) {
+        const { overwrite } = await inquirer.prompt([
+          {
+            type: 'confirm',
+            name: 'overwrite',
+            message: 'Do you want to reinitialize?',
+            default: false,
+          },
+        ]);
+
+        if (!overwrite) {
+          console.log(chalk.gray('Initialization cancelled.'));
+          return;
+        }
+      } else {
+        console.log(chalk.gray('Reinitializing (--yes flag)...'));
+      }
     }
-    return null;
-  } catch {
-    return null;
+
+    // Determine context paths
+    let contextPaths: ContextPathConfig[];
+    if (options?.contextPaths) {
+      // Non-interactive mode: parse CLI option
+      contextPaths = parseContextPathsOption(options.contextPaths);
+    } else if (options?.yes) {
+      // --yes flag: use defaults without prompting
+      contextPaths = DEFAULT_GLOBAL_CONTEXT_PATHS;
+    } else {
+      // Interactive mode: prompt user
+      contextPaths = await promptContextPaths('global', DEFAULT_GLOBAL_CONTEXT_PATHS);
+    }
+
+    // Create ~/.ctx/
+    await fs.mkdir(GLOBAL_CTX_DIR, { recursive: true });
+    console.log(chalk.green(`✓ Created ${GLOBAL_CTX_DIR}`));
+
+    // Create directories for each context path
+    for (const cp of contextPaths) {
+      const fullPath = path.join(GLOBAL_CTX_DIR, cp.path);
+      await fs.mkdir(fullPath, { recursive: true });
+      console.log(chalk.green(`✓ Created ${fullPath}`));
+    }
+
+    // Create ~/.ctx/registry.yaml with settings
+    const registry: UnifiedRegistry = {
+      meta: {
+        version: '2.0.0',
+        last_synced: new Date().toISOString(),
+      },
+      settings: {
+        context_paths: contextPaths,
+      },
+      contexts: {},
+      index: {},
+    };
+
+    await fs.writeFile(
+      path.join(GLOBAL_CTX_DIR, REGISTRY_FILE),
+      YAML.stringify(registry),
+      'utf-8'
+    );
+    console.log(chalk.green(`✓ Created ${REGISTRY_FILE}`));
+
+    // Display configured paths
+    console.log(chalk.gray('\nConfigured context paths:'));
+    for (const cp of contextPaths) {
+      console.log(chalk.gray(`  - ${cp.path}: ${cp.purpose}`));
+    }
+
+    console.log(chalk.blue.bold('\n✨ Global initialization complete!\n'));
+
+    // Plugin installation guidance
+    console.log(chalk.yellow.bold('📦 Claude Code Plugin Installation\n'));
+    console.log(chalk.gray('  For automatic context loading, install the CTX plugin:'));
+    console.log(chalk.white('    claude plugins install ctx'));
+    console.log(chalk.gray('\n  Or manually link:'));
+    console.log(chalk.white('    ln -s $(npm root -g)/ctx/plugin ~/.claude/plugins/ctx'));
+    console.log('');
+
+    console.log(chalk.gray('Next steps:'));
+    console.log(chalk.gray('  1. Go to your project directory'));
+    console.log(chalk.gray('  2. Run: ') + chalk.white('ctx init .'));
+    console.log(chalk.gray('  3. Create context files and run: ') + chalk.white('ctx sync\n'));
+
+  } catch (error) {
+    console.error(chalk.red('Error during global initialization:'), error);
+    process.exit(1);
   }
 }
 
 /**
- * Get default URL for issue store type
+ * Initialize project context ({project}/.ctx/)
  */
-function getDefaultIssueStoreUrl(type: IssueStoreType): string | undefined {
-  switch (type) {
-    case 'local':
-      return undefined;
-    case 'github-issue':
-      return getGitHubRemoteUrl() || 'https://github.com/{owner}/{repo}/issues';
-    case 'linear':
-      return 'https://linear.app/{workspace}';
-    default:
-      return undefined;
+async function initProjectCommand(options?: InitOptions) {
+  console.log(chalk.blue.bold('\n📁 Initializing Project Context\n'));
+
+  try {
+    const projectRoot = process.cwd();
+
+    // Check if global is initialized
+    const globalInitialized = await isGlobalCtxInitialized();
+    if (!globalInitialized) {
+      console.log(chalk.red('✗ Global context is not initialized.'));
+      console.log(chalk.gray('  Run: ') + chalk.white('ctx init') + chalk.gray(' first to initialize global context.'));
+      process.exit(1);
+    }
+
+    // Check if project is already initialized (new format)
+    const projectInitialized = await isProjectCtxInitialized(projectRoot);
+    if (projectInitialized) {
+      console.log(chalk.yellow('⚠️  Project context is already initialized.'));
+
+      if (!options?.yes) {
+        const { overwrite } = await inquirer.prompt([
+          {
+            type: 'confirm',
+            name: 'overwrite',
+            message: 'Do you want to reinitialize?',
+            default: false,
+          },
+        ]);
+
+        if (!overwrite) {
+          console.log(chalk.gray('Initialization cancelled.'));
+          return;
+        }
+      } else {
+        console.log(chalk.gray('Reinitializing (--yes flag)...'));
+      }
+    }
+
+    // Determine context paths
+    let contextPaths: ContextPathConfig[];
+    if (options?.contextPaths) {
+      // Non-interactive mode: parse CLI option
+      contextPaths = parseContextPathsOption(options.contextPaths);
+    } else if (options?.yes) {
+      // --yes flag: use defaults without prompting
+      contextPaths = DEFAULT_PROJECT_CONTEXT_PATHS;
+    } else {
+      // Interactive mode: prompt user
+      contextPaths = await promptContextPaths('project', DEFAULT_PROJECT_CONTEXT_PATHS);
+    }
+
+    // Create .ctx/
+    const ctxDir = path.join(projectRoot, CTX_DIR);
+    await fs.mkdir(ctxDir, { recursive: true });
+    console.log(chalk.green(`✓ Created ${CTX_DIR}/`));
+
+    // Create directories for each context path
+    for (const cp of contextPaths) {
+      const fullPath = path.join(projectRoot, cp.path);
+      await fs.mkdir(fullPath, { recursive: true });
+      console.log(chalk.green(`✓ Created ${cp.path}`));
+    }
+
+    // Create .ctx/registry.yaml with settings
+    const registry: UnifiedRegistry = {
+      meta: {
+        version: '2.0.0',
+        last_synced: new Date().toISOString(),
+      },
+      settings: {
+        context_paths: contextPaths,
+      },
+      contexts: {},
+    };
+
+    await fs.writeFile(
+      path.join(ctxDir, REGISTRY_FILE),
+      YAML.stringify(registry),
+      'utf-8'
+    );
+    console.log(chalk.green(`✓ Created ${CTX_DIR}/${REGISTRY_FILE}`));
+
+    // Display configured paths
+    console.log(chalk.gray('\nConfigured context paths:'));
+    for (const cp of contextPaths) {
+      console.log(chalk.gray(`  - ${cp.path}: ${cp.purpose}`));
+    }
+
+    // Install AI commands (Claude Code)
+    const platform = getPlatform('claude-code');
+    await platform.install();
+
+    // Install hooks
+    if ('installHooks' in platform) {
+      await (platform as any).installHooks();
+    }
+
+    console.log(chalk.blue.bold('\n✨ Project initialization complete!\n'));
+    console.log(chalk.gray('Next steps:'));
+    console.log(chalk.gray('  1. Create context files: ') + chalk.white('<filename>.ctx.md'));
+    console.log(chalk.gray('  2. Or add to configured paths'));
+    console.log(chalk.gray('  3. Run: ') + chalk.white('ctx sync\n'));
+
+  } catch (error) {
+    console.error(chalk.red('Error during project initialization:'), error);
+    process.exit(1);
   }
 }
 
-export async function initCommand() {
+// ===== Legacy Init Command (backward compatibility) =====
+
+export async function initCommandLegacy() {
   console.log(chalk.blue.bold('\n🚀 Initializing Context-Driven Development\n'));
 
   try {
@@ -93,57 +383,18 @@ export async function initCommand() {
       },
     ]);
 
-    // Ask which issue store to use
-    const { issueStoreType } = await inquirer.prompt([
-      {
-        type: 'list',
-        name: 'issueStoreType',
-        message: 'Where do you want to manage issues?',
-        choices: [
-          { name: 'Local (ctx/issues folder)', value: 'local' },
-          { name: 'GitHub Issues', value: 'github-issue' },
-          { name: 'Linear', value: 'linear' },
-        ],
-        default: 'local',
-      },
-    ]);
-
-    // Build issue store config
-    const issueStore: IssueStoreConfig = {
-      type: issueStoreType as IssueStoreType,
-    };
-
-    // Get URL for non-local issue stores
-    if (issueStoreType !== 'local') {
-      const defaultUrl = getDefaultIssueStoreUrl(issueStoreType);
-      const { issueStoreUrl } = await inquirer.prompt([
-        {
-          type: 'input',
-          name: 'issueStoreUrl',
-          message: `Enter your ${issueStoreType === 'github-issue' ? 'GitHub Issues' : 'Linear workspace'} URL:`,
-          default: defaultUrl,
-        },
-      ]);
-      issueStore.url = issueStoreUrl;
-    }
-
     // Write ctx.config.yaml with full config structure
-    await createConfigFile(projectRoot, { editor, issueStore });
+    await createConfigFile(projectRoot, { editor });
     console.log(chalk.green('✓ Created ctx.config.yaml'));
 
     // Load config to get global directory setting
-    const { loadConfig, DEFAULT_CONFIG } = await import('../lib/config.js');
+    const { loadConfig } = await import('../lib/config.js');
     const config = await loadConfig(projectRoot);
     const globalDirPath = path.join(projectRoot, config.global.directory);
 
     // Create global context directory
     await fs.mkdir(globalDirPath, { recursive: true });
     console.log(chalk.green(`✓ Created ${config.global.directory} directory`));
-
-    // Create issues directory
-    const issuesDir = path.join(globalDirPath, 'issues');
-    await fs.mkdir(issuesDir, { recursive: true });
-    console.log(chalk.green(`✓ Created ${config.global.directory}/issues directory`));
 
     // Create templates directory and copy all template files
     const templatesDir = path.join(globalDirPath, 'templates');
@@ -230,17 +481,11 @@ Feel free to create your own structure that fits your project needs.
       }
     }
 
-    // Add work directory to .gitignore
-    const workDir = config.work?.directory || '.worktrees';
-    const workDirAdded = await addToGitignore(projectRoot, workDir);
-    if (workDirAdded) {
-      console.log(chalk.green(`✓ Added ${workDir} to .gitignore`));
-    }
-
-    // Add .ctx.current to .gitignore
-    const currentAdded = await addToGitignore(projectRoot, '.ctx.current');
-    if (currentAdded) {
-      console.log(chalk.green(`✓ Added .ctx.current to .gitignore`));
+    // Add history.jsonl to .gitignore
+    const globalDir = config.global?.directory || 'ctx';
+    const historyAdded = await addToGitignore(projectRoot, `${globalDir}/history.jsonl`);
+    if (historyAdded) {
+      console.log(chalk.green(`✓ Added ${globalDir}/history.jsonl to .gitignore`));
     }
 
     console.log(chalk.blue.bold('\n✨ Initialization complete!\n'));

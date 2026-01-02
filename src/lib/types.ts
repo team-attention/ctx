@@ -11,14 +11,6 @@ export interface FrontmatterConfig {
   global: FrontmatterMode;
 }
 
-export type IssueStoreType = 'local' | 'github-issue' | 'linear';
-
-export interface IssueStoreConfig {
-  type: IssueStoreType;
-  url?: string; // Optional for 'local', required for 'github-issue' and 'linear'
-  project?: string; // Required for 'linear'
-}
-
 export interface Config {
   version: string;
   editor: string;
@@ -30,10 +22,6 @@ export interface Config {
     directory: string;
     patterns: string | string[];
     ignore: string[];
-  };
-  work?: {
-    directory?: string;
-    issue_store?: IssueStoreConfig;
   };
   frontmatter: FrontmatterConfig;
 }
@@ -68,6 +56,55 @@ export interface ContextPreview {
 
 // ===== Registry Types =====
 
+/** Context path configuration for settings */
+export interface ContextPathConfig {
+  path: string; // Relative path from registry (e.g., 'contexts/', 'docs/')
+  purpose: string; // Description of this path's purpose (for AI)
+}
+
+/** Registry settings */
+export interface RegistrySettings {
+  context_paths: ContextPathConfig[];
+}
+
+/** Context scope in 3-level hierarchy */
+export type ContextScope = 'local' | 'project' | 'global';
+
+/** Unified context entry for all scopes */
+export interface ContextEntry {
+  scope: ContextScope;
+  source: string; // Relative path to context file
+  target?: string; // For local contexts: path to target file
+  checksum: string; // MD5 checksum of context file
+  target_checksum?: string; // For local contexts: MD5 checksum of target file
+  last_modified: string; // ISO timestamp
+  preview: ContextPreview; // Mechanical extract from frontmatter
+}
+
+/** Unified registry structure for both Global and Project */
+export interface UnifiedRegistry {
+  meta: {
+    version: string;
+    last_synced: string; // ISO timestamp
+  };
+  settings?: RegistrySettings; // Optional settings (context paths, etc.)
+  contexts: Record<string, ContextEntry>; // Key: relative path to context file
+  index?: Record<string, ProjectIndexEntry>; // Global only: index of known projects
+}
+
+/** Entry in Global registry's project index */
+export interface ProjectIndexEntry {
+  path: string; // Absolute path to project root
+  last_synced: string; // ISO timestamp
+  context_count: number;
+  contexts: Array<{
+    path: string; // Relative path within project
+    what: string;
+    when: string[];
+  }>;
+}
+
+// Legacy types (kept for backward compatibility during migration)
 export interface LocalContextEntry {
   type: 'file';
   source: string; // Relative path to context file (e.g., src/utils/url.ctx.yml)

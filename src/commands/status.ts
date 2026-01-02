@@ -2,17 +2,23 @@ import chalk from 'chalk';
 import fs from 'fs/promises';
 import path from 'path';
 import { isProjectInitialized, fileExists } from '../lib/fileUtils.js';
-import { readLocalRegistry, readGlobalRegistry, findContextByTarget } from '../lib/registry.js';
+import {
+  readLocalRegistry,
+  readGlobalRegistry,
+  findContextByTarget,
+  findProjectRoot,
+  isGlobalCtxInitialized,
+  isProjectCtxInitialized,
+  readProjectRegistry,
+  readGlobalCtxRegistry,
+} from '../lib/registry.js';
 import { loadConfig } from '../lib/config.js';
 
 interface StatusOptions {
   pretty?: boolean;
   target?: string;
-}
-
-interface CtxCurrent {
-  issue?: string;
-  sessions?: string[];
+  global?: boolean;  // Show global registry only
+  all?: boolean;     // Show all projects from global index
 }
 
 interface StatusData {
@@ -22,49 +28,23 @@ interface StatusData {
     global: { count: number };
     lastSync: string | null;
   };
-  work: {
-    active: boolean;
-    issue?: string;
-    issueTitle?: string;
-    branch?: string;
-    sessionsCount?: number;
-    status?: string;
-  };
   suggestions: string[];
 }
 
 export async function statusCommand(options: StatusOptions = {}) {
-  const projectRoot = process.cwd();
-
   try {
-    // --target mode: find context by target path
-    if (options.target) {
-      const result = await findContextByTarget(projectRoot, options.target);
-      if (result) {
-        console.log(JSON.stringify({
-          found: true,
-          target: options.target,
-          contextPath: result.contextPath,
-          entry: result.entry,
-        }, null, 2));
-      } else {
-        console.log(JSON.stringify({
-          found: false,
-          target: options.target,
-          contextPath: null,
-        }, null, 2));
-      }
+    // Check for 3-level system first
+    const globalInitialized = await isGlobalCtxInitialized();
+    const projectRoot = await findProjectRoot();
+
+    // Use new 3-level status if available
+    if (globalInitialized || projectRoot) {
+      await statusCommandNew(options, globalInitialized, projectRoot);
       return;
     }
 
-    // Default: full status
-    const status = await collectStatus(projectRoot);
-
-    if (options.pretty) {
-      printStatusPretty(status);
-    } else {
-      console.log(JSON.stringify(status, null, 2));
-    }
+    // Fall back to legacy system
+    await statusCommandLegacy(options);
   } catch (error) {
     if (options.pretty) {
       console.error(chalk.red('✗ Error getting status:'), error);
@@ -72,6 +52,300 @@ export async function statusCommand(options: StatusOptions = {}) {
       console.log(JSON.stringify({ error: String(error) }, null, 2));
     }
     process.exit(1);
+  }
+}
+
+/**
+ * New 3-level status command
+ */
+async function statusCommandNew(
+  options: StatusOptions,
+  globalInitialized: boolean,
+  projectRoot: string | null
+) {
+  // --global mode: show global registry only
+  if (options.global) {
+    await statusGlobal(options, globalInitialized);
+    return;
+  }
+
+  // --all mode: show all projects from global index
+  if (options.all) {
+    await statusAll(options, globalInitialized);
+    return;
+  }
+
+  // --target mode: find context by target path
+  if (options.target && projectRoot) {
+    await statusTarget(options, projectRoot);
+    return;
+  }
+
+  // Default: current project status
+  await statusProject(options, globalInitialized, projectRoot);
+}
+
+/**
+ * Show global registry status
+ */
+async function statusGlobal(options: StatusOptions, globalInitialized: boolean) {
+  if (!globalInitialized) {
+    if (options.pretty) {
+      console.log(chalk.yellow('⚠️  Global ctx not initialized'));
+      console.log(chalk.gray("  Run 'ctx init' to initialize."));
+    } else {
+      console.log(JSON.stringify({ error: 'Global not initialized' }, null, 2));
+    }
+    return;
+  }
+
+  const globalRegistry = await readGlobalCtxRegistry();
+
+  if (options.pretty) {
+    console.log();
+    console.log(chalk.bold('📦 Global Contexts (~/.ctx/)'));
+    console.log(chalk.gray('━'.repeat(50)));
+
+    // Show settings if available
+    if (globalRegistry.settings?.context_paths) {
+      console.log(chalk.bold('\nContext Paths:'));
+      globalRegistry.settings.context_paths.forEach((cp) => {
+        console.log(chalk.gray(`  ${cp.path} - ${cp.purpose}`));
+      });
+    }
+
+    // Show contexts
+    console.log(chalk.bold('\nContexts:'));
+    const contexts = Object.entries(globalRegistry.contexts);
+    if (contexts.length === 0) {
+      console.log(chalk.gray('  (no contexts registered)'));
+    } else {
+      contexts.forEach(([path, entry]) => {
+        console.log(`  ${chalk.cyan(path)}`);
+        console.log(chalk.gray(`    what: ${entry.preview.what}`));
+      });
+    }
+
+    // Show index summary
+    if (globalRegistry.index) {
+      const projectCount = Object.keys(globalRegistry.index).length;
+      console.log(chalk.bold(`\nRegistered Projects: ${projectCount}`));
+    }
+
+    console.log();
+    console.log(chalk.gray(`Last sync: ${formatLastSync(globalRegistry.meta.last_synced)}`));
+    console.log();
+  } else {
+    console.log(JSON.stringify({
+      scope: 'global',
+      settings: globalRegistry.settings,
+      contexts: globalRegistry.contexts,
+      indexProjectCount: globalRegistry.index ? Object.keys(globalRegistry.index).length : 0,
+      lastSynced: globalRegistry.meta.last_synced,
+    }, null, 2));
+  }
+}
+
+/**
+ * Show all projects from global index
+ */
+async function statusAll(options: StatusOptions, globalInitialized: boolean) {
+  if (!globalInitialized) {
+    if (options.pretty) {
+      console.log(chalk.yellow('⚠️  Global ctx not initialized'));
+      console.log(chalk.gray("  Run 'ctx init' to initialize."));
+    } else {
+      console.log(JSON.stringify({ error: 'Global not initialized' }, null, 2));
+    }
+    return;
+  }
+
+  const globalRegistry = await readGlobalCtxRegistry();
+
+  if (options.pretty) {
+    console.log();
+    console.log(chalk.bold('📦 Global Contexts'));
+    console.log(chalk.gray('━'.repeat(50)));
+
+    const globalContexts = Object.entries(globalRegistry.contexts);
+    if (globalContexts.length === 0) {
+      console.log(chalk.gray('  (no global contexts)'));
+    } else {
+      globalContexts.forEach(([path, entry]) => {
+        console.log(`  ${chalk.cyan(path)}: ${entry.preview.what}`);
+      });
+    }
+
+    console.log();
+    console.log(chalk.bold('📁 Registered Projects'));
+    console.log(chalk.gray('━'.repeat(50)));
+
+    if (!globalRegistry.index || Object.keys(globalRegistry.index).length === 0) {
+      console.log(chalk.gray('  (no projects registered)'));
+    } else {
+      for (const [projectName, entry] of Object.entries(globalRegistry.index)) {
+        console.log(`\n  ${chalk.bold(projectName)} ${chalk.gray(`(${entry.context_count} contexts)`)}`);
+        console.log(chalk.gray(`  ${entry.path}`));
+        entry.contexts.forEach((ctx) => {
+          console.log(chalk.gray(`    - ${ctx.path}: ${ctx.what}`));
+        });
+      }
+    }
+
+    console.log();
+  } else {
+    console.log(JSON.stringify({
+      globalContexts: globalRegistry.contexts,
+      projects: globalRegistry.index || {},
+      lastSynced: globalRegistry.meta.last_synced,
+    }, null, 2));
+  }
+}
+
+/**
+ * Find context by target path (for hook integration)
+ */
+async function statusTarget(options: StatusOptions, projectRoot: string) {
+  const result = await findContextByTarget(projectRoot, options.target!);
+  if (result) {
+    console.log(JSON.stringify({
+      found: true,
+      target: options.target,
+      contextPath: result.contextPath,
+      entry: result.entry,
+    }, null, 2));
+  } else {
+    console.log(JSON.stringify({
+      found: false,
+      target: options.target,
+      contextPath: null,
+    }, null, 2));
+  }
+}
+
+/**
+ * Show current project status
+ */
+async function statusProject(
+  options: StatusOptions,
+  globalInitialized: boolean,
+  projectRoot: string | null
+) {
+  if (!projectRoot) {
+    if (options.pretty) {
+      console.log(chalk.yellow('⚠️  Project not initialized'));
+      console.log(chalk.gray("  Run 'ctx init .' to initialize project."));
+      if (globalInitialized) {
+        console.log(chalk.gray("  Use 'ctx status --global' to see global contexts."));
+      }
+    } else {
+      console.log(JSON.stringify({ error: 'Project not initialized' }, null, 2));
+    }
+    return;
+  }
+
+  const projectRegistry = await readProjectRegistry(projectRoot);
+
+  if (options.pretty) {
+    console.log();
+    console.log(chalk.bold(`📊 Project Status: ${path.basename(projectRoot)}`));
+    console.log(chalk.gray('━'.repeat(50)));
+
+    // Show settings if available
+    if (projectRegistry.settings?.context_paths) {
+      console.log(chalk.bold('\nContext Paths:'));
+      projectRegistry.settings.context_paths.forEach((cp) => {
+        console.log(chalk.gray(`  ${cp.path} - ${cp.purpose}`));
+      });
+    }
+
+    // Categorize contexts by scope
+    const localContexts: [string, typeof projectRegistry.contexts[string]][] = [];
+    const projectContexts: [string, typeof projectRegistry.contexts[string]][] = [];
+
+    for (const [ctxPath, entry] of Object.entries(projectRegistry.contexts)) {
+      if (entry.scope === 'local') {
+        localContexts.push([ctxPath, entry]);
+      } else {
+        projectContexts.push([ctxPath, entry]);
+      }
+    }
+
+    // Show local contexts
+    console.log(chalk.bold(`\nLocal Contexts: ${localContexts.length}`));
+    if (localContexts.length === 0) {
+      console.log(chalk.gray('  (no local contexts)'));
+    } else {
+      localContexts.forEach(([ctxPath, entry]) => {
+        console.log(`  ${chalk.cyan(ctxPath)}`);
+        console.log(chalk.gray(`    → ${entry.target || 'no target'}`));
+      });
+    }
+
+    // Show project contexts
+    console.log(chalk.bold(`\nProject Contexts: ${projectContexts.length}`));
+    if (projectContexts.length === 0) {
+      console.log(chalk.gray('  (no project contexts)'));
+    } else {
+      projectContexts.forEach(([ctxPath, entry]) => {
+        console.log(`  ${chalk.cyan(ctxPath)}: ${entry.preview.what}`);
+      });
+    }
+
+    console.log();
+    console.log(chalk.gray(`Last sync: ${formatLastSync(projectRegistry.meta.last_synced)}`));
+    console.log();
+
+    // Show hints
+    console.log(chalk.bold('💡 Tips'));
+    console.log(chalk.gray('━'.repeat(50)));
+    console.log(chalk.gray('  ctx status --global    Show global contexts'));
+    console.log(chalk.gray('  ctx status --all       Show all registered projects'));
+    console.log();
+  } else {
+    console.log(JSON.stringify({
+      project: path.basename(projectRoot),
+      path: projectRoot,
+      settings: projectRegistry.settings,
+      contexts: projectRegistry.contexts,
+      lastSynced: projectRegistry.meta.last_synced,
+    }, null, 2));
+  }
+}
+
+/**
+ * Legacy status command (backward compatibility)
+ */
+async function statusCommandLegacy(options: StatusOptions) {
+  const projectRoot = process.cwd();
+
+  // --target mode: find context by target path
+  if (options.target) {
+    const result = await findContextByTarget(projectRoot, options.target);
+    if (result) {
+      console.log(JSON.stringify({
+        found: true,
+        target: options.target,
+        contextPath: result.contextPath,
+        entry: result.entry,
+      }, null, 2));
+    } else {
+      console.log(JSON.stringify({
+        found: false,
+        target: options.target,
+        contextPath: null,
+      }, null, 2));
+    }
+    return;
+  }
+
+  // Default: full status
+  const status = await collectStatus(projectRoot);
+
+  if (options.pretty) {
+    printStatusPretty(status);
+  } else {
+    console.log(JSON.stringify(status, null, 2));
   }
 }
 
@@ -83,7 +357,6 @@ async function collectStatus(projectRoot: string): Promise<StatusData> {
       global: { count: 0 },
       lastSync: null,
     },
-    work: { active: false },
     suggestions: [],
   };
 
@@ -98,9 +371,6 @@ async function collectStatus(projectRoot: string): Promise<StatusData> {
 
   // Read registries
   await collectContextStatus(projectRoot, config, status);
-
-  // Read work session
-  await collectWorkStatus(projectRoot, status);
 
   // Generate suggestions
   generateSuggestions(status);
@@ -163,49 +433,6 @@ async function collectContextStatus(
   }
 }
 
-async function collectWorkStatus(projectRoot: string, status: StatusData): Promise<void> {
-  const ctxCurrentPath = path.join(projectRoot, '.ctx.current');
-
-  try {
-    const content = await fs.readFile(ctxCurrentPath, 'utf-8');
-    const ctxCurrent: CtxCurrent = JSON.parse(content);
-
-    status.work.active = true;
-    status.work.issue = ctxCurrent.issue;
-    status.work.sessionsCount = ctxCurrent.sessions?.length ?? 0;
-
-    // Get issue title if it's a local file
-    if (ctxCurrent.issue && !ctxCurrent.issue.startsWith('http')) {
-      try {
-        const issueContent = await fs.readFile(
-          path.join(projectRoot, ctxCurrent.issue),
-          'utf-8'
-        );
-        const titleMatch = issueContent.match(/^title:\s*(.+)$/m);
-        const statusMatch = issueContent.match(/^status:\s*(.+)$/m);
-        if (titleMatch) status.work.issueTitle = titleMatch[1].trim();
-        if (statusMatch) status.work.status = statusMatch[1].trim();
-      } catch {
-        // Issue file not found
-      }
-    }
-
-    // Get current branch
-    try {
-      const { execSync } = await import('child_process');
-      status.work.branch = execSync('git branch --show-current', {
-        cwd: projectRoot,
-        encoding: 'utf-8',
-      }).trim();
-    } catch {
-      // Not in git repo
-    }
-  } catch {
-    // No active work session
-    status.work.active = false;
-  }
-}
-
 function generateSuggestions(status: StatusData): void {
   if (!status.initialized) return;
 
@@ -217,13 +444,6 @@ function generateSuggestions(status: StatusData): void {
     status.suggestions.push(
       `${status.context.local.errors} context(s) have issues → ctx check --pretty`
     );
-  }
-
-  // Work suggestions
-  if (status.work.active) {
-    status.suggestions.push('Extract learnings before merge → /ctx.work.extract');
-  } else {
-    status.suggestions.push('Start a task → /ctx.work.init <issue-url>');
   }
 
   // Limit to 3 suggestions
@@ -250,35 +470,6 @@ function printStatusPretty(status: StatusData): void {
   console.log(`Local contexts:  ${status.context.local.count} ${localHealth}`);
   console.log(`Global contexts: ${status.context.global.count}`);
   console.log(`Last sync:       ${formatLastSync(status.context.lastSync)}`);
-
-  console.log();
-
-  // Work Session
-  console.log(chalk.bold('🔧 Work Session'));
-  console.log(chalk.gray('━'.repeat(50)));
-
-  if (status.work.active) {
-    const issueDisplay = status.work.issueTitle || status.work.issue || 'Unknown';
-    console.log(`Issue:    ${issueDisplay}`);
-
-    if (status.work.issue?.startsWith('http')) {
-      console.log(chalk.gray(`Source:   ${status.work.issue}`));
-    } else if (status.work.issue) {
-      console.log(chalk.gray(`Source:   local (${status.work.issue})`));
-    }
-
-    if (status.work.branch) {
-      console.log(`Branch:   ${status.work.branch}`);
-    }
-    if (status.work.sessionsCount !== undefined) {
-      console.log(`Sessions: ${status.work.sessionsCount} recorded`);
-    }
-    if (status.work.status) {
-      console.log(`Status:   ${status.work.status}`);
-    }
-  } else {
-    console.log(chalk.gray('No active work session'));
-  }
 
   console.log();
 
