@@ -14,6 +14,7 @@ import { addCommand } from '../commands/add.js';
 import { removeCommand } from '../commands/remove.js';
 import { migrateCommand } from '../commands/migrate.js';
 import { loadCommand } from '../commands/load.js';
+import { saveCommand } from '../commands/save.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -36,6 +37,7 @@ program
     '--context-paths <paths>',
     'Context paths with purposes (format: "path1:purpose1,path2:purpose2")'
   )
+  .option('-y, --yes', 'Non-interactive mode (use defaults, auto-confirm)')
   .action(initCommand);
 
 program
@@ -103,5 +105,17 @@ program
   .option('--json', 'Output as JSON (paths + metadata only, no content)')
   .option('--paths', 'Output paths only (newline separated)')
   .action(loadCommand);
+
+program
+  .command('save')
+  .description('Save content to a context file (non-interactive)')
+  .option('--path <filepath>', 'Path for the context file (required)')
+  .option('--content <text>', 'Content to save (or pipe via stdin)')
+  .option('--what <description>', 'Brief description for frontmatter')
+  .option('--when <keywords>', 'Comma-separated keywords for auto-loading')
+  .option('--global', 'Save to global context (~/.ctx/contexts/)')
+  .option('--project', 'Save to project context (.ctx/contexts/)')
+  .option('--force', 'Overwrite existing file')
+  .action(saveCommand);
 
 program.parse(process.argv);

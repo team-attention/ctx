@@ -3,7 +3,7 @@
 > CTX 프로젝트 방향 전환 제안서
 > 작성일: 2025-12-29
 > 작성자: Claude (Opus 4.5)
-> 최종 수정: 2026-01-02 (Load 단순화 - keyword search 제거, Hook Script 역할 분리)
+> 최종 수정: 2026-01-02 (ctx-load Skill 추가 - 수동 로드용)
 
 ---
 

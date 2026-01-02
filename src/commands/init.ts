@@ -107,6 +107,7 @@ async function promptContextPaths(
 
 export interface InitOptions {
   contextPaths?: string;
+  yes?: boolean;
 }
 
 const __filename = fileURLToPath(import.meta.url);
@@ -136,18 +137,22 @@ async function initGlobalCommand(options?: InitOptions) {
     if (isInitialized) {
       console.log(chalk.yellow('⚠️  Global context is already initialized.'));
 
-      const { overwrite } = await inquirer.prompt([
-        {
-          type: 'confirm',
-          name: 'overwrite',
-          message: 'Do you want to reinitialize?',
-          default: false,
-        },
-      ]);
+      if (!options?.yes) {
+        const { overwrite } = await inquirer.prompt([
+          {
+            type: 'confirm',
+            name: 'overwrite',
+            message: 'Do you want to reinitialize?',
+            default: false,
+          },
+        ]);
 
-      if (!overwrite) {
-        console.log(chalk.gray('Initialization cancelled.'));
-        return;
+        if (!overwrite) {
+          console.log(chalk.gray('Initialization cancelled.'));
+          return;
+        }
+      } else {
+        console.log(chalk.gray('Reinitializing (--yes flag)...'));
       }
     }
 
@@ -156,6 +161,9 @@ async function initGlobalCommand(options?: InitOptions) {
     if (options?.contextPaths) {
       // Non-interactive mode: parse CLI option
       contextPaths = parseContextPathsOption(options.contextPaths);
+    } else if (options?.yes) {
+      // --yes flag: use defaults without prompting
+      contextPaths = DEFAULT_GLOBAL_CONTEXT_PATHS;
     } else {
       // Interactive mode: prompt user
       contextPaths = await promptContextPaths('global', DEFAULT_GLOBAL_CONTEXT_PATHS);
@@ -241,18 +249,22 @@ async function initProjectCommand(options?: InitOptions) {
     if (projectInitialized) {
       console.log(chalk.yellow('⚠️  Project context is already initialized.'));
 
-      const { overwrite } = await inquirer.prompt([
-        {
-          type: 'confirm',
-          name: 'overwrite',
-          message: 'Do you want to reinitialize?',
-          default: false,
-        },
-      ]);
+      if (!options?.yes) {
+        const { overwrite } = await inquirer.prompt([
+          {
+            type: 'confirm',
+            name: 'overwrite',
+            message: 'Do you want to reinitialize?',
+            default: false,
+          },
+        ]);
 
-      if (!overwrite) {
-        console.log(chalk.gray('Initialization cancelled.'));
-        return;
+        if (!overwrite) {
+          console.log(chalk.gray('Initialization cancelled.'));
+          return;
+        }
+      } else {
+        console.log(chalk.gray('Reinitializing (--yes flag)...'));
       }
     }
 
@@ -261,6 +273,9 @@ async function initProjectCommand(options?: InitOptions) {
     if (options?.contextPaths) {
       // Non-interactive mode: parse CLI option
       contextPaths = parseContextPathsOption(options.contextPaths);
+    } else if (options?.yes) {
+      // --yes flag: use defaults without prompting
+      contextPaths = DEFAULT_PROJECT_CONTEXT_PATHS;
     } else {
       // Interactive mode: prompt user
       contextPaths = await promptContextPaths('project', DEFAULT_PROJECT_CONTEXT_PATHS);
