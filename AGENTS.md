@@ -25,7 +25,7 @@ Human insight  →  Saved as context  →  Auto-loaded when needed
 |-------|----------|------|----------|
 | **Global** | `~/.ctx/` | 개인 패턴, 도구 설정 | 개인 (모든 프로젝트) |
 | **Project** | `.ctx/` | 팀 지식, 아키텍처 | 팀 (Git으로 공유) |
-| **Local** | `*.ctx.md` | 파일별 컨텍스트 | 팀 (코드 옆에) |
+| **Local** | `*.ctx.md` | 파일별 컨텍스트 | 팀 (파일 옆에) |
 
 **우선순위:** Local > Project > Global (더 구체적인 것이 우선)
 
@@ -232,9 +232,59 @@ npx ctx status --target src/api.ts
 
 ---
 
+## PR 체크리스트
+
+PR 날리기 전 확인할 항목들:
+
+### 빌드 & 테스트
+
+- [ ] `pnpm build` 성공
+- [ ] `pnpm test` 통과
+- [ ] `pnpm lint` 통과
+
+### CLI 변경 시
+
+CLI 명령어나 옵션을 추가/수정했다면:
+
+- [ ] `docs/cli-reference.md` 업데이트
+- [ ] `plugin/shared/cli-reference.md` 업데이트
+- [ ] `plugin/skills/ctx-load/SKILL.md` CLI Reference 섹션 확인
+- [ ] `plugin/skills/ctx-save/SKILL.md` CLI Reference 섹션 확인
+- [ ] `AGENTS.md` CLI 명령어 섹션 확인
+
+### Plugin/Skill 변경 시
+
+- [ ] SKILL.md frontmatter 유효성 (name, description)
+- [ ] Description이 third-person + trigger phrases 포함
+- [ ] Body가 imperative form (not "You should...")
+- [ ] references/ 파일 참조 확인
+
+### 문서 동기화
+
+다음 파일들이 서로 일관성을 유지하는지 확인:
+
+| 변경 내용 | 업데이트할 파일들 |
+|----------|------------------|
+| CLI 명령어/옵션 | `docs/cli-reference.md`, `plugin/shared/cli-reference.md`, `AGENTS.md` |
+| 3-Level 구조 | `README.md`, `AGENTS.md`, `docs/RFC-*.md` |
+| Plugin 구조 | `plugin/.claude-plugin/plugin.json`, `AGENTS.md` |
+| Skill 추가 | `plugin/skills/*/SKILL.md`, `AGENTS.md` 프로젝트 구조 |
+
+### Registry 스키마 변경 시
+
+- [ ] `src/lib/registry.ts` 타입 업데이트
+- [ ] `AGENTS.md` Registry 구조 섹션 업데이트
+- [ ] Migration 로직 필요 여부 검토 (`src/commands/migrate.ts`)
+
+---
+
 ## 관련 문서
 
-- `README.md` - 사용자 가이드
-- `docs/RFC-3-level-context-system.md` - 설계 문서
-- `docs/REFACTORING-PLAN.md` - 리팩토링 계획
-- `plugin/skills/*/SKILL.md` - 개별 스킬 가이드
+| 문서 | 설명 |
+|------|------|
+| `README.md` | 사용자 가이드 |
+| `docs/cli-reference.md` | CLI 명령어 상세 레퍼런스 |
+| `docs/RFC-3-level-context-system.md` | 설계 문서 |
+| `docs/REFACTORING-PLAN.md` | 리팩토링 계획 |
+| `plugin/shared/cli-reference.md` | Plugin용 CLI 레퍼런스 |
+| `plugin/skills/*/SKILL.md` | 개별 스킬 가이드 |

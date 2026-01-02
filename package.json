@@ -19,7 +19,8 @@
   },
   "homepage": "https://github.com/11x-lab/ctx#readme",
   "scripts": {
-    "build": "rm -rf dist && tsc --project tsconfig.build.json && cp -r src/templates dist/",
+    "build": "rm -rf dist && tsc --project tsconfig.build.json && cp -r src/templates dist/ && pnpm sync:plugin",
+    "sync:plugin": "./scripts/sync-plugin-docs.sh",
     "dev": "tsc --watch --project tsconfig.build.json",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest",
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch",
