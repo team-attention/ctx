@@ -1,12 +1,12 @@
 ---
 name: ctx-load
-description: This skill should be used when the user asks to "load context about", "find context for", "show me the context", "what do we know about", "get documentation on", "/ctx.load", or wants to search and retrieve context files. Searches across Global (~/.ctx/), Project (.ctx/), and Local (*.ctx.md) levels with keyword matching.
+description: This skill should be used when the user asks to "load context about", "find context for", "show me the context", "what do we know about", "get documentation on", "/ctx.load", or wants to search and retrieve context files. Reads registry directly and uses semantic understanding to find relevant contexts.
 allowed-tools: Read, Glob, Grep, Bash
 ---
 
 # CTX Load Skill
 
-Search and load context from the 3-Level Context System.
+Search and load context from the 2-Level Context System.
 
 ## Trigger Conditions
 
@@ -22,8 +22,8 @@ Load and present contexts in this priority order:
 
 | Level | Location | Description |
 |-------|----------|-------------|
-| Local | `*.ctx.md` | Most specific, file-attached |
-| Project | `.ctx/contexts/` | Team/project knowledge |
+| Project (bound) | `*.ctx.md` with `target` | File-specific context |
+| Project (standalone) | `.ctx/contexts/` | Team/project knowledge |
 | Global | `~/.ctx/contexts/` | Personal/universal patterns |
 
 ---
@@ -39,23 +39,7 @@ Use `npx ctx` commands to interact with the context system:
 | `ctx sync` | Sync context files to registries | `--global`, `--rebuild-index`, `--prune` |
 | `ctx check` | Check context health/freshness | `--target <file>`, `--pretty` |
 | `ctx create <path>` | Create new context file | `--target`, `--force`, `--global` |
-| `ctx load` | Load context by keywords or target | `--target <path>`, `--json`, `--paths` |
-
-### Common Usage Patterns
-
-```bash
-# Get project status (JSON by default)
-npx ctx status | jq '.project.contextCount'
-
-# Check if context system is initialized
-npx ctx status 2>/dev/null | jq -r '.initialized'
-
-# Sync after changes
-npx ctx sync
-
-# Check health
-npx ctx check --pretty
-```
+| `ctx load` | Load context (for scripts/hooks) | `--target <path>`, `--json`, `--paths` |
 
 For complete CLI reference, see `../../shared/cli-reference.md`.
 
@@ -63,107 +47,132 @@ For complete CLI reference, see `../../shared/cli-reference.md`.
 
 ## Execution Algorithm
 
-### Step 1: Parse Keywords
+### Step 1: Read Registries Directly
 
-Extract search keywords from the request:
-
-```
-"load context about authentication" → ["authentication"]
-"what do we know about payment and refunds" → ["payment", "refunds"]
-"/ctx.load api design" → ["api", "design"]
-```
-
-Expand with common synonyms:
-- auth → authentication, authorization, login
-- api → endpoint, route, rest
-- db → database, sql, query
-
-### Step 2: Determine Project Root
-
-```bash
-PROJECT_ROOT=$(npx ctx status --json 2>/dev/null | jq -r '.projectRoot // empty')
-```
-
-If empty, search Global only.
-
-### Step 3: Search Registries
-
-Read registries and match keywords against:
-- `preview.what` - Context description
-- `preview.when` - Trigger keywords (array)
-- File path and name
+Use the Read tool to read registry files:
 
 **Project Registry:**
-```bash
-[ -n "$PROJECT_ROOT" ] && cat "$PROJECT_ROOT/.ctx/registry.yaml"
+```
+.ctx/registry.yaml
 ```
 
 **Global Registry:**
-```bash
-cat ~/.ctx/registry.yaml
+```
+~/.ctx/registry.yaml
 ```
 
-### Step 4: Load and Present
+### Step 2: Analyze Context Index
 
-For each matched context, read the file and output:
+Each registry contains a `contexts` map with metadata:
 
-```markdown
-### Loaded: [path]
-
-**What:** [preview.what]
-**When:** [preview.when as bullets]
-**Scope:** [Global/Project/Local]
-
-[Key content summary or full content]
+```yaml
+contexts:
+  '.ctx/contexts/architecture.md':
+    checksum: 'abc123'
+    preview:
+      what: "System architecture overview"
+      when: ["architecture", "structure", "design"]
+  'src/api.ctx.md':
+    target: 'src/api.ts'
+    checksum: 'def456'
+    preview:
+      what: "API routing patterns"
+      when: ["api", "routing", "endpoint"]
 ```
 
-**Local contexts** (has `target` field): Also read the target file.
+**Key fields for relevance判断:**
+- `preview.what` - What this context is about
+- `preview.when` - Keywords that trigger this context
+- `target` - If present, this context is bound to a specific file
 
-### Step 5: Summarize
+### Step 3: Select Relevant Contexts (AI Judgment)
+
+Based on the user's request, determine which contexts are relevant using semantic understanding:
+
+**Example:** User asks "인증 구현해줘" (implement authentication)
+- Keyword matching would miss "JWT 토큰 검증"
+- AI understands JWT is related to authentication → selects it
+
+**Selection criteria:**
+1. Direct keyword match in `when` array
+2. Semantic relevance of `what` description to user's request
+3. File path hints (e.g., `auth.ctx.md`, `security/`)
+4. Target file relevance (if user is working on specific files)
+
+### Step 4: Load Selected Contexts
+
+Read the actual context files using the Read tool:
+
+```
+Read: .ctx/contexts/architecture.md
+Read: src/api.ctx.md
+```
+
+For **bound contexts** (has `target` field): Consider reading the target file too for full context.
+
+### Step 5: Present to User
+
+Format loaded contexts clearly:
 
 ```markdown
-Loaded N contexts for "[keywords]"
+## Loaded Contexts
 
-By Level:
-- Local: X contexts
-- Project: Y contexts
-- Global: Z contexts
+### .ctx/contexts/auth.md (Project)
+> JWT authentication patterns
 
-[List of loaded paths]
+[content...]
 
-These contexts are now in our conversation.
+### ~/.ctx/contexts/security.md (Global)
+> Security best practices
+
+[content...]
+
+---
+Loaded 2 contexts relevant to "authentication"
 ```
 
 ---
 
-## Search Patterns
+## Example Workflow
 
-### Keyword Search (default)
-```bash
-/ctx.load authentication
-# Searches all levels for "authentication"
-npx ctx load authentication
-```
+**User:** "API 엔드포인트 설계에 대한 컨텍스트 로드해줘"
 
-### Target Search
-```bash
-/ctx.load --target src/api.ts
-# Load contexts bound to specific file
-npx ctx load --target src/api.ts
-```
+**AI Actions:**
+1. Read `.ctx/registry.yaml`
+2. Scan contexts:
+   ```yaml
+   contexts:
+     '.ctx/contexts/api-design.md':
+       preview:
+         what: "REST API design conventions"
+         when: ["api", "rest", "endpoint"]
+     '.ctx/contexts/architecture.md':
+       preview:
+         what: "System architecture overview"
+         when: ["architecture", "structure"]
+     'src/routes.ctx.md':
+       target: 'src/routes.ts'
+       preview:
+         what: "Route definitions and middleware"
+         when: ["routing", "middleware"]
+   ```
+3. Select relevant: `api-design.md`, `routes.ctx.md` (semantic match)
+4. Read both files
+5. Present content to user
 
-### Multiple Keywords
-```bash
-/ctx.load api authentication
-# Searches for contexts matching any keyword
-npx ctx load api auth
-```
+---
 
-### Output Formats
-```bash
-npx ctx load --json api     # JSON metadata only
-npx ctx load --paths api    # File paths only (for scripting)
-```
+## When to Use CLI Instead
+
+The `ctx load` CLI command is useful for:
+- **Scripts/automation**: `npx ctx load --paths api | xargs cat`
+- **Hook integration**: Pipe JSON to stdin for auto-matching
+- **Quick terminal lookup**: `npx ctx load --json auth`
+
+For AI-assisted context loading, **direct registry reading is preferred** because:
+- AI can apply semantic understanding (not just keyword matching)
+- Faster (no process spawn)
+- More flexible relevance judgment
 
 ---
 
@@ -181,7 +190,7 @@ index:
         when: ["api", "routing"]
 ```
 
-This enables discovering contexts across all registered projects via keyword matching.
+This enables discovering contexts across all registered projects.
 
 ---
 
@@ -192,16 +201,16 @@ This enables discovering contexts across all registered projects via keyword mat
 | Registry not found | "No context registry found. Run `ctx init` first." |
 | File missing | "Warning: Context registered but file missing: [path]. Run `ctx sync` to clean up." |
 | No project found | "No project found. Use `ctx init .` to initialize project context." |
-| No results | Show search stats and suggest: try different keywords, run `ctx sync`, or create with `/ctx.save` |
+| No relevant contexts | Suggest: create new context with `/ctx.save` |
 
 ---
 
 ## Performance Guidelines
 
-1. **Read registries first** - Never scan filesystem; use registry data
-2. **Parallel file reads** - Load multiple context files simultaneously
-3. **Session caching** - Skip re-loading already loaded contexts
-4. **Use Global index** - For cross-project search, read index not each project
+1. **Read registry first** - Small file, contains all metadata
+2. **Selective loading** - Only read contexts that are actually relevant
+3. **Parallel file reads** - Load multiple context files simultaneously
+4. **Session caching** - Skip re-loading already loaded contexts
 5. **Smart summarization** - For large contexts (>500 lines), show key sections only
 
 ---
@@ -228,7 +237,7 @@ Load these? [Y/n]
 ### Reference Files
 
 For detailed examples and usage patterns:
-- **`references/examples.md`** - Complete interaction examples for all search patterns
+- **`references/examples.md`** - Complete interaction examples
 
 ### Related Skills
 

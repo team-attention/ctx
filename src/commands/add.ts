@@ -14,12 +14,13 @@ import {
   updateGlobalIndex,
   getGlobalCtxDir,
 } from '../lib/registry.js';
-import { ContextEntry } from '../lib/types.js';
+import { ContextEntry, ContextPathConfig } from '../lib/types.js';
 import {
   matchesContextPaths,
   getProjectContextPaths,
   getGlobalContextPaths,
 } from '../lib/context-path-matcher.js';
+import { syncCommand } from './sync.js';
 
 interface AddOptions {
   global?: boolean;
@@ -60,7 +61,7 @@ async function addToProject(patterns: string[]) {
 
   let added = 0;
   let skipped = 0;
-  const unmatchedFiles: string[] = [];
+  let patternsAdded = 0;
 
   for (const pattern of patterns) {
     const files = await glob(pattern, {
@@ -103,7 +104,23 @@ async function addToProject(patterns: string[]) {
       // Check if file matches context_paths
       const matches = matchesContextPaths(file, contextPaths);
       if (!matches) {
-        unmatchedFiles.push(file);
+        // Auto-add to context_paths
+        if (!registry.settings) {
+          registry.settings = { context_paths: [] };
+        }
+        if (!registry.settings.context_paths) {
+          registry.settings.context_paths = [];
+        }
+
+        const newPattern: ContextPathConfig = {
+          path: file,
+          purpose: 'Added via ctx add'
+        };
+        registry.settings.context_paths.push(newPattern);
+        contextPaths.push(newPattern); // Update local array too
+        patternsAdded++;
+
+        console.log(chalk.blue(`  ℹ️  Added '${file}' to context_paths`));
       }
 
       // Get target from frontmatter (if present → bound, if not → standalone)
@@ -124,47 +141,32 @@ async function addToProject(patterns: string[]) {
       };
 
       registry.contexts[file] = entry;
-      const warningMark = matches ? '' : chalk.yellow(' ⚠️');
-      console.log(chalk.green(`  add: ${file}${target ? ` → ${target}` : ''}${warningMark}`));
+      console.log(chalk.green(`  add: ${file}${target ? ` → ${target}` : ''}`));
       added++;
     }
   }
 
   await writeProjectRegistry(projectRoot, registry);
 
+  console.log();
+  console.log(chalk.blue.bold('Summary:'));
+  console.log(chalk.gray(`  Added: ${added}`));
+  console.log(chalk.gray(`  Skipped: ${skipped}`));
+  if (patternsAdded > 0) {
+    console.log(chalk.blue(`  Patterns added to context_paths: ${patternsAdded}`));
+  }
+
+  // Auto-sync to apply new patterns
+  if (patternsAdded > 0) {
+    console.log();
+    console.log(chalk.blue('Running sync to apply new patterns...'));
+    await syncCommand({ global: false });
+  }
+
   // Update global index
   const globalInitialized = await isGlobalCtxInitialized();
   if (globalInitialized) {
     await updateGlobalIndex(projectRoot);
-  }
-
-  console.log();
-  console.log(chalk.blue.bold('Done!'));
-  console.log(chalk.gray(`  Added: ${added}`));
-  console.log(chalk.gray(`  Skipped: ${skipped}`));
-
-  // Show warning for unmatched files
-  if (unmatchedFiles.length > 0) {
-    console.log();
-    console.log(chalk.yellow('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
-    console.log(chalk.yellow.bold('⚠️  WARNING: Files Not Matching context_paths'));
-    console.log(chalk.yellow('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
-    console.log();
-    console.log(chalk.white('These files were added to the registry:'));
-    unmatchedFiles.forEach(f => console.log(chalk.yellow(`  • ${f}`)));
-    console.log();
-    console.log(chalk.white('⚠️  They will be REMOVED when you run ') + chalk.red.bold('ctx sync'));
-    console.log(chalk.gray('   (Because they don\'t match any pattern in context_paths)'));
-    console.log();
-    console.log(chalk.blue.bold('💡 To keep these files permanently:'));
-    console.log();
-    console.log(chalk.gray('   Option 1: ') + chalk.white('Add a pattern to match these files'));
-    console.log(chalk.gray('            ') + chalk.cyan('ctx add-pattern "docs/**/*.md" "Documentation files"'));
-    console.log();
-    console.log(chalk.gray('   Option 2: ') + chalk.white('Add each file\'s specific pattern'));
-    console.log(chalk.gray('            ') + chalk.cyan('ctx add-pattern "docs/guide.md" "Specific guide"'));
-    console.log();
-    console.log(chalk.yellow('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
   }
 }
 
@@ -187,7 +189,7 @@ async function addToGlobal(patterns: string[]) {
 
   let added = 0;
   let skipped = 0;
-  const unmatchedFiles: string[] = [];
+  let patternsAdded = 0;
 
   for (const pattern of patterns) {
     // For global, resolve relative to home directory or absolute
@@ -226,7 +228,23 @@ async function addToGlobal(patterns: string[]) {
         // Check if file matches context_paths
         const matches = matchesContextPaths(relativePath, contextPaths);
         if (!matches) {
-          unmatchedFiles.push(relativePath);
+          // Auto-add to context_paths
+          if (!registry.settings) {
+            registry.settings = { context_paths: [] };
+          }
+          if (!registry.settings.context_paths) {
+            registry.settings.context_paths = [];
+          }
+
+          const newPattern: ContextPathConfig = {
+            path: relativePath,
+            purpose: 'Added via ctx add'
+          };
+          registry.settings.context_paths.push(newPattern);
+          contextPaths.push(newPattern); // Update local array too
+          patternsAdded++;
+
+          console.log(chalk.blue(`  ℹ️  Added '${relativePath}' to context_paths`));
         }
 
         const entry: ContextEntry = {
@@ -237,8 +255,7 @@ async function addToGlobal(patterns: string[]) {
         };
 
         registry.contexts[relativePath] = entry;
-        const warningMark = matches ? '' : chalk.yellow(' ⚠️');
-        console.log(chalk.green(`  add: ${relativePath}${warningMark}`));
+        console.log(chalk.green(`  add: ${relativePath}`));
         added++;
       } catch (error) {
         console.log(chalk.yellow(`  skip: ${relativePath} (${error})`));
@@ -250,31 +267,17 @@ async function addToGlobal(patterns: string[]) {
   await writeGlobalCtxRegistry(registry);
 
   console.log();
-  console.log(chalk.blue.bold('Done!'));
+  console.log(chalk.blue.bold('Summary:'));
   console.log(chalk.gray(`  Added: ${added}`));
   console.log(chalk.gray(`  Skipped: ${skipped}`));
+  if (patternsAdded > 0) {
+    console.log(chalk.blue(`  Patterns added to context_paths: ${patternsAdded}`));
+  }
 
-  // Show warning for unmatched files
-  if (unmatchedFiles.length > 0) {
+  // Auto-sync to apply new patterns
+  if (patternsAdded > 0) {
     console.log();
-    console.log(chalk.yellow('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
-    console.log(chalk.yellow.bold('⚠️  WARNING: Files Not Matching context_paths'));
-    console.log(chalk.yellow('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
-    console.log();
-    console.log(chalk.white('These files were added to the global registry:'));
-    unmatchedFiles.forEach(f => console.log(chalk.yellow(`  • ${f}`)));
-    console.log();
-    console.log(chalk.white('⚠️  They will be REMOVED when you run ') + chalk.red.bold('ctx sync --global'));
-    console.log(chalk.gray('   (Because they don\'t match any pattern in context_paths)'));
-    console.log();
-    console.log(chalk.blue.bold('💡 To keep these files permanently:'));
-    console.log();
-    console.log(chalk.gray('   Option 1: ') + chalk.white('Add a pattern to match these files'));
-    console.log(chalk.gray('            ') + chalk.cyan('ctx add-pattern --global "**/*.md" "Markdown notes"'));
-    console.log();
-    console.log(chalk.gray('   Option 2: ') + chalk.white('Add each file\'s specific pattern'));
-    console.log(chalk.gray('            ') + chalk.cyan('ctx add-pattern --global "notes/guide.md" "Specific note"'));
-    console.log();
-    console.log(chalk.yellow('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'));
+    console.log(chalk.blue('Running sync to apply new patterns...'));
+    await syncCommand({ global: true });
   }
 }

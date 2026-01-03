@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { TestEnvironment, suppressConsole } from '../helpers/testUtils.js';
+import YAML from 'yaml';
 
 // Create mock function with proper typing
 const mockPrompt = jest.fn<any>();
@@ -267,6 +268,86 @@ describe('create command', () => {
 
       // Content structure should be identical
       expect(firstContent).toBe(secondContent);
+    });
+  });
+
+  describe('Phase 2: auto-add pattern to context_paths', () => {
+    it('should auto-add pattern when created file does not match existing patterns', async () => {
+      const testFile = 'random/new-context.md';
+
+      // Read initial registry
+      const registryBefore = YAML.parse(await testEnv.readFile('.ctx/registry.yaml'));
+      const initialPatternCount = registryBefore.settings?.context_paths?.length || 0;
+
+      // Create file
+      await createCommand(testFile, { force: true });
+
+      // Read updated registry
+      const registryAfter = YAML.parse(await testEnv.readFile('.ctx/registry.yaml'));
+      const finalPatternCount = registryAfter.settings?.context_paths?.length || 0;
+
+      // Verify pattern was added
+      expect(finalPatternCount).toBe(initialPatternCount + 1);
+
+      // Verify the specific pattern exists
+      const hasPattern = registryAfter.settings?.context_paths?.some(
+        (cp: any) => cp.path === testFile
+      );
+      expect(hasPattern).toBe(true);
+    });
+
+    it('should NOT add duplicate pattern if file already matches', async () => {
+      // Add a pattern first
+      let registry = YAML.parse(await testEnv.readFile('.ctx/registry.yaml'));
+      if (!registry.settings) {
+        registry.settings = { context_paths: [] };
+      }
+      registry.settings.context_paths.push({
+        path: '.ctx/contexts/**/*.md',
+        purpose: 'Project contexts'
+      });
+      await testEnv.createFile('.ctx/registry.yaml', YAML.stringify(registry));
+
+      const patternCountBefore = registry.settings.context_paths.length;
+
+      // Create file that matches the pattern
+      await createCommand('.ctx/contexts/matching.md', { force: true });
+
+      // Read updated registry
+      const registryAfter = YAML.parse(await testEnv.readFile('.ctx/registry.yaml'));
+      const patternCountAfter = registryAfter.settings?.context_paths?.length || 0;
+
+      // Pattern count should NOT increase
+      expect(patternCountAfter).toBe(patternCountBefore);
+    });
+
+    it('should auto-sync after adding pattern', async () => {
+      const testFile = 'unmatched/test.md';
+
+      await createCommand(testFile, { force: true });
+
+      const registry = YAML.parse(await testEnv.readFile('.ctx/registry.yaml'));
+
+      // Verify file is in registry after sync
+      expect(registry.contexts[testFile]).toBeDefined();
+      expect(registry.contexts[testFile].checksum).toBeDefined();
+    });
+
+    it('should work with global contexts too', async () => {
+      await testEnv.initGlobal();
+
+      const testFile = 'random-global.md';
+
+      const registryBefore = YAML.parse(await testEnv.readFile('home/.ctx/registry.yaml'));
+      const initialPatternCount = registryBefore.settings?.context_paths?.length || 0;
+
+      await createCommand(testFile, { global: true, force: true });
+
+      const registryAfter = YAML.parse(await testEnv.readFile('home/.ctx/registry.yaml'));
+      const finalPatternCount = registryAfter.settings?.context_paths?.length || 0;
+
+      // Verify pattern was added
+      expect(finalPatternCount).toBe(initialPatternCount + 1);
     });
   });
 });

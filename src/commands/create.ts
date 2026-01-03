@@ -19,7 +19,7 @@ import {
   updateGlobalIndex,
   getGlobalCtxDir,
 } from '../lib/registry.js';
-import { ContextEntry } from '../lib/types.js';
+import { ContextEntry, ContextPathConfig } from '../lib/types.js';
 import { computeChecksum } from '../lib/checksum.js';
 import { extractPreviewFromGlobal } from '../lib/parser.js';
 import {
@@ -28,6 +28,7 @@ import {
   getGlobalContextPaths,
   suggestMatchingPaths,
 } from '../lib/context-path-matcher.js';
+import { syncCommand } from './sync.js';
 
 export interface CreateOptions {
   force?: boolean;
@@ -68,53 +69,42 @@ export async function createCommand(contextPath: string, options: CreateOptions 
       }
     }
 
-    // Validation: check if path matches context_paths patterns
+    // Check if path matches context_paths patterns
+    let registry = isGlobal
+      ? await readGlobalCtxRegistry()
+      : await readProjectRegistry(projectRoot!);
+
     const contextPaths = isGlobal
       ? await getGlobalContextPaths()
       : await getProjectContextPaths(projectRoot!);
 
     const matches = matchesContextPaths(contextPath, contextPaths);
+    let patternAdded = false;
 
-    if (!matches && !options.force) {
-      console.log(chalk.yellow(`\n⚠️  Warning: '${contextPath}' doesn't match any context_paths pattern\n`));
-
-      console.log(chalk.gray('Current patterns:'));
-      contextPaths.forEach(cp => {
-        console.log(chalk.gray(`  - ${cp.path}`));
-      });
-
-      console.log();
-      console.log(chalk.yellow('This file will be removed on next ') + chalk.white('ctx sync'));
-      console.log();
-
-      const suggestions = suggestMatchingPaths(contextPath, contextPaths);
-      if (suggestions.length > 0) {
-        console.log(chalk.blue('Suggested alternatives:'));
-        suggestions.forEach(s => {
-          console.log(chalk.gray(`  - ${s}`));
-        });
-        console.log();
+    if (!matches) {
+      // Auto-add to context_paths
+      if (!registry.settings) {
+        registry.settings = { context_paths: [] };
+      }
+      if (!registry.settings.context_paths) {
+        registry.settings.context_paths = [];
       }
 
-      console.log(chalk.blue('Options:'));
-      console.log(chalk.gray('  1. Create in a matched location (recommended)'));
-      console.log(chalk.gray('  2. Add pattern: ') + chalk.white(`ctx add-pattern "${contextPath.replace(/[^/]+$/, '**/*.md')}" "Description"`));
-      console.log(chalk.gray('  3. Continue anyway (use --force)'));
-      console.log();
+      const newPattern: ContextPathConfig = {
+        path: contextPath,
+        purpose: 'Added via ctx create'
+      };
+      registry.settings.context_paths.push(newPattern);
+      patternAdded = true;
 
-      const { proceed } = await inquirer.prompt([
-        {
-          type: 'confirm',
-          name: 'proceed',
-          message: 'Continue creating this file anyway?',
-          default: false,
-        },
-      ]);
-
-      if (!proceed) {
-        console.log(chalk.gray('Operation cancelled.'));
-        return;
+      // Save registry with new pattern
+      if (isGlobal) {
+        await writeGlobalCtxRegistry(registry);
+      } else {
+        await writeProjectRegistry(projectRoot!, registry);
       }
+
+      console.log(chalk.blue(`ℹ️  Added '${contextPath}' to context_paths`));
     }
 
     // Resolve absolute path
@@ -190,10 +180,19 @@ export async function createCommand(contextPath: string, options: CreateOptions 
       console.log(chalk.gray(`  Target: ${options.target}`));
     }
 
+    // Auto-sync if pattern was added
+    if (patternAdded) {
+      console.log();
+      console.log(chalk.blue('Running sync to apply new pattern...'));
+      await syncCommand({ global: isGlobal });
+    }
+
     console.log();
     console.log(chalk.blue('Next steps:'));
     console.log(chalk.gray('  1. Fill in the TODO fields with meaningful information'));
-    console.log(chalk.gray('  2. Run: ') + chalk.white('ctx sync') + chalk.gray(' to update checksums'));
+    if (!patternAdded) {
+      console.log(chalk.gray('  2. Run: ') + chalk.white('ctx sync') + chalk.gray(' to update checksums'));
+    }
     console.log();
   } catch (error) {
     console.error(chalk.red('✗ Error creating context file:'), error);
