@@ -74,7 +74,6 @@ program
   .command('status')
   .description('Show current ctx status (JSON by default)')
   .option('--pretty', 'Human-readable dashboard output')
-  .option('--target <path>', 'Find context file for a target file path')
   .option('--global', 'Show global registry contexts only')
   .option('--all', 'Show all registered projects from global index')
   .action(statusCommand);

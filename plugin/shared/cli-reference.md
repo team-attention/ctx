@@ -49,7 +49,6 @@ Show current context status.
 ```bash
 ctx status                      # JSON output (default)
 ctx status --pretty             # Human-readable dashboard
-ctx status --target src/api.ts  # Find context for specific file
 ctx status --global             # Show global registry only
 ctx status --all                # Show all registered projects
 ```
@@ -57,9 +56,10 @@ ctx status --all                # Show all registered projects
 | Flag | Description |
 |------|-------------|
 | `--pretty` | Human-readable dashboard output |
-| `--target <path>` | Find context file for a target file path |
 | `--global` | Show global registry contexts only |
 | `--all` | Show all registered projects from global index |
+
+> **Tip:** To find contexts for a specific file, use `ctx load --file <path> --json`
 
 **Output (JSON, default):**
 ```json
@@ -330,7 +330,9 @@ ctx check --fix                  # Auto-fix
 ### Find context for a file
 
 ```bash
-ctx status --target src/api.ts
+ctx load --file src/api.ts --json   # Metadata only
+ctx load --file src/api.ts --paths  # Paths only
+ctx load --file src/api.ts          # Full content
 ```
 
 ### Load contexts programmatically

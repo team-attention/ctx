@@ -10,7 +10,6 @@ import {
 
 interface StatusOptions {
   pretty?: boolean;
-  target?: string;
   global?: boolean;
   all?: boolean;
 }

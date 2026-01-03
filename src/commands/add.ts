@@ -4,7 +4,6 @@ import chalk from 'chalk';
 import { glob } from 'glob';
 import { computeChecksum } from '../lib/checksum.js';
 import { extractPreviewFromGlobal, parseContextFile } from '../lib/parser.js';
-import { resolveTargetFromContext } from '../lib/fileUtils.js';
 import {
   findProjectRoot,
   isGlobalCtxInitialized,
@@ -93,19 +92,13 @@ async function addToProject(patterns: string[]) {
 
       const stats = await fs.stat(absolutePath);
 
-      // Determine if this is a bound context (*.ctx.md) or standalone (.ctx/contexts/*.md)
-      const isLocalContext = file.endsWith('.ctx.md') && !file.includes('.ctx/');
+      // Get target from frontmatter (if present → bound, if not → standalone)
       let target: string | undefined;
-
-      if (isLocalContext) {
-        try {
-          // Parse frontmatter to get explicit target if any
-          const contextFile = parseContextFile(file, content);
-          target = await resolveTargetFromContext(file, contextFile.meta.target);
-        } catch {
-          // If parsing fails, try to infer from filename
-          target = await resolveTargetFromContext(file);
-        }
+      try {
+        const contextFile = parseContextFile(file, content);
+        target = contextFile.meta.target;
+      } catch {
+        // No frontmatter or parse error → standalone
       }
 
       const entry: ContextEntry = {
