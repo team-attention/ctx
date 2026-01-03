@@ -6,9 +6,9 @@
 # - ctx status (default, project scope)
 # - ctx status --global
 # - ctx status --all
-# - ctx load --file (for hook integration)
-# - ctx load --file --json
-# - ctx load --file --paths
+# - ctx load --target (for hook integration)
+# - ctx load --target --json
+# - ctx load --target --paths
 #
 
 set -e
@@ -131,10 +131,10 @@ echo ""
 echo "  All status: PASSED"
 
 # -----------------------------------------------------------------------------
-# Test 5: ctx load --file (exact match)
+# Test 5: ctx load --target (exact match)
 # -----------------------------------------------------------------------------
 echo ""
-echo "Test 5: ctx load --file (exact match)"
+echo "Test 5: ctx load --target (exact match)"
 echo "--------------------------------------"
 
 # Ensure we have a context with target
@@ -162,7 +162,7 @@ $CTX_CLI sync 2>/dev/null || true
 echo "export function handler() {}" > src/api/handler.ts
 
 # Load contexts for the file
-output=$($CTX_CLI load --file src/api/handler.ts --json 2>&1 || echo "[]")
+output=$($CTX_CLI load --target src/api/handler.ts --json 2>&1 || echo "[]")
 
 # Should return JSON array (might be empty if target matching not implemented yet)
 if echo "$output" | grep -q "\["; then
@@ -172,16 +172,16 @@ else
 fi
 
 echo ""
-echo "  Load --file: PASSED"
+echo "  Load --target: PASSED"
 
 # -----------------------------------------------------------------------------
-# Test 6: ctx load --file --json format
+# Test 6: ctx load --target --json format
 # -----------------------------------------------------------------------------
 echo ""
-echo "Test 6: ctx load --file --json format"
+echo "Test 6: ctx load --target --json format"
 echo "--------------------------------------"
 
-output=$($CTX_CLI load --file src/api/handler.ts --json 2>&1 || echo "[]")
+output=$($CTX_CLI load --target src/api/handler.ts --json 2>&1 || echo "[]")
 
 # Validate JSON
 if echo "$output" | python3 -c "import sys, json; json.load(sys.stdin)" 2>/dev/null; then
@@ -199,13 +199,13 @@ echo ""
 echo "  JSON format: PASSED"
 
 # -----------------------------------------------------------------------------
-# Test 7: ctx load --file --paths format
+# Test 7: ctx load --target --paths format
 # -----------------------------------------------------------------------------
 echo ""
-echo "Test 7: ctx load --file --paths format"
+echo "Test 7: ctx load --target --paths format"
 echo "---------------------------------------"
 
-output=$($CTX_CLI load --file src/api/handler.ts --paths 2>&1 || echo "")
+output=$($CTX_CLI load --target src/api/handler.ts --paths 2>&1 || echo "")
 
 # Should be path strings (or empty)
 if [ -z "$output" ] || echo "$output" | grep -qE "\.ctx\.md|\.md"; then
@@ -218,13 +218,13 @@ echo ""
 echo "  Paths format: PASSED"
 
 # -----------------------------------------------------------------------------
-# Test 8: ctx load --file with non-existent file
+# Test 8: ctx load --target with non-existent file
 # -----------------------------------------------------------------------------
 echo ""
-echo "Test 8: ctx load --file (non-existent)"
+echo "Test 8: ctx load --target (non-existent)"
 echo "---------------------------------------"
 
-output=$($CTX_CLI load --file non-existent-file.ts --json 2>&1 || echo "[]")
+output=$($CTX_CLI load --target non-existent-file.ts --json 2>&1 || echo "[]")
 
 # Should return empty array
 if [ "$output" = "[]" ] || echo "$output" | grep -q "\[\]"; then
@@ -244,7 +244,7 @@ echo "Test 9: ctx load skips context files"
 echo "-------------------------------------"
 
 # Loading a .ctx.md file should skip
-output=$($CTX_CLI load --file src/api/handler.ctx.md --json 2>&1 || echo "[]")
+output=$($CTX_CLI load --target src/api/handler.ctx.md --json 2>&1 || echo "[]")
 
 # Should return empty (context files should be skipped)
 if [ "$output" = "[]" ] || [ -z "$output" ]; then

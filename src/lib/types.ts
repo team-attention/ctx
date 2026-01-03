@@ -58,7 +58,7 @@ export interface ContextPreview {
 
 /** Context path configuration for settings */
 export interface ContextPathConfig {
-  path: string; // Relative path from registry (e.g., 'contexts/', 'docs/')
+  path: string; // Glob pattern from project root (e.g., '**/*.ctx.md', '.ctx/contexts/**/*.md', 'docs/**/*.md')
   purpose: string; // Description of this path's purpose (for AI)
 }
 
@@ -172,7 +172,7 @@ export interface CheckOptions {
   global?: boolean;
   fix?: boolean;
   pretty?: boolean;
-  path?: string; // Check only a specific context path
+  target?: string; // Check only contexts bound to this target file (supports glob)
 }
 
 export interface CheckIssue {

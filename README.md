@@ -211,8 +211,8 @@ ctx create --global <name>  # Create global context
 # ─────────────────────────────────────
 # Load Context (for hooks)
 # ─────────────────────────────────────
-ctx load --file <path>      # Get matching contexts for a file
-ctx load --file src/api.ts  # Returns JSON of matching contexts
+ctx load --target <path>      # Get matching contexts for a file
+ctx load --target src/api.ts  # Returns JSON of matching contexts
 
 # ─────────────────────────────────────
 # Sync & Verify
@@ -229,10 +229,6 @@ ctx status                  # Show project contexts
 ctx status --global         # Show global contexts
 ctx status --all            # Show everything (uses global index)
 
-# ─────────────────────────────────────
-# Migration (from older versions)
-# ─────────────────────────────────────
-ctx migrate                 # Convert ctx/ → .ctx/, update registries
 ```
 
 ### AI Skills (Claude Code Plugin)
@@ -308,7 +304,7 @@ AI calls Read("src/api.ts")
     ↓
 PostToolUse hook triggers
     ↓
-ctx load --file src/api.ts
+ctx load --target src/api.ts
     ↓
 Matching contexts injected into conversation
 ```
@@ -362,22 +358,6 @@ ctx/
 Install plugin after `ctx init`:
 ```bash
 claude plugins install ctx
-```
-
----
-
-## Migration from v0.x
-
-If you have an existing ctx setup:
-
-```bash
-ctx migrate
-
-# What it does:
-# 1. ctx/ → .ctx/contexts/
-# 2. ctx.config.yaml → deleted (not needed)
-# 3. *-context-registry.yml → .ctx/registry.yaml
-# 4. Work session files → deleted (feature removed)
 ```
 
 ---

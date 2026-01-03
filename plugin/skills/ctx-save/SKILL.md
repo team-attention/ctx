@@ -138,7 +138,7 @@ Match content purpose with `context_paths[].purpose` to suggest path.
 
 **Check existence:**
 ```bash
-npx ctx status --path <proposed-path>
+test -f <proposed-path> && echo "exists"
 ```
 
 **CREATE (new context):**

@@ -1,6 +1,5 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { minimatch } from 'minimatch';
 import {
   findProjectRoot,
   readProjectRegistry,
@@ -8,97 +7,12 @@ import {
   getGlobalCtxDir,
 } from '../lib/registry.js';
 import { ContextEntry } from '../lib/types.js';
-
-interface MatchedContext {
-  contextPath: string;
-  target: string;
-  source: 'project' | 'global';
-  matchType: 'exact' | 'glob';
-  priority: number;
-  preview?: {
-    what?: string;
-    when?: string[];
-  };
-}
+import { findMatchingContexts, MatchedContext } from '../lib/target-matcher.js';
 
 interface LoadOptions {
-  file?: string;
+  target?: string;  // Target file path for auto-matching (supports glob)
   json?: boolean;   // Output as JSON (paths + metadata only)
   paths?: boolean;  // Output paths only (newline separated)
-}
-
-/**
- * Check if target pattern is a glob pattern
- */
-function isGlobPattern(pattern: string): boolean {
-  return pattern.includes('*') || pattern.includes('?') || pattern.includes('[');
-}
-
-/**
- * Check if file path matches a target pattern
- */
-function matchesTarget(filePath: string, target: string, projectRoot: string): boolean {
-  // Normalize file path to relative
-  const absoluteFile = path.isAbsolute(filePath)
-    ? filePath
-    : path.join(projectRoot, filePath);
-  const relativePath = path.relative(projectRoot, absoluteFile);
-
-  // Handle folder targets (ending with /)
-  if (target.endsWith('/')) {
-    const targetWithoutSlash = target.slice(0, -1);
-    return relativePath.startsWith(target) || relativePath.startsWith(targetWithoutSlash);
-  }
-
-  // Normalize target (remove leading /)
-  const normalizedTarget = target.startsWith('/') ? target.slice(1) : target;
-
-  if (isGlobPattern(normalizedTarget)) {
-    return minimatch(relativePath, normalizedTarget, { dot: true });
-  } else {
-    return relativePath === normalizedTarget;
-  }
-}
-
-/**
- * Find matching contexts from registry (for auto mode)
- */
-function findAutoMatchingContexts(
-  contexts: Record<string, ContextEntry>,
-  filePath: string,
-  projectRoot: string,
-  source: 'project' | 'global',
-  basePath: string
-): MatchedContext[] {
-  const matches: MatchedContext[] = [];
-
-  for (const [contextKey, entry] of Object.entries(contexts)) {
-    if (!entry.target) {
-      continue;
-    }
-
-    if (matchesTarget(filePath, entry.target, projectRoot)) {
-      const isGlob = isGlobPattern(entry.target) || entry.target.endsWith('/');
-
-      let priority: number;
-      if (!isGlob) {
-        priority = source === 'project' ? 1 : 2;
-      } else {
-        priority = source === 'project' ? 3 : 4;
-      }
-
-      matches.push({
-        contextPath: path.join(basePath, contextKey),
-        target: entry.target,
-        source,
-        matchType: isGlob ? 'glob' : 'exact',
-        priority,
-        preview: entry.preview,
-      });
-    }
-  }
-
-  return matches;
 }
 
 /**
@@ -184,13 +98,13 @@ async function handleAutoModeFromStdin(
     process.exit(0);
   }
 
-  await handleAutoMode(filePath, projectRoot, options);
+  await handleTargetMode(filePath, projectRoot, options);
 }
 
 /**
- * Auto mode: path-based matching
+ * Auto mode: path-based matching with --target
  */
-async function handleAutoMode(
+async function handleTargetMode(
   filePath: string,
   projectRoot: string | null,
   options: LoadOptions = {}
@@ -213,7 +127,7 @@ async function handleAutoMode(
   // Check project registry
   if (projectRoot) {
     const projectRegistry = await readProjectRegistry(projectRoot);
-    const projectMatches = findAutoMatchingContexts(
+    const projectMatches = findMatchingContexts(
       projectRegistry.contexts || {},
       filePath,
       projectRoot,
@@ -225,7 +139,7 @@ async function handleAutoMode(
 
   // Check global registry
   const globalRegistry = await readGlobalCtxRegistry();
-  const globalMatches = findAutoMatchingContexts(
+  const globalMatches = findMatchingContexts(
     globalRegistry.contexts || {},
     filePath,
     effectiveRoot,
@@ -357,9 +271,9 @@ export async function loadCommand(
 ): Promise<void> {
   const projectRoot = await findProjectRoot(process.cwd());
 
-  // --file option: path-based auto matching
-  if (options.file) {
-    await handleAutoMode(options.file, projectRoot, options);
+  // --target option: path-based auto matching (supports glob)
+  if (options.target) {
+    await handleTargetMode(options.target, projectRoot, options);
     return;
   }
 
@@ -376,6 +290,6 @@ export async function loadCommand(
   }
 
   // No input at all
-  console.error('Error: Provide keywords for search, or use --file <path> for auto-matching');
+  console.error('Error: Provide keywords for search, or use --target <path> for auto-matching');
   process.exit(1);
 }

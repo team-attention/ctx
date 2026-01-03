@@ -7,17 +7,25 @@ import {
   readGlobalCtxRegistry,
   getGlobalCtxDir,
 } from '../lib/registry.js';
+import { findMatchingContexts, MatchedContext } from '../lib/target-matcher.js';
 
 interface StatusOptions {
   pretty?: boolean;
   global?: boolean;
   all?: boolean;
+  target?: string;  // Show contexts bound to this target file (supports glob)
 }
 
 export async function statusCommand(options: StatusOptions = {}) {
   try {
     const globalInitialized = await isGlobalCtxInitialized();
     const projectRoot = await findProjectRoot();
+
+    // Handle --target option: show contexts bound to specific file
+    if (options.target) {
+      await handleTargetStatus(options.target, projectRoot, globalInitialized, options);
+      return;
+    }
 
     if (!globalInitialized && !projectRoot) {
       if (options.pretty) {
@@ -117,4 +125,81 @@ function printPrettyStatus(status: any, options: StatusOptions): void {
   }
 
   console.log();
+}
+
+/**
+ * Handle --target option: show contexts bound to specific file
+ */
+async function handleTargetStatus(
+  targetPath: string,
+  projectRoot: string | null,
+  globalInitialized: boolean,
+  options: StatusOptions
+): Promise<void> {
+  const allMatches: MatchedContext[] = [];
+  const effectiveRoot = projectRoot || process.cwd();
+
+  // Check project registry
+  if (projectRoot) {
+    const projectRegistry = await readProjectRegistry(projectRoot);
+    const projectMatches = findMatchingContexts(
+      projectRegistry.contexts || {},
+      targetPath,
+      projectRoot,
+      'project',
+      projectRoot
+    );
+    allMatches.push(...projectMatches);
+  }
+
+  // Check global registry
+  if (globalInitialized) {
+    const globalRegistry = await readGlobalCtxRegistry();
+    const globalMatches = findMatchingContexts(
+      globalRegistry.contexts || {},
+      targetPath,
+      effectiveRoot,
+      'global',
+      getGlobalCtxDir()
+    );
+    allMatches.push(...globalMatches);
+  }
+
+  // Sort by priority (lower = higher priority)
+  allMatches.sort((a, b) => a.priority - b.priority);
+
+  if (options.pretty) {
+    console.log();
+    console.log(chalk.blue.bold(`Contexts for: ${targetPath}`));
+    console.log();
+
+    if (allMatches.length === 0) {
+      console.log(chalk.yellow('No contexts found for this target.'));
+    } else {
+      for (const match of allMatches) {
+        const relativePath = projectRoot
+          ? path.relative(projectRoot, match.contextPath)
+          : match.contextPath;
+        const sourceLabel = match.source === 'project' ? chalk.green('[Project]') : chalk.cyan('[Global]');
+        const matchLabel = match.matchType === 'exact' ? chalk.gray('(exact)') : chalk.gray('(glob)');
+
+        console.log(`${sourceLabel} ${relativePath} ${matchLabel}`);
+        console.log(chalk.gray(`  Target: ${match.target}`));
+        if (match.preview?.what) {
+          console.log(chalk.gray(`  What: ${match.preview.what}`));
+        }
+        console.log();
+      }
+    }
+  } else {
+    const output = allMatches.map(m => ({
+      path: projectRoot ? path.relative(projectRoot, m.contextPath) : m.contextPath,
+      target: m.target,
+      source: m.source,
+      matchType: m.matchType,
+      what: m.preview?.what || null,
+      when: m.preview?.when || null,
+    }));
+    console.log(JSON.stringify(output, null, 2));
+  }
 }

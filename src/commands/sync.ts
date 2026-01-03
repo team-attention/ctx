@@ -3,8 +3,8 @@ import fs from 'fs/promises';
 import chalk from 'chalk';
 import { fileExists, getTargetFromFrontmatter } from '../lib/fileUtils.js';
 import {
-  scanLocalContextsNew,
   scanProjectContexts,
+  scanGlobalCtxContexts,
 } from '../lib/scanner.js';
 import { parseContextFile, validateContextFile, extractPreviewFromLocal, extractPreviewFromGlobal } from '../lib/parser.js';
 import { computeChecksum, computeFileChecksum } from '../lib/checksum.js';
@@ -47,7 +47,11 @@ export async function syncCommand(options: ExtendedSyncOptions = {}) {
 }
 
 /**
- * Sync global contexts (~/.ctx/contexts/*.md) to global registry
+ * Sync global contexts (~/.ctx/) to global registry
+ * Uses settings.context_paths from ~/.ctx/registry.yaml
+ *
+ * SoT: File system is the source of truth.
+ * Registry is rebuilt from scratch on each sync.
  */
 async function syncGlobalContexts(): Promise<void> {
   console.log(chalk.blue.bold('Syncing global contexts...\n'));
@@ -59,12 +63,26 @@ async function syncGlobalContexts(): Promise<void> {
     process.exit(1);
   }
 
-  const { getGlobalCtxDir } = await import('../lib/registry.js');
-  const globalDir = getGlobalCtxDir();
-
   try {
-    const scannedContexts = await scanProjectContexts(globalDir);
+    // Use scanGlobalCtxContexts which reads ~/.ctx/registry.yaml settings.context_paths
+    const scannedContexts = await scanGlobalCtxContexts();
     const registry = await readGlobalCtxRegistry();
+
+    // Calculate what will be removed (for logging)
+    const scannedPaths = new Set(scannedContexts.map(c => c.relativePath));
+    const oldPaths = Object.keys(registry.contexts);
+    const deletedPaths = oldPaths.filter(p => !scannedPaths.has(p));
+
+    // Log deletions
+    if (deletedPaths.length > 0) {
+      console.log(chalk.gray('  Removed from registry:'));
+      deletedPaths.forEach(p => console.log(chalk.gray(`    - ${p}`)));
+      console.log();
+    }
+
+    // Clear contexts (rebuild from scratch)
+    // SoT: File system scan result = registry state
+    registry.contexts = {};
 
     let syncedCount = 0;
     for (const scanned of scannedContexts) {
@@ -180,37 +198,17 @@ async function rebuildGlobalIndex(): Promise<void> {
 }
 
 /**
- * Sync command for 3-level system
+ * Sync command for project contexts
+ * Scans all project contexts (*.ctx.md + .ctx/contexts/*.md) and updates registry
  */
-async function syncCommandNew(projectRoot: string, options: ExtendedSyncOptions) {
-  console.log(chalk.blue.bold('Syncing contexts...\n'));
+async function syncCommandNew(projectRoot: string, _options: ExtendedSyncOptions) {
+  console.log(chalk.blue.bold('Syncing project contexts...\n'));
 
   try {
-    let localSynced = 0;
-    let projectSynced = 0;
-    const errors: string[] = [];
-
-    // Sync local contexts (*.ctx.md files)
-    console.log(chalk.blue('Syncing local contexts...'));
-    try {
-      localSynced = await syncLocalContextsNew(projectRoot);
-      console.log(chalk.green(`✓ Synced ${localSynced} local context(s)`));
-    } catch (error) {
-      const errorMsg = `Failed to sync local contexts: ${error}`;
-      errors.push(errorMsg);
-      console.error(chalk.red(`✗ ${errorMsg}`));
-    }
-
-    // Sync project contexts (.ctx/contexts/)
-    console.log(chalk.blue('Syncing project contexts...'));
-    try {
-      projectSynced = await syncProjectContextsNew(projectRoot);
-      console.log(chalk.green(`✓ Synced ${projectSynced} project context(s)`));
-    } catch (error) {
-      const errorMsg = `Failed to sync project contexts: ${error}`;
-      errors.push(errorMsg);
-      console.error(chalk.red(`✗ ${errorMsg}`));
-    }
+    // Sync all project contexts (unified scan)
+    console.log(chalk.blue('Scanning contexts...'));
+    const syncedCount = await syncProjectContextsToRegistry(projectRoot);
+    console.log(chalk.green(`✓ Synced ${syncedCount} context(s)`));
 
     // Update global index
     const globalInitialized = await isGlobalCtxInitialized();
@@ -227,14 +225,7 @@ async function syncCommandNew(projectRoot: string, options: ExtendedSyncOptions)
     // Summary
     console.log();
     console.log(chalk.blue.bold('Sync complete!'));
-    console.log(chalk.gray(`  Local: ${localSynced}`));
-    console.log(chalk.gray(`  Project: ${projectSynced}`));
-
-    if (errors.length > 0) {
-      console.log();
-      console.log(chalk.yellow(`⚠️  ${errors.length} error(s) occurred during sync.`));
-      process.exit(1);
-    }
+    console.log(chalk.gray(`  Contexts: ${syncedCount}`));
   } catch (error) {
     console.error(chalk.red('✗ Error during sync:'), error);
     process.exit(1);
@@ -242,101 +233,117 @@ async function syncCommandNew(projectRoot: string, options: ExtendedSyncOptions)
 }
 
 /**
- * Sync local contexts to project registry
+ * Sync all project contexts to registry
+ * Handles both *.ctx.md files and .ctx/contexts/*.md
+ *
+ * SoT: File system is the source of truth.
+ * Registry is rebuilt from scratch on each sync.
  */
-async function syncLocalContextsNew(projectRoot: string): Promise<number> {
-  const scannedContexts = await scanLocalContextsNew(projectRoot);
-  const registry = await readProjectRegistry(projectRoot);
-
-  for (const scanned of scannedContexts) {
-    try {
-      const contextFile = parseContextFile(scanned.relativePath, scanned.content);
-      const validation = validateContextFile(contextFile);
-
-      if (!validation.valid) {
-        console.warn(
-          chalk.yellow(
-            `⚠️  Warning: ${scanned.relativePath} has validation errors: ${validation.errors.join(', ')}`
-          )
-        );
-        continue;
-      }
-
-      // SoT: frontmatter's target field (no inference from filename)
-      const targetPath = getTargetFromFrontmatter(contextFile.meta.target);
-
-      const contextChecksum = computeChecksum(scanned.content);
-      const stats = await fs.stat(scanned.contextPath);
-      const lastModified = stats.mtime.toISOString();
-
-      // Only compute target checksum if target exists
-      let targetChecksum: string | undefined;
-      if (targetPath) {
-        const absoluteTargetPath = path.join(projectRoot, targetPath.replace(/^\//, ''));
-        const targetExists = await fileExists(absoluteTargetPath);
-        if (targetExists) {
-          targetChecksum = await computeFileChecksum(absoluteTargetPath);
-        }
-      }
-
-      const preview = extractPreviewFromLocal(contextFile);
-
-      const entry: ContextEntry = {
-        source: scanned.relativePath,
-        target: targetPath || undefined,  // null → undefined for YAML
-        checksum: contextChecksum,
-        target_checksum: targetChecksum,
-        last_modified: lastModified,
-        preview: preview,
-      };
-
-      registry.contexts[scanned.relativePath] = entry;
-    } catch (error) {
-      console.error(chalk.red(`✗ Error processing ${scanned.relativePath}: ${error}`));
-    }
-  }
-
-  await writeProjectRegistry(projectRoot, registry);
-  return scannedContexts.length;
-}
-
-/**
- * Sync project contexts from .ctx/contexts/ to registry
- */
-async function syncProjectContextsNew(projectRoot: string): Promise<number> {
+async function syncProjectContextsToRegistry(projectRoot: string): Promise<number> {
   const scannedContexts = await scanProjectContexts(projectRoot);
   const registry = await readProjectRegistry(projectRoot);
 
+  // Calculate what will be removed (for logging)
+  const scannedPaths = new Set(scannedContexts.map(c => c.relativePath));
+  const oldPaths = Object.keys(registry.contexts);
+  const deletedPaths = oldPaths.filter(p => !scannedPaths.has(p));
+
+  // Log deletions
+  if (deletedPaths.length > 0) {
+    console.log(chalk.gray('\n  Removed from registry:'));
+    deletedPaths.forEach(p => console.log(chalk.gray(`    - ${p}`)));
+    console.log();
+  }
+
+  // Clear contexts (rebuild from scratch)
+  // SoT: File system scan result = registry state
+  registry.contexts = {};
+
+  let syncedCount = 0;
+
   for (const scanned of scannedContexts) {
     try {
-      const preview = extractPreviewFromGlobal(scanned.content);
+      // Try parsing as structured context file (with meta/frontmatter)
+      const isCtxFile = scanned.relativePath.endsWith('.ctx.md') ||
+                        scanned.relativePath.endsWith('/ctx.md');
 
-      if (!preview) {
-        console.warn(
-          chalk.yellow(
-            `⚠️  Warning: ${scanned.relativePath} has no valid frontmatter. Skipping.`
-          )
-        );
-        continue;
+      if (isCtxFile) {
+        // Structured context file (*.ctx.md)
+        const contextFile = parseContextFile(scanned.relativePath, scanned.content);
+        const validation = validateContextFile(contextFile);
+
+        if (!validation.valid) {
+          console.warn(
+            chalk.yellow(
+              `⚠️  Warning: ${scanned.relativePath} has validation errors: ${validation.errors.join(', ')}`
+            )
+          );
+          continue;
+        }
+
+        // SoT: frontmatter's target field (no inference from filename)
+        const targetPath = getTargetFromFrontmatter(contextFile.meta.target);
+
+        const contextChecksum = computeChecksum(scanned.content);
+        const stats = await fs.stat(scanned.contextPath);
+        const lastModified = stats.mtime.toISOString();
+
+        // Only compute target checksum if target exists
+        let targetChecksum: string | undefined;
+        if (targetPath) {
+          const absoluteTargetPath = path.join(projectRoot, targetPath.replace(/^\//, ''));
+          const targetExists = await fileExists(absoluteTargetPath);
+          if (targetExists) {
+            targetChecksum = await computeFileChecksum(absoluteTargetPath);
+          }
+        }
+
+        const preview = extractPreviewFromLocal(contextFile);
+
+        const entry: ContextEntry = {
+          source: scanned.relativePath,
+          target: targetPath || undefined,
+          checksum: contextChecksum,
+          target_checksum: targetChecksum,
+          last_modified: lastModified,
+          preview: preview,
+        };
+
+        registry.contexts[scanned.relativePath] = entry;
+      } else {
+        // Centralized context file (.ctx/contexts/*.md) - frontmatter only
+        const preview = extractPreviewFromGlobal(scanned.content);
+
+        if (!preview) {
+          console.warn(
+            chalk.yellow(
+              `⚠️  Warning: ${scanned.relativePath} has no valid frontmatter. Skipping.`
+            )
+          );
+          continue;
+        }
+
+        const contextChecksum = computeChecksum(scanned.content);
+        const stats = await fs.stat(scanned.contextPath);
+        const lastModified = stats.mtime.toISOString();
+
+        const entry: ContextEntry = {
+          source: scanned.relativePath,
+          checksum: contextChecksum,
+          last_modified: lastModified,
+          preview: preview,
+        };
+
+        registry.contexts[scanned.relativePath] = entry;
       }
 
-      const contextChecksum = computeChecksum(scanned.content);
-      const stats = await fs.stat(scanned.contextPath);
-      const lastModified = stats.mtime.toISOString();
-
-      const entry: ContextEntry = {
-        source: scanned.relativePath,
-        checksum: contextChecksum,
-        last_modified: lastModified,
-        preview: preview,
-      };
-
-      registry.contexts[scanned.relativePath] = entry;
+      syncedCount++;
     } catch (error) {
       console.error(chalk.red(`✗ Error processing ${scanned.relativePath}: ${error}`));
     }
   }
 
   await writeProjectRegistry(projectRoot, registry);
-  return scannedContexts.length;
+  return syncedCount;
 }
+

@@ -16,12 +16,13 @@ import { ContextPathConfig, UnifiedRegistry } from '../lib/types.js';
 
 /** Default context paths for Global */
 const DEFAULT_GLOBAL_CONTEXT_PATHS: ContextPathConfig[] = [
-  { path: 'contexts/', purpose: 'General context documents' },
+  { path: 'contexts/**/*.md', purpose: 'General context documents' },
 ];
 
 /** Default context paths for Project */
 const DEFAULT_PROJECT_CONTEXT_PATHS: ContextPathConfig[] = [
-  { path: '.ctx/contexts/', purpose: 'Project-specific context' },
+  { path: '**/*.ctx.md', purpose: 'Bound contexts next to code' },
+  { path: '.ctx/contexts/**/*.md', purpose: 'Centralized project contexts' },
 ];
 
 /**
@@ -43,7 +44,7 @@ export function parseContextPathsOption(optionValue: string): ContextPathConfig[
     const colonIndex = trimmed.indexOf(':');
     if (colonIndex === -1) {
       throw new Error(
-        `Invalid format: "${trimmed}". Expected "path:purpose" (e.g., "contexts/:General context")`
+        `Invalid format: "${trimmed}". Expected "pattern:purpose" (e.g., "**/*.ctx.md:Bound contexts")`
       );
     }
 
@@ -76,9 +77,9 @@ async function promptContextPaths(
 ): Promise<ContextPathConfig[]> {
   const defaultStr = defaults.map((cp) => `${cp.path}:${cp.purpose}`).join(', ');
 
-  console.log(chalk.gray('\nContext paths define where context files are stored.'));
-  console.log(chalk.gray('Format: path:purpose (comma-separated for multiple)'));
-  console.log(chalk.gray(`Example: contexts/:General context,rules/:Coding rules\n`));
+  console.log(chalk.gray('\nContext paths define glob patterns for context files.'));
+  console.log(chalk.gray('Format: pattern:purpose (comma-separated for multiple)'));
+  console.log(chalk.gray(`Example: contexts/**/*.md:General context,**/*.ctx.md:Bound contexts\n`));
 
   const { contextPathsInput } = await inquirer.prompt([
     {
@@ -166,9 +167,18 @@ async function initGlobalCommand(options?: InitOptions) {
     await fs.mkdir(globalCtxDir, { recursive: true });
     console.log(chalk.green(`✓ Created ${globalCtxDir}`));
 
-    // Create directories for each context path
+    // Create base directories from glob patterns
+    const dirsToCreate = new Set<string>();
     for (const cp of contextPaths) {
-      const fullPath = path.join(globalCtxDir, cp.path);
+      // Extract base directory from glob pattern (e.g., 'contexts/**/*.md' → 'contexts/')
+      const baseDir = cp.path.split('**')[0].replace(/\*.*$/, '').trim();
+      if (baseDir && baseDir !== '') {
+        dirsToCreate.add(baseDir);
+      }
+    }
+
+    for (const dir of dirsToCreate) {
+      const fullPath = path.join(globalCtxDir, dir);
       await fs.mkdir(fullPath, { recursive: true });
       console.log(chalk.green(`✓ Created ${fullPath}`));
     }
@@ -268,11 +278,20 @@ async function initProjectCommand(options?: InitOptions) {
     await fs.mkdir(ctxDir, { recursive: true });
     console.log(chalk.green(`✓ Created ${CTX_DIR}/`));
 
-    // Create directories for each context path
+    // Create base directories from glob patterns
+    const dirsToCreate = new Set<string>();
     for (const cp of contextPaths) {
-      const fullPath = path.join(projectRoot, cp.path);
+      // Extract base directory from glob pattern (e.g., '.ctx/contexts/**/*.md' → '.ctx/contexts/')
+      const baseDir = cp.path.split('**')[0].replace(/\*.*$/, '').trim();
+      if (baseDir && baseDir !== '' && !baseDir.startsWith('*')) {
+        dirsToCreate.add(baseDir);
+      }
+    }
+
+    for (const dir of dirsToCreate) {
+      const fullPath = path.join(projectRoot, dir);
       await fs.mkdir(fullPath, { recursive: true });
-      console.log(chalk.green(`✓ Created ${cp.path}`));
+      console.log(chalk.green(`✓ Created ${dir}`));
     }
 
     // Create .ctx/registry.yaml with settings

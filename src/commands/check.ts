@@ -8,6 +8,7 @@ import {
 } from '../lib/registry.js';
 import { computeChecksum, computeFileChecksum } from '../lib/checksum.js';
 import { CheckOptions } from '../lib/types.js';
+import { findMatchingContexts } from '../lib/target-matcher.js';
 
 interface CheckResult {
   status: 'fresh' | 'stale';
@@ -81,14 +82,24 @@ async function checkContexts(projectRoot: string, options: CheckOptions): Promis
     issues: [],
   };
 
+  // If --target is specified, find matching contexts first
+  let contextsToCheck: Set<string> | null = null;
+  if (options.target) {
+    const matches = findMatchingContexts(
+      registry.contexts,
+      options.target,
+      projectRoot,
+      'project',
+      ''  // No base path needed, we just need the keys
+    );
+    contextsToCheck = new Set(matches.map(m => path.relative(projectRoot, m.contextPath) || m.contextPath.replace(/^\//, '')));
+  }
+
   // Check registered contexts
   for (const [contextPath, entry] of Object.entries(registry.contexts)) {
-    // Filter by path if specified
-    if (options.path) {
-      const normalizedPath = options.path.replace(/^\.\//, '');
-      if (!contextPath.includes(normalizedPath)) {
-        continue;
-      }
+    // Filter by --target if specified
+    if (contextsToCheck && !contextsToCheck.has(contextPath)) {
+      continue;
     }
 
     result.summary.total++;
@@ -168,8 +179,8 @@ async function checkContexts(projectRoot: string, options: CheckOptions): Promis
     }
   }
 
-  // Scan for new (unregistered) context files
-  if (!options.path) {
+  // Scan for new (unregistered) context files (skip when --target is specified)
+  if (!options.target) {
     const newContexts = await findNewContexts(projectRoot, registry);
     result.summary.new = newContexts.length;
     for (const ctx of newContexts) {

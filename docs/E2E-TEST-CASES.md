@@ -33,16 +33,16 @@ Scenario: 전체 status 확인 (--all)
   When ctx status --all을 실행하면
   Then 모든 프로젝트의 context 요약이 표시된다
 
-# --- ctx load --file (Hook용) ---
+# --- ctx load --target (Hook용) ---
 
-Scenario: ctx load --file로 target 매칭
+Scenario: ctx load --target로 target 매칭
   Given .ctx/registry.yaml에 target이 있는 context가 등록되어 있을 때
-  When ctx load --file <path> --json을 실행하면
+  When ctx load --target <path> --json을 실행하면
   Then 매칭된 context의 path, what 필드가 JSON 배열로 출력된다
 
 Scenario: 매칭되는 context 없음
   Given 해당 파일에 매칭되는 target이 없을 때
-  When ctx load --file <path>를 실행하면
+  When ctx load --target <path>를 실행하면
   Then 빈 배열 []이 출력된다
 ```
 
@@ -50,7 +50,7 @@ Scenario: 매칭되는 context 없음
 
 ### 1.2 Hook (자동 로드)
 
-> PostToolUse(Read) Hook → `ctx load --file` → context 자동 주입
+> PostToolUse(Read) Hook → `ctx load --target` → context 자동 주입
 
 ```gherkin
 Feature: 파일 읽을 때 자동 Context 로드

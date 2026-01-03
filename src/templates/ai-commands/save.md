@@ -80,13 +80,13 @@ First token analysis:
 
 ### 2. Run Check
 
-**Run check for the specific context path:**
+**Run check for contexts:**
 
 ```bash
-npx ctx check --path [contextPath]
+npx ctx check
 ```
 
-This checks only the context being saved, not the entire registry.
+This verifies the registry is in sync with filesystem.
 
 ### 3. Handle Check Results
 

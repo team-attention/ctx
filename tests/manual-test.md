@@ -165,50 +165,6 @@ ctx remove test.ctx.md
 - [ ] `.ctx/registry.yaml`에서 제거됨
 - [ ] "Note: files are NOT deleted" 안내 메시지 표시
 
-### 3.3 ctx migrate
-
-**테스트 경로:** `/tmp/legacy-test`
-
-**준비 - Legacy 구조 생성:**
-```bash
-mkdir -p /tmp/legacy-test && cd /tmp/legacy-test
-
-# Legacy config
-cat > ctx.config.yaml << 'EOF'
-version: 0.1.0
-editor: claude-code
-local:
-  patterns: ["**/*.ctx.md"]
-global:
-  directory: ctx
-EOF
-
-# Legacy context directory
-mkdir -p ctx/architecture
-cat > ctx/architecture/overview.md << 'EOF'
----
-what: Architecture overview
-when:
-  - designing system
----
-# Overview
-EOF
-```
-
-**실행:**
-```bash
-ctx migrate
-```
-
-**검증:**
-- [ ] "Legacy structure detected" 메시지
-- [ ] `.ctx/` 디렉토리 생성됨
-- [ ] `.ctx/contexts/` 디렉토리 생성됨
-- [ ] `ctx/architecture/` → `.ctx/contexts/architecture/` 복사됨
-- [ ] `.ctx/registry.yaml` 생성됨
-- [ ] ctx.config.yaml 삭제 옵션 제공
-- [ ] ctx/ 디렉토리 삭제 옵션 제공
-
 ---
 
 ## 테스트 정리
@@ -236,6 +192,5 @@ rm -rf ~/.ctx
 | 2 | Global index | [ ] |
 | 3 | ctx add | [ ] |
 | 3 | ctx remove | [ ] |
-| 3 | ctx migrate | [ ] |
 
 **전체 테스트 통과:** [ ]

@@ -15,7 +15,6 @@ Shared CLI reference for CTX plugin skills.
 | `ctx save` | Save content to context file |
 | `ctx add` | Add context files to registry |
 | `ctx remove` | Remove context files from registry |
-| `ctx migrate` | Migrate from legacy structure |
 | `ctx refresh` | Refresh AI commands with config |
 
 ---
@@ -51,6 +50,7 @@ ctx status                      # JSON output (default)
 ctx status --pretty             # Human-readable dashboard
 ctx status --global             # Show global registry only
 ctx status --all                # Show all registered projects
+ctx status --target src/api.ts  # Show contexts for specific file
 ```
 
 | Flag | Description |
@@ -58,8 +58,7 @@ ctx status --all                # Show all registered projects
 | `--pretty` | Human-readable dashboard output |
 | `--global` | Show global registry contexts only |
 | `--all` | Show all registered projects from global index |
-
-> **Tip:** To find contexts for a specific file, use `ctx load --file <path> --json`
+| `--target <filePath>` | Show contexts bound to this file (supports glob) |
 
 **Output (JSON, default):**
 ```json
@@ -91,6 +90,8 @@ Human-readable dashboard showing global and project status with context counts.
 
 Sync context files to registry. Updates checksums and preview fields.
 
+**Important:** Registry is rebuilt from file system on each sync (file system is source of truth). Deleted files are automatically removed from registry.
+
 ```bash
 ctx sync                  # Sync project contexts
 ctx sync --global         # Sync global contexts (~/.ctx/)
@@ -102,7 +103,9 @@ ctx sync --rebuild-index  # Rebuild global index
 | `--global` | Sync global contexts (~/.ctx/) |
 | `--rebuild-index` | Rebuild global index from all registered projects |
 
-**Output:** Summary of synced contexts with updated checksums.
+**Output:**
+- Summary of synced contexts with updated checksums
+- List of removed entries (if files were deleted)
 
 ---
 
@@ -111,17 +114,17 @@ ctx sync --rebuild-index  # Rebuild global index
 Check context health and freshness.
 
 ```bash
-ctx check                               # Check project contexts
-ctx check --global                      # Check only global
-ctx check --path .ctx/contexts/auth.md  # Check specific file
-ctx check --fix                         # Auto-fix registry issues
-ctx check --pretty                      # Human-readable output
+ctx check                          # Check project contexts
+ctx check --global                 # Check only global
+ctx check --target src/api.ts      # Check contexts for specific file
+ctx check --fix                    # Auto-fix registry issues
+ctx check --pretty                 # Human-readable output
 ```
 
 | Flag | Description |
 |------|-------------|
 | `--global` | Check only global contexts |
-| `--path <file>` | Check only a specific context file |
+| `--target <filePath>` | Check only contexts bound to this file (supports glob) |
 | `--fix` | Update registry to match filesystem |
 | `--pretty` | Human-readable output (default is JSON) |
 
@@ -182,15 +185,15 @@ ctx create --force .ctx/contexts/auth.md
 Load context files by keywords or auto-match by file path.
 
 ```bash
-ctx load api auth              # Load by keywords
-ctx load --file src/api.ts     # Match by file path
-ctx load --json                # Output as JSON (metadata only)
-ctx load --paths               # Output paths only
+ctx load api auth                # Load by keywords
+ctx load --target src/api.ts     # Match by file path (supports glob)
+ctx load --json                  # Output as JSON (metadata only)
+ctx load --paths                 # Output paths only
 ```
 
 | Flag | Description |
 |------|-------------|
-| `--file <path>` | File path to match against targets (for hook integration) |
+| `--target <filePath>` | File path to match against targets (supports glob) |
 | `--json` | Output as JSON (paths + metadata only, no content) |
 | `--paths` | Output paths only (newline separated) |
 
@@ -282,18 +285,6 @@ ctx remove --global old-tips.md # Remove from global registry
 
 ---
 
-### ctx migrate
-
-Migrate from legacy `ctx/` structure to new `.ctx/` structure.
-
-```bash
-ctx migrate
-```
-
-**Output:** Migration summary with moved files and updated paths.
-
----
-
 ### ctx refresh
 
 Refresh AI commands with current config settings.
@@ -333,9 +324,11 @@ ctx check --fix                  # Auto-fix
 ### Find context for a file
 
 ```bash
-ctx load --file src/api.ts --json   # Metadata only
-ctx load --file src/api.ts --paths  # Paths only
-ctx load --file src/api.ts          # Full content
+ctx status --target src/api.ts         # Show metadata
+ctx load --target src/api.ts --json    # JSON output
+ctx load --target src/api.ts --paths   # Paths only
+ctx load --target src/api.ts           # Full content
+ctx check --target src/api.ts          # Check health
 ```
 
 ### Load contexts programmatically

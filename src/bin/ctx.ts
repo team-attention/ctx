@@ -12,7 +12,7 @@ import { refreshCommand } from '../commands/refresh.js';
 import { statusCommand } from '../commands/status.js';
 import { addCommand } from '../commands/add.js';
 import { removeCommand } from '../commands/remove.js';
-import { migrateCommand } from '../commands/migrate.js';
+import { adoptCommand } from '../commands/adopt.js';
 import { loadCommand } from '../commands/load.js';
 import { saveCommand } from '../commands/save.js';
 
@@ -59,7 +59,7 @@ program
   .command('check')
   .description('Check context health and freshness')
   .option('--global', 'Check only global contexts')
-  .option('--path <contextPath>', 'Check only a specific context file')
+  .option('--target <filePath>', 'Check only contexts bound to this file (supports glob)')
   .option('--fix', 'Update registry to match filesystem')
   .option('--pretty', 'Human-readable output (default is JSON)')
   .action(checkCommand);
@@ -75,6 +75,7 @@ program
   .option('--pretty', 'Human-readable dashboard output')
   .option('--global', 'Show global registry contexts only')
   .option('--all', 'Show all registered projects from global index')
+  .option('--target <filePath>', 'Show contexts bound to this file (supports glob)')
   .action(statusCommand);
 
 program
@@ -90,14 +91,15 @@ program
   .action(removeCommand);
 
 program
-  .command('migrate')
-  .description('Migrate from legacy ctx/ structure to new .ctx/ structure')
-  .action(migrateCommand);
+  .command('adopt <patterns...>')
+  .description('Adopt existing documents by adding frontmatter')
+  .option('--global', 'Adopt to global registry instead of project')
+  .action(adoptCommand);
 
 program
   .command('load [keywords...]')
   .description('Load context files by keywords or auto-match by file path')
-  .option('--file <path>', 'File path to match against targets (for hook integration)')
+  .option('--target <filePath>', 'File path to match against targets (supports glob)')
   .option('--json', 'Output as JSON (paths + metadata only, no content)')
   .option('--paths', 'Output paths only (newline separated)')
   .action(loadCommand);
