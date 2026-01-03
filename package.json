@@ -1,5 +1,5 @@
 {
-  "name": "@11x-lab/ctx",
+  "name": "@team-attention/ctx",
   "version": "0.2.16",
   "description": "Context-driven development CLI tool",
   "type": "module",
@@ -12,12 +12,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/11x-lab/ctx.git"
+    "url": "git+https://github.com/team-attention/ctx.git"
   },
   "bugs": {
-    "url": "https://github.com/11x-lab/ctx/issues"
+    "url": "https://github.com/team-attention/ctx/issues"
   },
-  "homepage": "https://github.com/11x-lab/ctx#readme",
+  "homepage": "https://github.com/team-attention/ctx#readme",
   "scripts": {
     "build": "rm -rf dist && tsc --project tsconfig.build.json && cp -r src/templates dist/ && pnpm sync:plugin",
     "sync:plugin": "./scripts/sync-plugin-docs.sh",
@@ -25,6 +25,9 @@
     "test": "NODE_OPTIONS=--experimental-vm-modules jest",
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch",
     "test:coverage": "NODE_OPTIONS=--experimental-vm-modules jest --coverage",
+    "test:e2e": "./tests/e2e/run-all.sh",
+    "typecheck": "tsc --noEmit",
+    "validate": "pnpm typecheck && pnpm build && pnpm test",
     "prepublishOnly": "pnpm build"
   },
   "keywords": [

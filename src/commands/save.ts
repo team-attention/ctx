@@ -9,7 +9,7 @@ import {
   readGlobalCtxRegistry,
   writeGlobalCtxRegistry,
   CONTEXTS_DIR,
-  GLOBAL_CTX_DIR,
+  getGlobalCtxDir,
 } from '../lib/registry.js';
 import { ContextEntry, ContextScope, ContextPreview } from '../lib/types.js';
 import { computeChecksum } from '../lib/checksum.js';
@@ -78,7 +78,7 @@ export async function saveCommand(options: SaveOptions = {}) {
         console.log(chalk.gray("  Run 'ctx init' first."));
         process.exit(1);
       }
-      absolutePath = path.join(GLOBAL_CTX_DIR, CONTEXTS_DIR, filePath);
+      absolutePath = path.join(getGlobalCtxDir(), CONTEXTS_DIR, filePath);
     } else if (projectRoot) {
       // Relative path in project context
       absolutePath = path.join(projectRoot, filePath);
@@ -197,11 +197,11 @@ async function autoRegister(
   };
 
   // Check if it's a global context
-  if (absolutePath.startsWith(GLOBAL_CTX_DIR)) {
+  if (absolutePath.startsWith(getGlobalCtxDir())) {
     if (!globalInitialized) return;
 
     const registry = await readGlobalCtxRegistry();
-    const relativePath = path.relative(GLOBAL_CTX_DIR, absolutePath);
+    const relativePath = path.relative(getGlobalCtxDir(), absolutePath);
 
     const entry: ContextEntry = {
       scope: 'global' as ContextScope,

@@ -104,9 +104,10 @@ ctx/
 ### 명령어
 
 ```bash
+pnpm validate         # PR 전 필수! (typecheck + build + test)
 pnpm build            # TypeScript 컴파일
 pnpm test             # Jest 테스트
-pnpm lint             # ESLint
+pnpm typecheck        # 타입 체크만 (빌드 없이)
 ```
 
 ### 로컬 테스트
@@ -236,11 +237,13 @@ npx ctx status --target src/api.ts
 
 PR 날리기 전 확인할 항목들:
 
-### 빌드 & 테스트
+### 필수: 검증 실행
 
-- [ ] `pnpm build` 성공
-- [ ] `pnpm test` 통과
-- [ ] `pnpm lint` 통과
+```bash
+pnpm validate
+```
+
+이 명령어가 통과해야 PR 가능. (typecheck → build → test 순서로 실행)
 
 ### CLI 변경 시
 

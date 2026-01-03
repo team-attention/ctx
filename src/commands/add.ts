@@ -12,7 +12,7 @@ import {
   readGlobalCtxRegistry,
   writeGlobalCtxRegistry,
   updateGlobalIndex,
-  GLOBAL_CTX_DIR,
+  getGlobalCtxDir,
 } from '../lib/registry.js';
 import { ContextEntry } from '../lib/types.js';
 
@@ -142,16 +142,16 @@ async function addToGlobal(patterns: string[]) {
 
   for (const pattern of patterns) {
     // For global, resolve relative to home directory or absolute
-    const baseDir = pattern.startsWith('/') ? '/' : GLOBAL_CTX_DIR;
-    const resolvedPattern = pattern.startsWith('/') ? pattern : path.join(GLOBAL_CTX_DIR, pattern);
+    const baseDir = pattern.startsWith('/') ? '/' : getGlobalCtxDir();
+    const resolvedPattern = pattern.startsWith('/') ? pattern : path.join(getGlobalCtxDir(), pattern);
 
     const files = await glob(resolvedPattern, {
       absolute: true,
     });
 
     for (const absolutePath of files) {
-      const relativePath = absolutePath.startsWith(GLOBAL_CTX_DIR)
-        ? path.relative(GLOBAL_CTX_DIR, absolutePath)
+      const relativePath = absolutePath.startsWith(getGlobalCtxDir())
+        ? path.relative(getGlobalCtxDir(), absolutePath)
         : absolutePath;
 
       // Check if already registered

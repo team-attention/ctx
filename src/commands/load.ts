@@ -5,7 +5,7 @@ import {
   findProjectRoot,
   readProjectRegistry,
   readGlobalCtxRegistry,
-  GLOBAL_CTX_DIR,
+  getGlobalCtxDir,
 } from '../lib/registry.js';
 import { ContextEntry } from '../lib/types.js';
 
@@ -230,7 +230,7 @@ async function handleAutoMode(
     filePath,
     effectiveRoot,
     'global',
-    GLOBAL_CTX_DIR
+    getGlobalCtxDir()
   );
   allMatches.push(...globalMatches);
 
@@ -290,7 +290,7 @@ async function handleManualMode(
     globalRegistry.contexts || {},
     keywords,
     'global',
-    GLOBAL_CTX_DIR
+    getGlobalCtxDir()
   );
   allMatches.push(...globalMatches);
 
