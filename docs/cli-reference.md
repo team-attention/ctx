@@ -64,18 +64,26 @@ ctx status --all                # Show all registered projects
 **Output (JSON, default):**
 ```json
 {
-  "projectRoot": "/path/to/project",
-  "globalRoot": "/Users/name/.ctx",
-  "contexts": {
-    "local": [...],
-    "project": [...],
-    "global": [...]
+  "initialized": true,
+  "global": {
+    "path": "/Users/name/.ctx",
+    "contextCount": 5,
+    "projectCount": 3,
+    "lastSynced": "2025-01-03T10:00:00.000Z"
+  },
+  "project": {
+    "path": "/path/to/project",
+    "name": "my-project",
+    "contextCount": 8,
+    "bound": 5,
+    "standalone": 3,
+    "lastSynced": "2025-01-03T10:00:00.000Z"
   }
 }
 ```
 
 **Output (--pretty):**
-Human-readable dashboard with context counts and paths.
+Human-readable dashboard showing global and project status with context counts.
 
 ---
 
@@ -129,9 +137,16 @@ ctx check --pretty               # Human-readable output
 **Output (JSON, default):**
 ```json
 {
-  "healthy": true,
-  "issues": [],
-  "checked": { "local": 5, "project": 3, "global": 2 }
+  "status": "fresh",
+  "summary": {
+    "total": 8,
+    "fresh": 8,
+    "stale": 0,
+    "new": 0,
+    "deleted": 0,
+    "errors": 0
+  },
+  "issues": []
 }
 ```
 
