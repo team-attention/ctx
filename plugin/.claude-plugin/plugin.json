@@ -1,7 +1,7 @@
 {
   "name": "ctx",
-  "version": "1.0.0",
-  "description": "3-Level Context Management System for Claude Code - Automatically load and manage context across Global, Project, and Local levels",
+  "version": "1.1.0",
+  "description": "3-Level Context Management System for Claude Code - Automatically load and manage context across Global, Project, and Local levels with external source capture",
   "author": {
     "name": "team-attention",
     "url": "https://github.com/team-attention"
@@ -9,8 +9,9 @@
   "homepage": "https://github.com/team-attention/ctx",
   "repository": "https://github.com/team-attention/ctx",
   "license": "MIT",
-  "keywords": ["context", "memory", "workspace", "documentation", "knowledge-management"],
+  "keywords": ["context", "memory", "workspace", "documentation", "knowledge-management", "capture", "slack", "session"],
   "commands": "./commands/",
   "skills": "./skills/",
+  "agents": "./agents/",
   "hooks": "./hooks/hooks.json"
 }

@@ -4,6 +4,17 @@ Project guide for AI agents working with CTX.
 
 ---
 
+## Core Principle
+
+> **Design UX to be simple from the user's perspective.**
+
+- Complex internal structures should surface as simple interfaces
+- Defaults optimized for the most common use cases
+- Advanced options hidden until needed
+- Error messages guide users to solutions
+
+---
+
 ## Project Overview
 
 **CTX** is a persistent memory system for AI. Context is auto-loaded, grows over time, and travels with your code.
@@ -112,12 +123,20 @@ ctx/
 ├── plugin/               # Claude Code plugin
 │   ├── .claude-plugin/
 │   │   └── plugin.json   # Plugin config
+│   ├── .mcp.json         # MCP server config (Slack, etc.)
+│   ├── agents/           # AI Agents (orchestrators)
+│   │   └── ctx-capture/  # Source capture orchestrator
 │   ├── skills/           # AI Skills
 │   │   ├── ctx-load/     # Context load skill
-│   │   └── ctx-save/     # Context save skill
+│   │   ├── ctx-save/     # Context save skill
+│   │   ├── session-capture/  # Claude session capture
+│   │   └── slack-capture/    # Slack message capture
 │   ├── hooks/            # PostToolUse hooks
 │   ├── commands/         # /ctx.* commands
 │   └── shared/           # Shared resources
+│       ├── cli-reference.md
+│       ├── capture-policy.md   # Capture security policy
+│       └── inbox-schema.md     # Inbox data format
 ├── tests/
 ├── docs/
 └── dist/                 # Build output
@@ -226,6 +245,68 @@ allowed-tools: Read, Write, Edit, Bash
 
 ---
 
+## Source Capture System
+
+External data capture and context creation system.
+
+### Overview
+
+```
+/ctx.capture <source>  →  .ctx/inbox/  →  ctx save  →  .ctx/contexts/
+     │                        │                              │
+   Capture               Raw JSON                      Final Markdown
+```
+
+### Components
+
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| **ctx-capture Agent** | `plugin/agents/ctx-capture/` | Orchestrate multi-source capture |
+| **session-capture Skill** | `plugin/skills/session-capture/` | Capture Claude Code sessions |
+| **slack-capture Skill** | `plugin/skills/slack-capture/` | Capture Slack messages |
+| **/ctx.capture Command** | `plugin/commands/ctx.capture.md` | User entry point |
+
+### Usage
+
+```bash
+# Session capture
+/ctx.capture session              # Today's sessions
+/ctx.capture session terraform    # Filter by keyword
+
+# Slack capture
+/ctx.capture slack #team-ai       # Channel messages
+/ctx.capture slack #dev 어제      # Yesterday's messages
+
+# Multi-source (Agent)
+/ctx.capture all 오늘             # All sources, today
+```
+
+### Inbox
+
+Captured data is temporarily stored in `.ctx/inbox/`:
+
+```
+.ctx/inbox/
+├── slack/<run_id>.json
+└── session/<run_id>.json
+```
+
+- **Git-ignored**: `**/.ctx/inbox/` in `.gitignore`
+- **Auto-cleanup**: 7 days retention
+- **Schema**: See `plugin/shared/inbox-schema.md`
+
+### Policies
+
+Security and privacy policies in `plugin/shared/capture-policy.md`:
+
+| Policy | Description |
+|--------|-------------|
+| **Scope** | Default: current project only |
+| **Redaction** | Auto-mask API keys, tokens, secrets |
+| **Provenance** | Track source info in frontmatter |
+
+---
+
 ## Common Mistakes
 
 ### 1. Forgetting to sync
@@ -319,7 +400,11 @@ Ensure these files maintain consistency:
 |----------|-------------|
 | `README.md` | User guide |
 | `docs/cli-reference.md` | CLI command reference |
-| `docs/RFC-3-level-context-system.md` | Design document |
+| `docs/RFC-3-level-context-system.md` | Context system design |
+| `docs/RFC-source-capture-system.md` | Source capture design |
 | `docs/REFACTORING-PLAN.md` | Refactoring plan |
 | `plugin/shared/cli-reference.md` | Plugin CLI reference |
+| `plugin/shared/capture-policy.md` | Capture security policy |
+| `plugin/shared/inbox-schema.md` | Inbox data format |
 | `plugin/skills/*/SKILL.md` | Individual skill guides |
+| `plugin/agents/*/AGENT.md` | Individual agent guides |
