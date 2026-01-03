@@ -175,7 +175,6 @@ async function addToGlobal(patterns: string[]) {
         const stats = await fs.stat(absolutePath);
 
         const entry: ContextEntry = {
-          scope: 'global',
           source: relativePath,
           checksum: computeChecksum(content),
           last_modified: stats.mtime.toISOString(),

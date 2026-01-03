@@ -200,7 +200,6 @@ async function registerContext(
   }
 
   const entry: ContextEntry = {
-    scope: opts.isGlobal ? 'global' : opts.isProject ? 'project' : 'local',
     source: contextPath,
     target: opts.isLocal && opts.target ? `/${opts.target.replace(/^\//, '')}` : undefined,
     checksum,

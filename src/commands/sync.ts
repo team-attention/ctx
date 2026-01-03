@@ -216,7 +216,6 @@ async function syncLocalContextsNew(projectRoot: string): Promise<number> {
       const preview = extractPreviewFromLocal(contextFile);
 
       const entry: ContextEntry = {
-        scope: 'local',
         source: scanned.relativePath,
         target: targetPath,
         checksum: contextChecksum,
@@ -260,7 +259,6 @@ async function syncProjectContextsNew(projectRoot: string): Promise<number> {
       const lastModified = stats.mtime.toISOString();
 
       const entry: ContextEntry = {
-        scope: 'project',
         source: scanned.relativePath,
         checksum: contextChecksum,
         last_modified: lastModified,

@@ -11,7 +11,7 @@ import {
   CONTEXTS_DIR,
   getGlobalCtxDir,
 } from '../lib/registry.js';
-import { ContextEntry, ContextScope, ContextPreview } from '../lib/types.js';
+import { ContextEntry, ContextPreview } from '../lib/types.js';
 import { computeChecksum } from '../lib/checksum.js';
 
 export interface SaveOptions {
@@ -204,7 +204,6 @@ async function autoRegister(
     const relativePath = path.relative(getGlobalCtxDir(), absolutePath);
 
     const entry: ContextEntry = {
-      scope: 'global' as ContextScope,
       source: relativePath,
       checksum,
       last_modified: now,
@@ -223,12 +222,7 @@ async function autoRegister(
     const registry = await readProjectRegistry(projectRoot);
     const relativePath = path.relative(projectRoot, absolutePath);
 
-    // Determine scope based on path
-    const isLocal = relativePath.endsWith('.ctx.md');
-    const scope: ContextScope = isLocal ? 'local' : 'project';
-
     const entry: ContextEntry = {
-      scope,
       source: relativePath,
       checksum,
       last_modified: now,

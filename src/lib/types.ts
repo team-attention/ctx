@@ -67,14 +67,15 @@ export interface RegistrySettings {
   context_paths: ContextPathConfig[];
 }
 
-/** Context scope in 3-level hierarchy */
+/** @deprecated Context scope - no longer used, kept for backward compatibility */
 export type ContextScope = 'local' | 'project' | 'global';
 
 /** Unified context entry for all scopes */
 export interface ContextEntry {
-  scope: ContextScope;
+  /** @deprecated scope field is no longer used. Use `target` presence to determine binding. */
+  scope?: ContextScope;
   source: string; // Relative path to context file
-  target?: string; // For local contexts: path to target file
+  target?: string; // If present, context is bound to this file/pattern
   checksum: string; // MD5 checksum of context file
   target_checksum?: string; // For local contexts: MD5 checksum of target file
   last_modified: string; // ISO timestamp
@@ -178,32 +179,23 @@ export interface CheckOptions {
 
 export interface CheckIssue {
   type: 'new' | 'deleted' | 'modified' | 'stale_target' | 'error';
-  scope: 'local' | 'global';
+  category: 'bound' | 'standalone';  // bound = has target, standalone = no target
   contextPath: string;
   targetPath?: string;
   message: string;
   lastModified?: string;
 }
 
+/** @deprecated Use local CheckResult in check.ts instead */
 export interface CheckResult {
   status: 'fresh' | 'stale' | 'error';
   summary: {
-    local: {
-      total: number;
-      fresh: number;
-      stale: number;
-      new: number;
-      deleted: number;
-      errors: number;
-    };
-    global: {
-      total: number;
-      fresh: number;
-      stale: number;
-      new: number;
-      deleted: number;
-      errors: number;
-    };
+    total: number;
+    fresh: number;
+    stale: number;
+    new: number;
+    deleted: number;
+    errors: number;
   };
   issues: CheckIssue[];
 }

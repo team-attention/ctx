@@ -248,7 +248,7 @@ async function handleAutoMode(
     const output = allMatches.map(m => ({
       path: m.contextPath,
       what: m.preview?.what || '',
-      scope: m.source,
+      registry: m.source,  // 'project' or 'global' - which registry it came from
       matchType: m.matchType,
       target: m.target,
     }));
@@ -311,7 +311,7 @@ async function handleManualMode(
     const output = allMatches.map(m => ({
       path: m.contextPath,
       what: m.preview?.what || '',
-      scope: m.source,
+      registry: m.source,  // 'project' or 'global' - which registry it came from
       matchType: m.matchType,
       target: m.target,
     }));

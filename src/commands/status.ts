@@ -59,15 +59,16 @@ export async function statusCommand(options: StatusOptions = {}) {
       const projectRegistry = await readProjectRegistry(projectRoot);
       const contexts = projectRegistry.contexts;
 
-      const localCount = Object.values(contexts).filter(c => c.scope === 'local').length;
-      const projectCount = Object.values(contexts).filter(c => c.scope === 'project').length;
+      // Categorize by target presence (not scope)
+      const boundCount = Object.values(contexts).filter(c => c.target != null).length;
+      const standaloneCount = Object.values(contexts).filter(c => c.target == null).length;
 
       status.project = {
         path: projectRoot,
         name: path.basename(projectRoot),
         contextCount: Object.keys(contexts).length,
-        local: localCount,
-        project: projectCount,
+        bound: boundCount,        // contexts with target (file-bound)
+        standalone: standaloneCount,  // contexts without target (general knowledge)
         lastSynced: projectRegistry.meta.last_synced,
       };
     }
@@ -108,8 +109,8 @@ function printPrettyStatus(status: any, options: StatusOptions): void {
   if (status.project) {
     console.log(chalk.green(`✓ Project: ${status.project.name}`));
     console.log(chalk.gray(`  Path: ${status.project.path}`));
-    console.log(chalk.gray(`  Local contexts: ${status.project.local}`));
-    console.log(chalk.gray(`  Project contexts: ${status.project.project}`));
+    console.log(chalk.gray(`  Bound contexts: ${status.project.bound}`));
+    console.log(chalk.gray(`  Standalone contexts: ${status.project.standalone}`));
     console.log(chalk.gray(`  Last synced: ${status.project.lastSynced}`));
   } else {
     console.log(chalk.yellow('○ No project context in current directory'));

@@ -21,7 +21,7 @@ interface CheckResult {
   };
   issues: Array<{
     type: 'stale' | 'new' | 'deleted' | 'error';
-    scope: 'local' | 'project' | 'global';
+    category: 'bound' | 'standalone';  // bound = has target, standalone = no target
     contextPath: string;
     targetPath?: string;
     message: string;
@@ -103,7 +103,7 @@ async function checkContexts(projectRoot: string, options: CheckOptions): Promis
         result.summary.deleted++;
         result.issues.push({
           type: 'deleted',
-          scope: entry.scope || 'local',
+          category: entry.target ? 'bound' : 'standalone',
           contextPath,
           message: 'Context file not found',
         });
@@ -118,7 +118,7 @@ async function checkContexts(projectRoot: string, options: CheckOptions): Promis
         result.summary.stale++;
         result.issues.push({
           type: 'stale',
-          scope: entry.scope || 'local',
+          category: entry.target ? 'bound' : 'standalone',
           contextPath,
           message: 'Content has changed since last sync',
         });
@@ -136,7 +136,7 @@ async function checkContexts(projectRoot: string, options: CheckOptions): Promis
             result.summary.stale++;
             result.issues.push({
               type: 'stale',
-              scope: 'local',
+              category: 'bound',
               contextPath,
               targetPath: entry.target,
               message: 'Target file has changed since last sync',
@@ -147,7 +147,7 @@ async function checkContexts(projectRoot: string, options: CheckOptions): Promis
           result.summary.errors++;
           result.issues.push({
             type: 'error',
-            scope: 'local',
+            category: 'bound',
             contextPath,
             targetPath: entry.target,
             message: 'Target file not found',
@@ -161,7 +161,7 @@ async function checkContexts(projectRoot: string, options: CheckOptions): Promis
       result.summary.errors++;
       result.issues.push({
         type: 'error',
-        scope: entry.scope || 'local',
+        category: entry.target ? 'bound' : 'standalone',
         contextPath,
         message: `Error checking context: ${error}`,
       });
@@ -175,7 +175,7 @@ async function checkContexts(projectRoot: string, options: CheckOptions): Promis
     for (const ctx of newContexts) {
       result.issues.push({
         type: 'new',
-        scope: ctx.scope,
+        category: ctx.hasTarget ? 'bound' : 'standalone',
         contextPath: ctx.path,
         targetPath: ctx.target,
         message: 'Context file not in registry',
@@ -194,10 +194,10 @@ async function checkContexts(projectRoot: string, options: CheckOptions): Promis
 async function findNewContexts(
   projectRoot: string,
   registry: { contexts: Record<string, any> }
-): Promise<Array<{ path: string; scope: 'local' | 'project'; target?: string }>> {
-  const newContexts: Array<{ path: string; scope: 'local' | 'project'; target?: string }> = [];
+): Promise<Array<{ path: string; hasTarget: boolean; target?: string }>> {
+  const newContexts: Array<{ path: string; hasTarget: boolean; target?: string }> = [];
 
-  // Scan for *.ctx.md files
+  // Scan for *.ctx.md files (typically bound to target files)
   const { glob } = await import('glob');
   const patterns = ['**/*.ctx.md', '**/ctx.md'];
   const ignore = ['node_modules/**', 'dist/**', 'build/**', '.git/**', '.ctx/**'];
@@ -206,17 +206,18 @@ async function findNewContexts(
     const files = await glob(pattern, { cwd: projectRoot, ignore });
     for (const file of files) {
       if (!registry.contexts[file]) {
-        newContexts.push({ path: file, scope: 'local' });
+        // *.ctx.md files are typically bound to a target file
+        newContexts.push({ path: file, hasTarget: true });
       }
     }
   }
 
-  // Scan for .ctx/contexts/*.md files
+  // Scan for .ctx/contexts/*.md files (standalone, no target)
   const projectContextPattern = '.ctx/contexts/**/*.md';
   const projectFiles = await glob(projectContextPattern, { cwd: projectRoot });
   for (const file of projectFiles) {
     if (!registry.contexts[file]) {
-      newContexts.push({ path: file, scope: 'project' });
+      newContexts.push({ path: file, hasTarget: false });
     }
   }
 
@@ -256,7 +257,7 @@ function printPrettyResult(result: CheckResult): void {
     for (const issue of result.issues) {
       const icon = issue.type === 'error' ? '✗' : issue.type === 'new' ? '+' : '!';
       const color = issue.type === 'error' ? chalk.red : issue.type === 'new' ? chalk.blue : chalk.yellow;
-      console.log(color(`  ${icon} [${issue.scope}] ${issue.contextPath}: ${issue.message}`));
+      console.log(color(`  ${icon} [${issue.category}] ${issue.contextPath}: ${issue.message}`));
     }
   }
 
