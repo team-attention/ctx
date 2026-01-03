@@ -8,7 +8,7 @@ import {
   readGlobalCtxRegistry,
   writeGlobalCtxRegistry,
   updateGlobalIndex,
-  GLOBAL_CTX_DIR,
+  getGlobalCtxDir,
 } from '../lib/registry.js';
 
 interface RemoveOptions {

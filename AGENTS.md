@@ -1,14 +1,14 @@
 # AGENTS.md
 
-AI 에이전트를 위한 CTX 프로젝트 가이드.
+Project guide for AI agents working with CTX.
 
 ---
 
-## 프로젝트 개요
+## Project Overview
 
-**CTX**는 AI의 persistent memory 시스템. 컨텍스트가 자동으로 로드되고, 시간이 지나면서 성장하며, 코드와 함께 이동한다.
+**CTX** is a persistent memory system for AI. Context is auto-loaded, grows over time, and travels with your code.
 
-**핵심 철학:**
+**Core Philosophy:**
 > Context is the bottleneck, not AI capability.
 
 ```
@@ -19,110 +19,143 @@ Human insight  →  Saved as context  →  Auto-loaded when needed
 
 ---
 
-## 3-Level Context System
+## 2-Level Context System
 
-| Level | Location | 용도 | 공유 범위 |
-|-------|----------|------|----------|
-| **Global** | `~/.ctx/` | 개인 패턴, 도구 설정 | 개인 (모든 프로젝트) |
-| **Project** | `.ctx/` | 팀 지식, 아키텍처 | 팀 (Git으로 공유) |
-| **Local** | `*.ctx.md` | 파일별 컨텍스트 | 팀 (파일 옆에) |
+| Level | Location | Purpose | Scope |
+|-------|----------|---------|-------|
+| **Global** | `~/.ctx/` | Personal patterns, tool settings | Personal (all projects) |
+| **Project** | `.ctx/` + `*.ctx.md` | Team knowledge, architecture | Team (shared via Git) |
 
-**우선순위:** Local > Project > Global (더 구체적인 것이 우선)
+**Context distinction (SoT = frontmatter's `target` field):**
+- `target` present → Bound context (linked to specific file)
+- `target` absent → Standalone context (loaded by `when` keywords)
+
+**Priority:** Project (with target) > Project (without target) > Global
 
 ---
 
-## CLI 명령어
+## CLI Commands
 
 ```bash
-# 초기화
-ctx init              # Global 초기화 (~/.ctx/)
-ctx init .            # Project 초기화 (.ctx/)
+# Initialize
+ctx init              # Global init (~/.ctx/)
+ctx init .            # Project init (.ctx/)
 
-# 컨텍스트 생성
-ctx create src/api.ts                    # Local (src/api.ctx.md)
-ctx create --global typescript-tips      # Global
-ctx create --project architecture        # Project
+# Create contexts
+ctx create .ctx/contexts/architecture.md   # Project context
+ctx create src/api.ctx.md --target src/api.ts  # With target binding
+ctx create --global contexts/tips.md       # Global context
 
-# 동기화
-ctx sync              # 레지스트리 동기화 (체크섬, 프리뷰 업데이트)
-ctx sync --local      # Local만
-ctx sync --global     # Global만
+# Add/Remove contexts
+ctx add <path>              # Register file(s) as context
+ctx add docs/**/*.md        # Glob patterns supported
+ctx add --global <path>     # Add to global registry
+ctx remove <path>           # Unregister from context
 
-# 상태 확인
-ctx status            # JSON 출력
-ctx status --pretty   # 읽기 쉬운 형식
-ctx status --target src/api.ts   # 특정 파일의 컨텍스트 찾기
+# Adopt existing docs
+ctx adopt docs/**/*.md      # Add frontmatter to existing docs
+ctx adopt --global ~/notes/*.md  # Adopt to global registry
 
-# 헬스체크
-ctx check             # 컨텍스트 상태 검사
-ctx check --fix       # 문제 자동 수정
+# Manage patterns
+ctx add-pattern <pattern> <purpose>  # Add to context_paths
+
+# Load contexts
+ctx load api auth           # Load by keywords
+ctx load --target src/api.ts   # Match by file path
+ctx load --json             # Output as JSON
+ctx load --paths            # Output paths only
+
+# Save contexts
+ctx save --path <path> --content "..."  # Save content
+ctx save --project --path <name> ...    # Save to .ctx/contexts/
+ctx save --global --path <name> ...     # Save to ~/.ctx/contexts/
+
+# Sync
+ctx sync                  # Sync project registry
+ctx sync --global         # Sync global contexts (~/.ctx/)
+ctx sync --rebuild-index  # Rebuild global index
+ctx sync --prune          # Remove entries not matching context_paths
+
+# Status
+ctx status            # JSON output
+ctx status --pretty   # Human-readable format
+ctx status --target src/api.ts   # Find context for specific file
+
+# Health check
+ctx check                         # Check context health
+ctx check --target src/api.ts     # Check contexts for specific file
+ctx check --pretty                # Human-readable output
 ```
 
 ---
 
-## 프로젝트 구조
+## Project Structure
 
 ```
 ctx/
 ├── src/
-│   ├── bin/              # CLI 엔트리포인트
-│   ├── commands/         # CLI 명령어 구현
+│   ├── bin/              # CLI entrypoint
+│   ├── commands/         # CLI command implementations
 │   │   ├── init.ts       # ctx init
 │   │   ├── create.ts     # ctx create
-│   │   ├── sync.ts       # ctx sync
-│   │   ├── status.ts     # ctx status
-│   │   ├── check.ts      # ctx check
+│   │   ├── add.ts        # ctx add
+│   │   ├── add-pattern.ts # ctx add-pattern
+│   │   ├── adopt.ts      # ctx adopt
+│   │   ├── remove.ts     # ctx remove
 │   │   ├── load.ts       # ctx load
 │   │   ├── save.ts       # ctx save
-│   │   └── ...
-│   ├── lib/              # 핵심 라이브러리
-│   └── templates/        # 컨텍스트 템플릿
-├── plugin/               # Claude Code 플러그인
+│   │   ├── sync.ts       # ctx sync
+│   │   ├── status.ts     # ctx status
+│   │   └── check.ts      # ctx check
+│   ├── lib/              # Core library
+│   └── templates/        # Context templates
+├── plugin/               # Claude Code plugin
 │   ├── .claude-plugin/
-│   │   └── plugin.json   # 플러그인 설정
+│   │   └── plugin.json   # Plugin config
 │   ├── skills/           # AI Skills
-│   │   ├── ctx-load/     # 컨텍스트 로드 스킬
-│   │   └── ctx-save/     # 컨텍스트 저장 스킬
-│   ├── hooks/            # PostToolUse 등 훅
-│   ├── commands/         # /ctx.* 명령어
-│   └── shared/           # 스킬 간 공유 리소스
+│   │   ├── ctx-load/     # Context load skill
+│   │   └── ctx-save/     # Context save skill
+│   ├── hooks/            # PostToolUse hooks
+│   ├── commands/         # /ctx.* commands
+│   └── shared/           # Shared resources
 ├── tests/
 ├── docs/
-└── dist/                 # 빌드 결과물
+└── dist/                 # Build output
 ```
 
 ---
 
-## 개발 컨벤션
+## Development Conventions
 
 ### TypeScript
 
-- **Strict mode** 사용
-- **ESM** 모듈 시스템 (`type: "module"`)
-- **pnpm** 패키지 매니저
+- **Strict mode** enabled
+- **ESM** module system (`type: "module"`)
+- **pnpm** package manager
 
-### 명령어
+### Commands
 
 ```bash
-pnpm build            # TypeScript 컴파일
-pnpm test             # Jest 테스트
-pnpm lint             # ESLint
+pnpm validate         # Required before PR! (typecheck + build + test)
+pnpm build            # TypeScript compile
+pnpm test             # Jest tests
+pnpm typecheck        # Type check only (no build)
 ```
 
-### 로컬 테스트
+### Local Testing
 
 ```bash
-# 빌드 후 로컬에서 실행
+# Build and run locally
 pnpm build
 npx ctx status
 
-# 또는 ts-node로 직접
+# Or run directly with tsx
 pnpm tsx src/bin/ctx.ts status
 ```
 
 ---
 
-## Registry 구조
+## Registry Structure
 
 ### Project Registry (`.ctx/registry.yaml`)
 
@@ -132,13 +165,13 @@ contexts:
   '.ctx/contexts/architecture.md':
     checksum: 'abc123'
     preview:
-      what: "시스템 아키텍처 개요"
+      what: "System architecture overview"
       when: ["architecture", "structure", "design"]
   'src/api.ctx.md':
     target: 'src/api.ts'
     checksum: 'def456'
     preview:
-      what: "API 라우팅 패턴"
+      what: "API routing patterns"
       when: ["api", "routing", "endpoint"]
 ```
 
@@ -150,29 +183,29 @@ contexts:
   '~/.ctx/contexts/coding-style.md':
     checksum: 'xyz789'
     preview:
-      what: "개인 코딩 스타일"
+      what: "Personal coding style"
       when: ["style", "convention"]
 
 index:
   'projects/myapp':
     contexts:
       - path: 'src/api.ctx.md'
-        what: "API 패턴"
+        what: "API patterns"
         when: ["api"]
 ```
 
 ---
 
-## Plugin 개발
+## Plugin Development
 
-### Skill 구조
+### Skill Structure
 
 ```
 skills/skill-name/
-├── SKILL.md              # 필수: Frontmatter + 가이드
-├── references/           # 상세 문서
-├── scripts/              # 유틸리티 스크립트
-└── assets/               # 템플릿, 이미지 등
+├── SKILL.md              # Required: Frontmatter + guide
+├── references/           # Detailed docs
+├── scripts/              # Utility scripts
+└── assets/               # Templates, images, etc.
 ```
 
 ### SKILL.md Frontmatter
@@ -185,106 +218,108 @@ allowed-tools: Read, Write, Edit, Bash
 ---
 ```
 
-### 작성 스타일
+### Writing Style
 
 - **Description**: Third-person ("This skill should be used when...")
 - **Body**: Imperative form ("Execute...", "Check...", not "You should...")
-- **크기**: 1,500-2,000 words 권장, 상세한 건 references/로
+- **Size**: 1,500-2,000 words recommended, detailed content goes to references/
 
 ---
 
-## 자주 하는 실수
+## Common Mistakes
 
-### 1. sync 빼먹기
+### 1. Forgetting to sync
 
-컨텍스트 생성/수정 후 반드시:
+After creating/modifying contexts, always run:
 ```bash
 ctx sync
 ```
 
-### 2. Registry 직접 수정
+### 2. Editing registry directly
 
-Registry는 `ctx sync`가 자동 생성. 직접 수정하지 말 것.
+Registry is auto-generated by `ctx sync`. Never edit manually.
 
-### 3. Local vs Project 혼동
+### 3. Bound vs Standalone contexts
 
-- **Local** (`*.ctx.md`): 특정 파일에 붙음, `target` 필드 있음
-- **Project** (`.ctx/contexts/*.md`): 프로젝트 전체 지식, `target` 없음
+Distinction is based on **`target` field presence, not file location**:
+- `target` present → Bound (auto-loaded when reading that file)
+- `target` absent → Standalone (loaded by `when` keyword matching)
 
 ---
 
-## 디버깅
+## Debugging
 
 ```bash
-# 현재 상태 확인
+# Check current status
 npx ctx status --pretty
 
-# Registry 직접 확인
+# Inspect registry directly
 cat .ctx/registry.yaml
 cat ~/.ctx/registry.yaml
 
-# 헬스체크
+# Health check
 npx ctx check --pretty
 
-# 특정 파일의 컨텍스트 찾기
+# Find context for specific file
 npx ctx status --target src/api.ts
 ```
 
 ---
 
-## PR 체크리스트
+## PR Checklist
 
-PR 날리기 전 확인할 항목들:
+Items to verify before submitting a PR:
 
-### 빌드 & 테스트
+### Required: Run validation
 
-- [ ] `pnpm build` 성공
-- [ ] `pnpm test` 통과
-- [ ] `pnpm lint` 통과
+```bash
+pnpm validate
+```
 
-### CLI 변경 시
+This must pass before PR. (typecheck → build → test)
 
-CLI 명령어나 옵션을 추가/수정했다면:
+### When changing CLI
 
-- [ ] `docs/cli-reference.md` 업데이트
-- [ ] `plugin/shared/cli-reference.md` 업데이트
-- [ ] `plugin/skills/ctx-load/SKILL.md` CLI Reference 섹션 확인
-- [ ] `plugin/skills/ctx-save/SKILL.md` CLI Reference 섹션 확인
-- [ ] `AGENTS.md` CLI 명령어 섹션 확인
+If you added/modified CLI commands or options:
 
-### Plugin/Skill 변경 시
+- [ ] Update `docs/cli-reference.md`
+- [ ] Update `plugin/shared/cli-reference.md`
+- [ ] Check `plugin/skills/ctx-load/SKILL.md` CLI Reference section
+- [ ] Check `plugin/skills/ctx-save/SKILL.md` CLI Reference section
+- [ ] Check `AGENTS.md` CLI commands section
 
-- [ ] SKILL.md frontmatter 유효성 (name, description)
-- [ ] Description이 third-person + trigger phrases 포함
-- [ ] Body가 imperative form (not "You should...")
-- [ ] references/ 파일 참조 확인
+### When changing Plugin/Skill
 
-### 문서 동기화
+- [ ] SKILL.md frontmatter validity (name, description)
+- [ ] Description uses third-person + trigger phrases
+- [ ] Body uses imperative form (not "You should...")
+- [ ] Verify references/ file links
 
-다음 파일들이 서로 일관성을 유지하는지 확인:
+### Documentation sync
 
-| 변경 내용 | 업데이트할 파일들 |
-|----------|------------------|
-| CLI 명령어/옵션 | `docs/cli-reference.md`, `plugin/shared/cli-reference.md`, `AGENTS.md` |
-| 3-Level 구조 | `README.md`, `AGENTS.md`, `docs/RFC-*.md` |
-| Plugin 구조 | `plugin/.claude-plugin/plugin.json`, `AGENTS.md` |
-| Skill 추가 | `plugin/skills/*/SKILL.md`, `AGENTS.md` 프로젝트 구조 |
+Ensure these files maintain consistency:
 
-### Registry 스키마 변경 시
+| Change | Files to update |
+|--------|-----------------|
+| CLI commands/options | `docs/cli-reference.md`, `plugin/shared/cli-reference.md`, `AGENTS.md` |
+| 2-Level structure | `README.md`, `AGENTS.md`, `docs/RFC-*.md` |
+| Plugin structure | `plugin/.claude-plugin/plugin.json`, `AGENTS.md` |
+| Add skill | `plugin/skills/*/SKILL.md`, `AGENTS.md` project structure |
 
-- [ ] `src/lib/registry.ts` 타입 업데이트
-- [ ] `AGENTS.md` Registry 구조 섹션 업데이트
-- [ ] Migration 로직 필요 여부 검토 (`src/commands/migrate.ts`)
+### When changing Registry schema
+
+- [ ] Update types in `src/lib/registry.ts`
+- [ ] Update `AGENTS.md` Registry structure section
 
 ---
 
-## 관련 문서
+## Related Documents
 
-| 문서 | 설명 |
-|------|------|
-| `README.md` | 사용자 가이드 |
-| `docs/cli-reference.md` | CLI 명령어 상세 레퍼런스 |
-| `docs/RFC-3-level-context-system.md` | 설계 문서 |
-| `docs/REFACTORING-PLAN.md` | 리팩토링 계획 |
-| `plugin/shared/cli-reference.md` | Plugin용 CLI 레퍼런스 |
-| `plugin/skills/*/SKILL.md` | 개별 스킬 가이드 |
+| Document | Description |
+|----------|-------------|
+| `README.md` | User guide |
+| `docs/cli-reference.md` | CLI command reference |
+| `docs/RFC-3-level-context-system.md` | Design document |
+| `docs/REFACTORING-PLAN.md` | Refactoring plan |
+| `plugin/shared/cli-reference.md` | Plugin CLI reference |
+| `plugin/skills/*/SKILL.md` | Individual skill guides |

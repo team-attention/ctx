@@ -8,11 +8,11 @@ import { initCommand } from '../commands/init.js';
 import { createCommand } from '../commands/create.js';
 import { syncCommand } from '../commands/sync.js';
 import { checkCommand } from '../commands/check.js';
-import { refreshCommand } from '../commands/refresh.js';
 import { statusCommand } from '../commands/status.js';
 import { addCommand } from '../commands/add.js';
+import { addPatternCommand } from '../commands/add-pattern.js';
 import { removeCommand } from '../commands/remove.js';
-import { migrateCommand } from '../commands/migrate.js';
+import { adoptCommand } from '../commands/adopt.js';
 import { loadCommand } from '../commands/load.js';
 import { saveCommand } from '../commands/save.js';
 
@@ -41,44 +41,37 @@ program
   .action(initCommand);
 
 program
-  .command('create <target>')
-  .description('Create a new context file from template')
-  .option('--template <type>', 'Template type (default: default)', 'default')
+  .command('create <path>')
+  .description('Create a new context file (path relative to project root or ~/.ctx/ with --global)')
+  .option('--target <pattern>', 'Optional target file/pattern for frontmatter')
   .option('--force', 'Overwrite existing context file without confirmation')
-  .option('--global', 'Create a global context in ~/.ctx/contexts/')
-  .option('--project', 'Create a project context in .ctx/contexts/')
+  .option('--global', 'Create in global registry (~/.ctx/)')
   .action(createCommand);
 
 program
   .command('sync')
-  .description('Sync context files to registries')
-  .option('--local', 'Sync only local contexts')
-  .option('--global', 'Sync only global contexts')
+  .description('Sync context files to registry')
+  .option('--global', 'Sync global contexts (~/.ctx/)')
   .option('--rebuild-index', 'Rebuild global index from all registered projects')
+  .option('--prune', 'Remove registry entries that don\'t match context_paths')
   .action(syncCommand);
 
 program
   .command('check')
   .description('Check context health and freshness')
-  .option('--local', 'Check only local contexts')
   .option('--global', 'Check only global contexts')
-  .option('--path <contextPath>', 'Check only a specific context file')
+  .option('--target <filePath>', 'Check only contexts bound to this file (supports glob)')
   .option('--fix', 'Update registry to match filesystem')
   .option('--pretty', 'Human-readable output (default is JSON)')
   .action(checkCommand);
 
 program
-  .command('refresh')
-  .description('Refresh AI commands with current config settings')
-  .action(refreshCommand);
-
-program
   .command('status')
   .description('Show current ctx status (JSON by default)')
   .option('--pretty', 'Human-readable dashboard output')
-  .option('--target <path>', 'Find context file for a target file path')
   .option('--global', 'Show global registry contexts only')
   .option('--all', 'Show all registered projects from global index')
+  .option('--target <filePath>', 'Show contexts bound to this file (supports glob)')
   .action(statusCommand);
 
 program
@@ -88,20 +81,27 @@ program
   .action(addCommand);
 
 program
+  .command('add-pattern <pattern> <purpose>')
+  .description('Add a glob pattern to context_paths settings')
+  .option('--global', 'Add to global registry instead of project')
+  .action(addPatternCommand);
+
+program
   .command('remove <patterns...>')
   .description('Remove context files from registry (files are NOT deleted)')
   .option('--global', 'Remove from global registry instead of project')
   .action(removeCommand);
 
 program
-  .command('migrate')
-  .description('Migrate from legacy ctx/ structure to new .ctx/ structure')
-  .action(migrateCommand);
+  .command('adopt <patterns...>')
+  .description('Adopt existing documents by adding frontmatter')
+  .option('--global', 'Adopt to global registry instead of project')
+  .action(adoptCommand);
 
 program
   .command('load [keywords...]')
   .description('Load context files by keywords or auto-match by file path')
-  .option('--file <path>', 'File path to match against targets (for hook integration)')
+  .option('--target <filePath>', 'File path to match against targets (supports glob)')
   .option('--json', 'Output as JSON (paths + metadata only, no content)')
   .option('--paths', 'Output paths only (newline separated)')
   .action(loadCommand);

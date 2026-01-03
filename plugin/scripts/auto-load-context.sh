@@ -50,6 +50,6 @@ esac
 # - Target matching (exact + glob patterns)
 # - Priority ordering (Project exact > Global exact > Project glob > Global glob)
 # - Content output
-ctx load --file "$file_path" 2>/dev/null || true
+ctx load --target "$file_path" 2>/dev/null || true
 
 exit 0

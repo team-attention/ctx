@@ -15,7 +15,7 @@ Save context to the 3-Level Context System (Global, Project, Local).
 |---------|-------------|-------------|
 | `ctx init` | Initialize context management | - |
 | `ctx status` | Show context status (JSON) | `--pretty`, `--target <path>` |
-| `ctx create <target>` | Create new context file | `--template`, `--force`, `--global` |
+| `ctx create <path>` | Create new context file | `--target`, `--force`, `--global` |
 | `ctx sync` | Sync context files to registries | `--local`, `--global` |
 | `ctx check` | Check context health/freshness | `--fix`, `--pretty` |
 
@@ -26,10 +26,11 @@ Save context to the 3-Level Context System (Global, Project, Local).
 npx ctx status --json 2>/dev/null | jq -r '.projectRoot // empty'
 
 # Create and sync
-npx ctx create src/api.ts && npx ctx sync
+npx ctx create .ctx/contexts/api.md && npx ctx sync
+npx ctx create src/api.ctx.md --target src/api.ts && npx ctx sync
 
 # Create global context
-npx ctx create --global typescript-patterns && npx ctx sync
+npx ctx create --global contexts/typescript-patterns.md && npx ctx sync
 ```
 
 For complete CLI reference, see `../../shared/cli-reference.md`.
@@ -137,14 +138,14 @@ Match content purpose with `context_paths[].purpose` to suggest path.
 
 **Check existence:**
 ```bash
-npx ctx status --path <proposed-path>
+test -f <proposed-path> && echo "exists"
 ```
 
 **CREATE (new context):**
 ```bash
-npx ctx create <target-file>           # Local
-npx ctx create --project <name>        # Project
-npx ctx create --global <name>         # Global
+npx ctx create <path>                           # Project (default)
+npx ctx create <path> --target <file/pattern>   # With target binding
+npx ctx create --global <path>                  # Global
 ```
 
 Then fill content with Edit tool.

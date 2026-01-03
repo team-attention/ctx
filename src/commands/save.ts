@@ -9,9 +9,9 @@ import {
   readGlobalCtxRegistry,
   writeGlobalCtxRegistry,
   CONTEXTS_DIR,
-  GLOBAL_CTX_DIR,
+  getGlobalCtxDir,
 } from '../lib/registry.js';
-import { ContextEntry, ContextScope, ContextPreview } from '../lib/types.js';
+import { ContextEntry, ContextPreview } from '../lib/types.js';
 import { computeChecksum } from '../lib/checksum.js';
 
 export interface SaveOptions {
@@ -78,7 +78,7 @@ export async function saveCommand(options: SaveOptions = {}) {
         console.log(chalk.gray("  Run 'ctx init' first."));
         process.exit(1);
       }
-      absolutePath = path.join(GLOBAL_CTX_DIR, CONTEXTS_DIR, filePath);
+      absolutePath = path.join(getGlobalCtxDir(), CONTEXTS_DIR, filePath);
     } else if (projectRoot) {
       // Relative path in project context
       absolutePath = path.join(projectRoot, filePath);
@@ -197,14 +197,13 @@ async function autoRegister(
   };
 
   // Check if it's a global context
-  if (absolutePath.startsWith(GLOBAL_CTX_DIR)) {
+  if (absolutePath.startsWith(getGlobalCtxDir())) {
     if (!globalInitialized) return;
 
     const registry = await readGlobalCtxRegistry();
-    const relativePath = path.relative(GLOBAL_CTX_DIR, absolutePath);
+    const relativePath = path.relative(getGlobalCtxDir(), absolutePath);
 
     const entry: ContextEntry = {
-      scope: 'global' as ContextScope,
       source: relativePath,
       checksum,
       last_modified: now,
@@ -223,12 +222,7 @@ async function autoRegister(
     const registry = await readProjectRegistry(projectRoot);
     const relativePath = path.relative(projectRoot, absolutePath);
 
-    // Determine scope based on path
-    const isLocal = relativePath.endsWith('.ctx.md');
-    const scope: ContextScope = isLocal ? 'local' : 'project';
-
     const entry: ContextEntry = {
-      scope,
       source: relativePath,
       checksum,
       last_modified: now,

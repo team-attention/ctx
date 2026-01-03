@@ -43,110 +43,86 @@ describe('create command', () => {
     await testEnv.cleanup();
   });
 
-  describe('local context creation', () => {
-    it('should create context file for a source file', async () => {
-      // Create target source file
-      await testEnv.createFile('src/services/payment.ts', 'export class Payment {}');
+  describe('project context creation', () => {
+    it('should create context file with full path', async () => {
+      await createCommand('.ctx/contexts/api.md', { force: true });
 
-      await createCommand('src/services/payment.ts', { force: true });
-
-      // Check context file was created
-      expect(await testEnv.fileExists('src/services/payment.ctx.md')).toBe(true);
+      expect(await testEnv.fileExists('.ctx/contexts/api.md')).toBe(true);
     });
 
     it('should create context file with correct template structure', async () => {
-      await testEnv.createFile('src/utils/helpers.ts', 'export function help() {}');
+      await createCommand('.ctx/contexts/helpers.md', { force: true });
 
-      await createCommand('src/utils/helpers.ts', { force: true });
-
-      const contextContent = await testEnv.readFile('src/utils/helpers.ctx.md');
+      const contextContent = await testEnv.readFile('.ctx/contexts/helpers.md');
 
       // Check for frontmatter markers
       expect(contextContent).toContain('---');
-      expect(contextContent).toContain('target:');
       expect(contextContent).toContain('what:');
       expect(contextContent).toContain('when:');
     });
 
-    it('should render template with absolute target path', async () => {
-      await testEnv.createFile('src/models/user.ts', 'export interface User {}');
+    it('should add .md extension if not present', async () => {
+      await createCommand('.ctx/contexts/architecture', { force: true });
 
-      await createCommand('src/models/user.ts', { force: true });
-
-      const contextContent = await testEnv.readFile('src/models/user.ctx.md');
-
-      // Target path should be absolute (starts with /)
-      expect(contextContent).toContain('target: /src/models/user.ts');
+      expect(await testEnv.fileExists('.ctx/contexts/architecture.md')).toBe(true);
     });
 
-    it('should create context file for directory', async () => {
-      await testEnv.createFile('src/api/.gitkeep', '');
+    it('should include target in frontmatter when --target is provided', async () => {
+      await createCommand('src/api.ctx.md', { force: true, target: 'src/api.ts' });
 
-      await createCommand('src/api/', { force: true });
+      const contextContent = await testEnv.readFile('src/api.ctx.md');
 
-      // For directories, context file is ctx.md inside the directory
-      expect(await testEnv.fileExists('src/api/ctx.md')).toBe(true);
+      expect(contextContent).toContain('target: src/api.ts');
+    });
+
+    it('should have empty target when --target is not provided', async () => {
+      await createCommand('.ctx/contexts/general.md', { force: true });
+
+      const contextContent = await testEnv.readFile('.ctx/contexts/general.md');
+
+      // Should have empty target line (can be filled later)
+      expect(contextContent).toContain('target:');
+      expect(contextContent).not.toContain('target: src/');
     });
 
     it('should create nested directories if they do not exist', async () => {
-      // Don't create the directory structure
-      // create command should handle it
+      await createCommand('.ctx/docs/guides/getting-started.md', { force: true });
 
-      await createCommand('src/deeply/nested/path/file.ts', { force: true });
-
-      // Context file should be created along with directories
-      expect(await testEnv.fileExists('src/deeply/nested/path/file.ctx.md')).toBe(true);
+      expect(await testEnv.fileExists('.ctx/docs/guides/getting-started.md')).toBe(true);
     });
 
-    it('should warn if target file does not exist but still create context', async () => {
-      // Don't create target file
+    it('should render title from filename', async () => {
+      await createCommand('.ctx/contexts/api-patterns.md', { force: true });
 
-      await createCommand('src/nonexistent.ts', { force: true });
+      const contextContent = await testEnv.readFile('.ctx/contexts/api-patterns.md');
 
-      // Context file should still be created
-      expect(await testEnv.fileExists('src/nonexistent.ctx.md')).toBe(true);
-
-      // Check console output for warning
-      const output = consoleOutput.getOutput();
-      const warningFound = output.log.some(log =>
-        log.includes('Warning') && log.includes('does not exist')
-      );
-      expect(warningFound).toBe(true);
+      // Title should be derived from filename
+      expect(contextContent).toContain('# Api Patterns');
     });
   });
 
   describe('global context creation', () => {
-    it('should create global context in ctx/ directory', async () => {
-      await createCommand('architecture/caching', { global: true, force: true });
-
-      // Should create in ctx/ directory with .md extension
-      expect(await testEnv.fileExists('ctx/architecture/caching.md')).toBe(true);
+    beforeEach(async () => {
+      // Initialize global context for these tests
+      await testEnv.initGlobal();
     });
 
-    it('should normalize path to ctx/ directory', async () => {
-      // Input path without ctx/ prefix
-      await createCommand('rules/api-design', { global: true, force: true });
+    it('should create global context in ~/.ctx/ directory', async () => {
+      await createCommand('contexts/caching.md', { global: true, force: true });
 
-      expect(await testEnv.fileExists('ctx/rules/api-design.md')).toBe(true);
-    });
-
-    it('should handle explicit ctx/ prefix in path', async () => {
-      await createCommand('ctx/processes/deployment', { global: true, force: true });
-
-      // Should not duplicate ctx/ prefix
-      expect(await testEnv.fileExists('ctx/processes/deployment.md')).toBe(true);
+      expect(await testEnv.fileExists('home/.ctx/contexts/caching.md')).toBe(true);
     });
 
     it('should add .md extension if not present', async () => {
-      await createCommand('architecture/database', { global: true, force: true });
+      await createCommand('contexts/database', { global: true, force: true });
 
-      expect(await testEnv.fileExists('ctx/architecture/database.md')).toBe(true);
+      expect(await testEnv.fileExists('home/.ctx/contexts/database.md')).toBe(true);
     });
 
     it('should render template with document title', async () => {
-      await createCommand('architecture/api-versioning', { global: true, force: true });
+      await createCommand('contexts/api-versioning.md', { global: true, force: true });
 
-      const content = await testEnv.readFile('ctx/architecture/api-versioning.md');
+      const content = await testEnv.readFile('home/.ctx/contexts/api-versioning.md');
 
       // Check for frontmatter structure
       expect(content).toContain('---');
@@ -158,9 +134,16 @@ describe('create command', () => {
     });
 
     it('should create nested directories for global contexts', async () => {
-      await createCommand('deep/nested/structure/doc', { global: true, force: true });
+      await createCommand('rules/typescript/strict-mode.md', { global: true, force: true });
 
-      expect(await testEnv.fileExists('ctx/deep/nested/structure/doc.md')).toBe(true);
+      expect(await testEnv.fileExists('home/.ctx/rules/typescript/strict-mode.md')).toBe(true);
+    });
+
+    it('should include target when --target is provided', async () => {
+      await createCommand('contexts/ts-patterns.md', { global: true, force: true, target: '**/*.ts' });
+
+      const content = await testEnv.readFile('home/.ctx/contexts/ts-patterns.md');
+      expect(content).toContain('target: **/*.ts');
     });
   });
 
@@ -169,7 +152,7 @@ describe('create command', () => {
       // Create existing context file
       await testEnv.createFile(
         'src/existing.ctx.md',
-        '---\ntarget: /src/existing.ts\nwhat: old content\nwhen:\n  - test\n---\n\n# Old Content'
+        '---\ntarget: src/existing.ts\nwhat: old content\nwhen:\n  - test\n---\n\n# Old Content'
       );
     });
 
@@ -177,7 +160,7 @@ describe('create command', () => {
       // Mock user declining overwrite
       mockPrompt.mockResolvedValueOnce({ overwrite: false });
 
-      await createCommand('src/existing.ts', {}); // No force flag
+      await createCommand('src/existing.ctx.md', {}); // No force flag
 
       // Should have prompted
       expect(mockPrompt).toHaveBeenCalled();
@@ -188,7 +171,7 @@ describe('create command', () => {
     });
 
     it('should overwrite with --force flag without prompting', async () => {
-      await createCommand('src/existing.ts', { force: true });
+      await createCommand('src/existing.ctx.md', { force: true });
 
       // Should not have prompted
       expect(mockPrompt).not.toHaveBeenCalled();
@@ -196,14 +179,14 @@ describe('create command', () => {
       // File should be overwritten (no longer contains old content)
       const content = await testEnv.readFile('src/existing.ctx.md');
       expect(content).not.toContain('old content');
-      expect(content).toContain('Brief description');
+      expect(content).toContain('TODO');
     });
 
     it('should overwrite if user confirms prompt', async () => {
       // Mock user confirming overwrite
       mockPrompt.mockResolvedValueOnce({ overwrite: true });
 
-      await createCommand('src/existing.ts', {});
+      await createCommand('src/existing.ctx.md', {});
 
       // Should have prompted
       expect(mockPrompt).toHaveBeenCalled();
@@ -223,47 +206,148 @@ describe('create command', () => {
       // Don't call initProject()
 
       await expect(async () => {
-        await createCommand('src/test.ts', { force: true });
+        await createCommand('.ctx/contexts/test.md', { force: true });
       }).rejects.toThrow('process.exit(1)');
     });
 
-    it('should fail if target path is empty', async () => {
-      await expect(async () => {
-        await createCommand('', { force: true });
-      }).rejects.toThrow('process.exit(1)');
+    it('should fail for global if global is not initialized', async () => {
+      // Project is initialized but not global
+      // Set HOME to a non-existent directory to ensure global is not initialized
+      const originalHome = process.env.HOME;
+      process.env.HOME = testEnv.getPath('nonexistent-home');
+
+      try {
+        await expect(async () => {
+          await createCommand('contexts/test.md', { global: true, force: true });
+        }).rejects.toThrow('process.exit(1)');
+      } finally {
+        process.env.HOME = originalHome;
+      }
     });
   });
 
   describe('idempotency', () => {
     it('should produce same result when run multiple times with --force', async () => {
-      await testEnv.createFile('src/test.ts', 'export class Test {}');
-
       // First run
-      await createCommand('src/test.ts', { force: true });
-      const firstContent = await testEnv.readFile('src/test.ctx.md');
+      await createCommand('.ctx/contexts/test.md', { force: true });
+      const firstContent = await testEnv.readFile('.ctx/contexts/test.md');
 
       // Second run
-      await createCommand('src/test.ts', { force: true });
-      const secondContent = await testEnv.readFile('src/test.ctx.md');
+      await createCommand('.ctx/contexts/test.md', { force: true });
+      const secondContent = await testEnv.readFile('.ctx/contexts/test.md');
 
       // Content should be identical
       expect(firstContent).toBe(secondContent);
-      expect(firstContent).toContain('target: /src/test.ts');
+    });
+
+    it('should produce same result with target option', async () => {
+      // First run
+      await createCommand('src/api.ctx.md', { force: true, target: 'src/api.ts' });
+      const firstContent = await testEnv.readFile('src/api.ctx.md');
+
+      // Second run
+      await createCommand('src/api.ctx.md', { force: true, target: 'src/api.ts' });
+      const secondContent = await testEnv.readFile('src/api.ctx.md');
+
+      // Content should be identical and contain target
+      expect(firstContent).toBe(secondContent);
+      expect(firstContent).toContain('target: src/api.ts');
     });
 
     it('should produce consistent global context structure', async () => {
+      // Initialize global for this test
+      await testEnv.initGlobal();
+
       // First run
-      await createCommand('test-doc', { global: true, force: true });
-      const firstContent = await testEnv.readFile('ctx/test-doc.md');
+      await createCommand('contexts/test-doc.md', { global: true, force: true });
+      const firstContent = await testEnv.readFile('home/.ctx/contexts/test-doc.md');
 
       // Second run
-      await createCommand('test-doc', { global: true, force: true });
-      const secondContent = await testEnv.readFile('ctx/test-doc.md');
+      await createCommand('contexts/test-doc.md', { global: true, force: true });
+      const secondContent = await testEnv.readFile('home/.ctx/contexts/test-doc.md');
 
       // Content structure should be identical
-      expect(firstContent.split('\n').slice(0, 10)).toEqual(
-        secondContent.split('\n').slice(0, 10)
+      expect(firstContent).toBe(secondContent);
+    });
+  });
+
+  describe('Phase 2: auto-add pattern to context_paths', () => {
+    it('should auto-add pattern when created file does not match existing patterns', async () => {
+      const testFile = 'random/new-context.md';
+
+      // Read initial registry
+      const registryBefore = YAML.parse(await testEnv.readFile('.ctx/registry.yaml'));
+      const initialPatternCount = registryBefore.settings?.context_paths?.length || 0;
+
+      // Create file
+      await createCommand(testFile, { force: true });
+
+      // Read updated registry
+      const registryAfter = YAML.parse(await testEnv.readFile('.ctx/registry.yaml'));
+      const finalPatternCount = registryAfter.settings?.context_paths?.length || 0;
+
+      // Verify pattern was added
+      expect(finalPatternCount).toBe(initialPatternCount + 1);
+
+      // Verify the specific pattern exists
+      const hasPattern = registryAfter.settings?.context_paths?.some(
+        (cp: any) => cp.path === testFile
       );
+      expect(hasPattern).toBe(true);
+    });
+
+    it('should NOT add duplicate pattern if file already matches', async () => {
+      // Add a pattern first
+      let registry = YAML.parse(await testEnv.readFile('.ctx/registry.yaml'));
+      if (!registry.settings) {
+        registry.settings = { context_paths: [] };
+      }
+      registry.settings.context_paths.push({
+        path: '.ctx/contexts/**/*.md',
+        purpose: 'Project contexts'
+      });
+      await testEnv.createFile('.ctx/registry.yaml', YAML.stringify(registry));
+
+      const patternCountBefore = registry.settings.context_paths.length;
+
+      // Create file that matches the pattern
+      await createCommand('.ctx/contexts/matching.md', { force: true });
+
+      // Read updated registry
+      const registryAfter = YAML.parse(await testEnv.readFile('.ctx/registry.yaml'));
+      const patternCountAfter = registryAfter.settings?.context_paths?.length || 0;
+
+      // Pattern count should NOT increase
+      expect(patternCountAfter).toBe(patternCountBefore);
+    });
+
+    it('should auto-sync after adding pattern', async () => {
+      const testFile = 'unmatched/test.md';
+
+      await createCommand(testFile, { force: true });
+
+      const registry = YAML.parse(await testEnv.readFile('.ctx/registry.yaml'));
+
+      // Verify file is in registry after sync
+      expect(registry.contexts[testFile]).toBeDefined();
+      expect(registry.contexts[testFile].checksum).toBeDefined();
+    });
+
+    it('should work with global contexts too', async () => {
+      await testEnv.initGlobal();
+
+      const testFile = 'random-global.md';
+
+      const registryBefore = YAML.parse(await testEnv.readFile('home/.ctx/registry.yaml'));
+      const initialPatternCount = registryBefore.settings?.context_paths?.length || 0;
+
+      await createCommand(testFile, { global: true, force: true });
+
+      const registryAfter = YAML.parse(await testEnv.readFile('home/.ctx/registry.yaml'));
+      const finalPatternCount = registryAfter.settings?.context_paths?.length || 0;
+
+      // Verify pattern was added
+      expect(finalPatternCount).toBe(initialPatternCount + 1);
     });
   });
 });

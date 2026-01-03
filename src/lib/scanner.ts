@@ -13,7 +13,8 @@ const GLOBAL_CTX_DIR = path.join(os.homedir(), CTX_DIR);
 
 /** Default context paths when settings not configured */
 const DEFAULT_CONTEXT_PATHS: ContextPathConfig[] = [
-  { path: 'contexts/', purpose: 'Default context location' },
+  { path: '**/*.ctx.md', purpose: 'Bound contexts next to code' },
+  { path: '.ctx/contexts/**/*.md', purpose: 'Centralized project contexts' },
 ];
 
 /**
@@ -130,40 +131,6 @@ export function extractFolder(relativePath: string, globalDir: string): string |
 // ===== New 3-Level Scanner Functions =====
 
 /**
- * Scan for local context files using hardcoded patterns (config-free)
- * Scans for *.ctx.md and ctx.md files in project
- */
-export async function scanLocalContextsNew(
-  projectRoot: string
-): Promise<ScannedContext[]> {
-  const contexts: ScannedContext[] = [];
-
-  for (const pattern of DEFAULT_PATTERNS.local) {
-    const files = await glob(pattern, {
-      cwd: projectRoot,
-      ignore: DEFAULT_PATTERNS.ignore,
-      absolute: false,
-    });
-
-    for (const file of files) {
-      const absolutePath = path.join(projectRoot, file);
-      try {
-        const content = await fs.readFile(absolutePath, 'utf-8');
-        contexts.push({
-          contextPath: absolutePath,
-          relativePath: file,
-          content,
-        });
-      } catch (error) {
-        console.error(`Warning: Failed to read ${file}: ${error}`);
-      }
-    }
-  }
-
-  return contexts;
-}
-
-/**
  * Get context paths from registry settings
  * Falls back to default paths if settings not configured
  */
@@ -182,37 +149,42 @@ async function getContextPathsFromRegistry(registryPath: string): Promise<Contex
 }
 
 /**
- * Scan for project context files based on settings.context_paths
+ * Scan ALL project context files based on context_paths settings.
+ * Default patterns include bound contexts and centralized contexts.
+ *
+ * All are project contexts - distinction is by target field presence, not location.
  */
 export async function scanProjectContexts(
   projectRoot: string
 ): Promise<ScannedContext[]> {
+  const contexts: ScannedContext[] = [];
+  const seenPaths = new Set<string>();
+
   const registryPath = path.join(projectRoot, CTX_DIR, REGISTRY_FILE);
   const contextPaths = await getContextPathsFromRegistry(registryPath);
 
-  const contexts: ScannedContext[] = [];
-
   for (const cp of contextPaths) {
-    const fullPath = path.join(projectRoot, cp.path);
+    // Build ignore list: exclude .ctx/** unless this pattern explicitly targets .ctx/
+    const ignore = cp.path.startsWith('.ctx/')
+      ? DEFAULT_PATTERNS.ignore.filter(p => p !== '.ctx/**')
+      : DEFAULT_PATTERNS.ignore;
 
-    try {
-      await fs.access(fullPath);
-    } catch {
-      continue; // Directory doesn't exist, skip
-    }
-
-    const files = await glob('**/*.md', {
-      cwd: fullPath,
+    const files = await glob(cp.path, {
+      cwd: projectRoot,
+      ignore,
       absolute: false,
     });
 
     for (const file of files) {
-      const absolutePath = path.join(fullPath, file);
+      if (seenPaths.has(file)) continue;
+      seenPaths.add(file);
+
+      const absolutePath = path.join(projectRoot, file);
       try {
         const content = await fs.readFile(absolutePath, 'utf-8');
         contexts.push({
           contextPath: absolutePath,
-          relativePath: path.join(cp.path, file),
+          relativePath: file,
           content,
         });
       } catch (error) {
@@ -232,28 +204,24 @@ export async function scanGlobalCtxContexts(): Promise<ScannedContext[]> {
   const contextPaths = await getContextPathsFromRegistry(registryPath);
 
   const contexts: ScannedContext[] = [];
+  const seenPaths = new Set<string>();
 
   for (const cp of contextPaths) {
-    const fullPath = path.join(GLOBAL_CTX_DIR, cp.path);
-
-    try {
-      await fs.access(fullPath);
-    } catch {
-      continue; // Directory doesn't exist, skip
-    }
-
-    const files = await glob('**/*.md', {
-      cwd: fullPath,
+    const files = await glob(cp.path, {
+      cwd: GLOBAL_CTX_DIR,
       absolute: false,
     });
 
     for (const file of files) {
-      const absolutePath = path.join(fullPath, file);
+      if (seenPaths.has(file)) continue;
+      seenPaths.add(file);
+
+      const absolutePath = path.join(GLOBAL_CTX_DIR, file);
       try {
         const content = await fs.readFile(absolutePath, 'utf-8');
         contexts.push({
           contextPath: absolutePath,
-          relativePath: path.join(cp.path, file),
+          relativePath: file,
           content,
         });
       } catch (error) {
