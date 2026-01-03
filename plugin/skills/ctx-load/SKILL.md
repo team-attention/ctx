@@ -36,25 +36,25 @@ Use `npx ctx` commands to interact with the context system:
 |---------|-------------|-------------|
 | `ctx init` | Initialize context management | - |
 | `ctx status` | Show context status (JSON) | `--pretty`, `--target <path>` |
-| `ctx sync` | Sync context files to registries | `--local`, `--global` |
-| `ctx check` | Check context health/freshness | `--local`, `--global`, `--target <file>`, `--fix`, `--pretty` |
+| `ctx sync` | Sync context files to registries | `--global`, `--rebuild-index`, `--prune` |
+| `ctx check` | Check context health/freshness | `--target <file>`, `--pretty` |
 | `ctx create <path>` | Create new context file | `--target`, `--force`, `--global` |
-| `ctx refresh` | Refresh AI commands with config | - |
+| `ctx load` | Load context by keywords or target | `--target <path>`, `--json`, `--paths` |
 
 ### Common Usage Patterns
 
 ```bash
-# Get project status as JSON (for parsing)
-npx ctx status --json | jq '.projectRoot'
+# Get project status (JSON by default)
+npx ctx status | jq '.project.contextCount'
 
 # Check if context system is initialized
-npx ctx status --json 2>/dev/null | jq -r '.projectRoot // empty'
+npx ctx status 2>/dev/null | jq -r '.initialized'
 
 # Sync after changes
 npx ctx sync
 
-# Check and auto-fix registry
-npx ctx check --fix
+# Check health
+npx ctx check --pretty
 ```
 
 For complete CLI reference, see `../../shared/cli-reference.md`.
@@ -142,32 +142,34 @@ These contexts are now in our conversation.
 ```bash
 /ctx.load authentication
 # Searches all levels for "authentication"
+npx ctx load authentication
 ```
 
-### Level Filter
+### Target Search
 ```bash
-/ctx.load --global typescript   # Global only
-/ctx.load --project architecture   # Project only
-/ctx.load --local api   # Local only
+/ctx.load --target src/api.ts
+# Load contexts bound to specific file
+npx ctx load --target src/api.ts
 ```
 
-### All Contexts
+### Multiple Keywords
 ```bash
-/ctx.load --all
-# Load summary of ALL registered contexts
+/ctx.load api authentication
+# Searches for contexts matching any keyword
+npx ctx load api auth
 ```
 
-### Path Pattern
+### Output Formats
 ```bash
-/ctx.load src/auth/*
-# Load all contexts under src/auth/
+npx ctx load --json api     # JSON metadata only
+npx ctx load --paths api    # File paths only (for scripting)
 ```
 
 ---
 
 ## Cross-Project Search
 
-For `--all` flag, also search Global registry's `index` section:
+The Global registry's `index` section stores summaries of all registered projects:
 
 ```yaml
 # ~/.ctx/registry.yaml
@@ -179,7 +181,7 @@ index:
         when: ["api", "routing"]
 ```
 
-This enables finding contexts across all registered projects.
+This enables discovering contexts across all registered projects via keyword matching.
 
 ---
 
@@ -189,7 +191,7 @@ This enables finding contexts across all registered projects.
 |----------|----------|
 | Registry not found | "No context registry found. Run `ctx init` first." |
 | File missing | "Warning: Context registered but file missing: [path]. Run `ctx sync` to clean up." |
-| No project (for --project) | "No project found. Use `ctx init .` to create one, or search Global with --global." |
+| No project found | "No project found. Use `ctx init .` to initialize project context." |
 | No results | Show search stats and suggest: try different keywords, run `ctx sync`, or create with `/ctx.save` |
 
 ---

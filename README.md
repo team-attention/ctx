@@ -204,30 +204,51 @@ ctx remove docs/old/**      # Glob patterns supported
 # ─────────────────────────────────────
 # Create Context
 # ─────────────────────────────────────
-ctx create <target>         # Create local context (file.ctx.md)
-ctx create --project <name> # Create project context
-ctx create --global <name>  # Create global context
+ctx create <path>           # Create context file at path
+ctx create src/api.ctx.md --target src/api.ts  # With target binding
+ctx create --global <path>  # Create global context
 
 # ─────────────────────────────────────
-# Load Context (for hooks)
+# Load Context
 # ─────────────────────────────────────
-ctx load --target <path>      # Get matching contexts for a file
-ctx load --target src/api.ts  # Returns JSON of matching contexts
+ctx load api auth           # Load by keywords
+ctx load --target <path>    # Get matching contexts for a file
+ctx load --json             # Output as JSON (metadata only)
+ctx load --paths            # Output paths only
 
 # ─────────────────────────────────────
-# Sync & Verify
+# Save Context
 # ─────────────────────────────────────
-ctx sync                    # Sync project registry + update global index
+ctx save --path <path> --content "..."  # Save content to context
+ctx save --project --path <name> ...    # Save to .ctx/contexts/
+ctx save --global --path <name> ...     # Save to ~/.ctx/contexts/
+
+# ─────────────────────────────────────
+# Adopt Existing Docs
+# ─────────────────────────────────────
+ctx adopt docs/**/*.md      # Add frontmatter to existing docs
+ctx adopt --global ~/notes/*.md  # Adopt to global registry
+
+# ─────────────────────────────────────
+# Manage Patterns
+# ─────────────────────────────────────
+ctx add-pattern <pattern> <purpose>  # Add to context_paths
+
+# ─────────────────────────────────────
+# Sync & Check
+# ─────────────────────────────────────
+ctx sync                    # Sync project registry
 ctx sync --global           # Sync global registry only
+ctx sync --prune            # Remove entries not matching context_paths
 ctx check                   # Health check
-ctx check --strict          # Require frontmatter
+ctx check --pretty          # Human-readable output
 
 # ─────────────────────────────────────
 # Status
 # ─────────────────────────────────────
-ctx status                  # Show project contexts
-ctx status --global         # Show global contexts
-ctx status --all            # Show everything (uses global index)
+ctx status                  # Show project contexts (JSON)
+ctx status --pretty         # Human-readable dashboard
+ctx status --target <path>  # Show contexts for specific file
 
 ```
 
@@ -288,7 +309,7 @@ contexts:
 |-------------------|---------------------|
 | `contexts.include` patterns | `ctx add docs/**/*.md` |
 | `contexts.ignore` patterns | Just don't add them |
-| `frontmatter.mode` | `ctx check --strict` |
+| `frontmatter.mode` | Frontmatter is always required |
 | Separate config + registry | Single registry.yaml |
 
 Simpler. Explicit. Predictable.
@@ -338,9 +359,12 @@ ctx/
 │   └── commands/
 │       ├── init.ts
 │       ├── add.ts
+│       ├── add-pattern.ts
+│       ├── adopt.ts
 │       ├── remove.ts
 │       ├── create.ts
 │       ├── load.ts
+│       ├── save.ts
 │       ├── sync.ts
 │       ├── check.ts
 │       └── status.ts

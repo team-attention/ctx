@@ -22,6 +22,12 @@ import {
 import { ContextEntry } from '../lib/types.js';
 import { computeChecksum } from '../lib/checksum.js';
 import { extractPreviewFromGlobal } from '../lib/parser.js';
+import {
+  matchesContextPaths,
+  getProjectContextPaths,
+  getGlobalContextPaths,
+  suggestMatchingPaths,
+} from '../lib/context-path-matcher.js';
 
 export interface CreateOptions {
   force?: boolean;
@@ -45,6 +51,7 @@ export async function createCommand(contextPath: string, options: CreateOptions 
     }
 
     // Validation: check initialization
+    let projectRoot: string | null = null;
     if (isGlobal) {
       const globalInitialized = await isGlobalCtxInitialized();
       if (!globalInitialized) {
@@ -53,11 +60,60 @@ export async function createCommand(contextPath: string, options: CreateOptions 
         process.exit(1);
       }
     } else {
-      const projectRoot = await findProjectRoot();
+      projectRoot = await findProjectRoot();
       if (!projectRoot) {
         console.error(chalk.red('✗ Error: Project not initialized.'));
         console.log(chalk.gray("  Run 'ctx init .' first to initialize project context management."));
         process.exit(1);
+      }
+    }
+
+    // Validation: check if path matches context_paths patterns
+    const contextPaths = isGlobal
+      ? await getGlobalContextPaths()
+      : await getProjectContextPaths(projectRoot!);
+
+    const matches = matchesContextPaths(contextPath, contextPaths);
+
+    if (!matches && !options.force) {
+      console.log(chalk.yellow(`\n⚠️  Warning: '${contextPath}' doesn't match any context_paths pattern\n`));
+
+      console.log(chalk.gray('Current patterns:'));
+      contextPaths.forEach(cp => {
+        console.log(chalk.gray(`  - ${cp.path}`));
+      });
+
+      console.log();
+      console.log(chalk.yellow('This file will be removed on next ') + chalk.white('ctx sync'));
+      console.log();
+
+      const suggestions = suggestMatchingPaths(contextPath, contextPaths);
+      if (suggestions.length > 0) {
+        console.log(chalk.blue('Suggested alternatives:'));
+        suggestions.forEach(s => {
+          console.log(chalk.gray(`  - ${s}`));
+        });
+        console.log();
+      }
+
+      console.log(chalk.blue('Options:'));
+      console.log(chalk.gray('  1. Create in a matched location (recommended)'));
+      console.log(chalk.gray('  2. Add pattern: ') + chalk.white(`ctx add-pattern "${contextPath.replace(/[^/]+$/, '**/*.md')}" "Description"`));
+      console.log(chalk.gray('  3. Continue anyway (use --force)'));
+      console.log();
+
+      const { proceed } = await inquirer.prompt([
+        {
+          type: 'confirm',
+          name: 'proceed',
+          message: 'Continue creating this file anyway?',
+          default: false,
+        },
+      ]);
+
+      if (!proceed) {
+        console.log(chalk.gray('Operation cancelled.'));
+        return;
       }
     }
 
@@ -71,8 +127,7 @@ export async function createCommand(contextPath: string, options: CreateOptions 
       registryContextPath = contextPath;
     } else {
       // Project: path is relative to project root
-      const projectRoot = (await findProjectRoot())!;
-      absoluteContextPath = path.join(projectRoot, contextPath);
+      absoluteContextPath = path.join(projectRoot!, contextPath);
       registryContextPath = contextPath;
     }
 

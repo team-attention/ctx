@@ -150,6 +150,7 @@ export interface GlobalContextRegistry {
 
 export interface SyncOptions {
   global?: boolean;
+  prune?: boolean; // Remove registry entries that don't match context_paths
 }
 
 export interface SyncResult {

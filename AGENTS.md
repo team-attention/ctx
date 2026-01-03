@@ -42,14 +42,39 @@ ctx init              # Global init (~/.ctx/)
 ctx init .            # Project init (.ctx/)
 
 # Create contexts
-ctx create src/api.ts                    # Project (src/api.ctx.md, next to code)
-ctx create --project architecture        # Project (.ctx/contexts/architecture.md)
-ctx create --global typescript-tips      # Global (~/.ctx/contexts/)
+ctx create .ctx/contexts/architecture.md   # Project context
+ctx create src/api.ctx.md --target src/api.ts  # With target binding
+ctx create --global contexts/tips.md       # Global context
+
+# Add/Remove contexts
+ctx add <path>              # Register file(s) as context
+ctx add docs/**/*.md        # Glob patterns supported
+ctx add --global <path>     # Add to global registry
+ctx remove <path>           # Unregister from context
+
+# Adopt existing docs
+ctx adopt docs/**/*.md      # Add frontmatter to existing docs
+ctx adopt --global ~/notes/*.md  # Adopt to global registry
+
+# Manage patterns
+ctx add-pattern <pattern> <purpose>  # Add to context_paths
+
+# Load contexts
+ctx load api auth           # Load by keywords
+ctx load --target src/api.ts   # Match by file path
+ctx load --json             # Output as JSON
+ctx load --paths            # Output paths only
+
+# Save contexts
+ctx save --path <path> --content "..."  # Save content
+ctx save --project --path <name> ...    # Save to .ctx/contexts/
+ctx save --global --path <name> ...     # Save to ~/.ctx/contexts/
 
 # Sync
-ctx sync                  # Sync project registry (checksums, previews)
+ctx sync                  # Sync project registry
 ctx sync --global         # Sync global contexts (~/.ctx/)
 ctx sync --rebuild-index  # Rebuild global index
+ctx sync --prune          # Remove entries not matching context_paths
 
 # Status
 ctx status            # JSON output
@@ -59,7 +84,7 @@ ctx status --target src/api.ts   # Find context for specific file
 # Health check
 ctx check                         # Check context health
 ctx check --target src/api.ts     # Check contexts for specific file
-ctx check --fix                   # Auto-fix issues
+ctx check --pretty                # Human-readable output
 ```
 
 ---
@@ -73,12 +98,15 @@ ctx/
 │   ├── commands/         # CLI command implementations
 │   │   ├── init.ts       # ctx init
 │   │   ├── create.ts     # ctx create
-│   │   ├── sync.ts       # ctx sync
-│   │   ├── status.ts     # ctx status
-│   │   ├── check.ts      # ctx check
+│   │   ├── add.ts        # ctx add
+│   │   ├── add-pattern.ts # ctx add-pattern
+│   │   ├── adopt.ts      # ctx adopt
+│   │   ├── remove.ts     # ctx remove
 │   │   ├── load.ts       # ctx load
 │   │   ├── save.ts       # ctx save
-│   │   └── ...
+│   │   ├── sync.ts       # ctx sync
+│   │   ├── status.ts     # ctx status
+│   │   └── check.ts      # ctx check
 │   ├── lib/              # Core library
 │   └── templates/        # Context templates
 ├── plugin/               # Claude Code plugin

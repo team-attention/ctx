@@ -8,9 +8,9 @@ import { initCommand } from '../commands/init.js';
 import { createCommand } from '../commands/create.js';
 import { syncCommand } from '../commands/sync.js';
 import { checkCommand } from '../commands/check.js';
-import { refreshCommand } from '../commands/refresh.js';
 import { statusCommand } from '../commands/status.js';
 import { addCommand } from '../commands/add.js';
+import { addPatternCommand } from '../commands/add-pattern.js';
 import { removeCommand } from '../commands/remove.js';
 import { adoptCommand } from '../commands/adopt.js';
 import { loadCommand } from '../commands/load.js';
@@ -53,6 +53,7 @@ program
   .description('Sync context files to registry')
   .option('--global', 'Sync global contexts (~/.ctx/)')
   .option('--rebuild-index', 'Rebuild global index from all registered projects')
+  .option('--prune', 'Remove registry entries that don\'t match context_paths')
   .action(syncCommand);
 
 program
@@ -63,11 +64,6 @@ program
   .option('--fix', 'Update registry to match filesystem')
   .option('--pretty', 'Human-readable output (default is JSON)')
   .action(checkCommand);
-
-program
-  .command('refresh')
-  .description('Refresh AI commands with current config settings')
-  .action(refreshCommand);
 
 program
   .command('status')
@@ -83,6 +79,12 @@ program
   .description('Add context files to registry')
   .option('--global', 'Add to global registry instead of project')
   .action(addCommand);
+
+program
+  .command('add-pattern <pattern> <purpose>')
+  .description('Add a glob pattern to context_paths settings')
+  .option('--global', 'Add to global registry instead of project')
+  .action(addPatternCommand);
 
 program
   .command('remove <patterns...>')

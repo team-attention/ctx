@@ -3,7 +3,7 @@
 Shared CLI reference for CTX plugin skills.
 
 ## Commands Overview
--
+
 | Command | Description |
 |---------|-------------|
 | `ctx init` | Initialize context management |
@@ -14,8 +14,9 @@ Shared CLI reference for CTX plugin skills.
 | `ctx load` | Load context files by keywords |
 | `ctx save` | Save content to context file |
 | `ctx add` | Add context files to registry |
+| `ctx add-pattern` | Add glob pattern to context_paths |
+| `ctx adopt` | Adopt existing documents by adding frontmatter |
 | `ctx remove` | Remove context files from registry |
-| `ctx refresh` | Refresh AI commands with config |
 
 ---
 
@@ -26,8 +27,8 @@ Shared CLI reference for CTX plugin skills.
 Initialize context management.
 
 ```bash
-ctx init              # Global 초기화 (~/.ctx/)
-ctx init .            # Project 초기화 (.ctx/)
+ctx init              # Global initialization (~/.ctx/)
+ctx init .            # Project initialization (.ctx/)
 ```
 
 | Flag | Description |
@@ -48,16 +49,12 @@ Show current context status.
 ```bash
 ctx status                      # JSON output (default)
 ctx status --pretty             # Human-readable dashboard
-ctx status --global             # Show global registry only
-ctx status --all                # Show all registered projects
 ctx status --target src/api.ts  # Show contexts for specific file
 ```
 
 | Flag | Description |
 |------|-------------|
 | `--pretty` | Human-readable dashboard output |
-| `--global` | Show global registry contexts only |
-| `--all` | Show all registered projects from global index |
 | `--target <filePath>` | Show contexts bound to this file (supports glob) |
 
 **Output (JSON, default):**
@@ -96,16 +93,18 @@ Sync context files to registry. Updates checksums and preview fields.
 ctx sync                  # Sync project contexts
 ctx sync --global         # Sync global contexts (~/.ctx/)
 ctx sync --rebuild-index  # Rebuild global index
+ctx sync --prune          # Remove registry entries not matching context_paths
 ```
 
 | Flag | Description |
 |------|-------------|
 | `--global` | Sync global contexts (~/.ctx/) |
 | `--rebuild-index` | Rebuild global index from all registered projects |
+| `--prune` | Remove registry entries that don't match context_paths patterns |
 
 **Output:**
 - Summary of synced contexts with updated checksums
-- List of removed entries (if files were deleted)
+- List of removed entries (if files were deleted or pruned)
 
 ---
 
@@ -115,17 +114,13 @@ Check context health and freshness.
 
 ```bash
 ctx check                          # Check project contexts
-ctx check --global                 # Check only global
 ctx check --target src/api.ts      # Check contexts for specific file
-ctx check --fix                    # Auto-fix registry issues
 ctx check --pretty                 # Human-readable output
 ```
 
 | Flag | Description |
 |------|-------------|
-| `--global` | Check only global contexts |
 | `--target <filePath>` | Check only contexts bound to this file (supports glob) |
-| `--fix` | Update registry to match filesystem |
 | `--pretty` | Human-readable output (default is JSON) |
 
 **Checks performed:**
@@ -205,7 +200,9 @@ ctx load --paths                 # Output paths only
   {
     "path": ".ctx/contexts/api.md",
     "what": "API design patterns",
-    "when": ["api", "routing"]
+    "registry": "project",
+    "matchType": "exact",
+    "target": "src/api.ts"
   }
 ]
 ```
@@ -246,7 +243,7 @@ echo "content" | ctx save --path src/api.ctx.md --what "API patterns"
 | `--project` | Save to project context (`.ctx/contexts/`) |
 | `--force` | Overwrite existing file |
 
-**Output:** Path to saved context file, automatically runs `ctx sync`.
+**Output:** Path to saved context file, automatically registered to registry.
 
 ---
 
@@ -268,6 +265,65 @@ ctx add --global ~/notes/*.md   # Add to global registry
 
 ---
 
+### ctx add-pattern
+
+Add a glob pattern to context_paths in registry settings.
+
+Defines which file paths are scanned for context files during sync.
+
+```bash
+ctx add-pattern <pattern> <purpose>           # Add to project
+ctx add-pattern <pattern> <purpose> --global  # Add to global
+```
+
+**Examples:**
+```bash
+ctx add-pattern 'docs/**/*.md' 'API documentation'
+ctx add-pattern '**/*.test.ctx.md' 'Test context files'
+ctx add-pattern --global '**/*.ctx.md' 'Global context pattern'
+```
+
+| Flag | Description |
+|------|-------------|
+| `--global` | Add to global registry instead of project |
+
+**Output:** Updated context_paths list with the new pattern.
+
+---
+
+### ctx adopt
+
+Adopt existing documents by adding frontmatter.
+
+Automatically adds YAML frontmatter to existing markdown files, making them discoverable as context without manual editing. Generates `what` and `when` fields from filenames and directory structure.
+
+```bash
+ctx adopt <patterns...>           # Adopt documents to project registry
+ctx adopt <patterns...> --global  # Adopt to global registry
+```
+
+**Examples:**
+```bash
+ctx adopt docs/**/*.md            # Adopt all docs
+ctx adopt README.md CONTRIBUTING.md  # Adopt specific files
+ctx adopt --global ~/notes/*.md   # Adopt to global registry
+```
+
+| Flag | Description |
+|------|-------------|
+| `--global` | Adopt to global registry instead of project |
+
+**Output:** List of adopted files with auto-generated frontmatter.
+
+**Behavior:**
+- Skips files that already have frontmatter
+- Skips non-markdown files
+- Skips `.ctx.md` context files
+- Auto-generates `what` and `when` from filename/path
+- Automatically registers adopted files to registry
+
+---
+
 ### ctx remove
 
 Remove context files from registry. Files are NOT deleted.
@@ -282,18 +338,6 @@ ctx remove --global old-tips.md # Remove from global registry
 | `--global` | Remove from global registry instead of project |
 
 **Output:** List of removed registry entries (files remain on disk).
-
----
-
-### ctx refresh
-
-Refresh AI commands with current config settings.
-
-```bash
-ctx refresh
-```
-
-**Output:** Confirmation of refreshed commands.
 
 ---
 
@@ -314,11 +358,10 @@ ctx create .ctx/contexts/api.md && ctx sync
 ctx create src/api.ctx.md --target src/api.ts && ctx sync
 ```
 
-### Check and fix issues
+### Check issues
 
 ```bash
 ctx check --pretty               # See issues
-ctx check --fix                  # Auto-fix
 ```
 
 ### Find context for a file
@@ -329,6 +372,21 @@ ctx load --target src/api.ts --json    # JSON output
 ctx load --target src/api.ts --paths   # Paths only
 ctx load --target src/api.ts           # Full content
 ctx check --target src/api.ts          # Check health
+```
+
+### Adopt existing documentation
+
+```bash
+ctx adopt docs/**/*.md           # Add frontmatter to all docs
+ctx adopt README.md              # Adopt specific file
+ctx sync                         # Sync adopted files to registry
+```
+
+### Manage context_paths patterns
+
+```bash
+ctx add-pattern 'docs/**/*.md' 'Documentation'  # Add pattern
+ctx sync --prune                                # Remove unmatched contexts
 ```
 
 ### Load contexts programmatically

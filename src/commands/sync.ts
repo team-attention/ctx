@@ -201,13 +201,13 @@ async function rebuildGlobalIndex(): Promise<void> {
  * Sync command for project contexts
  * Scans all project contexts (*.ctx.md + .ctx/contexts/*.md) and updates registry
  */
-async function syncCommandNew(projectRoot: string, _options: ExtendedSyncOptions) {
+async function syncCommandNew(projectRoot: string, options: ExtendedSyncOptions) {
   console.log(chalk.blue.bold('Syncing project contexts...\n'));
 
   try {
     // Sync all project contexts (unified scan)
     console.log(chalk.blue('Scanning contexts...'));
-    const syncedCount = await syncProjectContextsToRegistry(projectRoot);
+    const syncedCount = await syncProjectContextsToRegistry(projectRoot, options);
     console.log(chalk.green(`✓ Synced ${syncedCount} context(s)`));
 
     // Update global index
@@ -237,26 +237,40 @@ async function syncCommandNew(projectRoot: string, _options: ExtendedSyncOptions
  * Handles both *.ctx.md files and .ctx/contexts/*.md
  *
  * SoT: File system is the source of truth.
- * Registry is rebuilt from scratch on each sync.
+ * Registry is updated based on scan results.
+ * With --prune: entries not matching context_paths are removed
+ * Without --prune: entries are kept but warned about
  */
-async function syncProjectContextsToRegistry(projectRoot: string): Promise<number> {
+async function syncProjectContextsToRegistry(projectRoot: string, options: ExtendedSyncOptions = {}): Promise<number> {
   const scannedContexts = await scanProjectContexts(projectRoot);
   const registry = await readProjectRegistry(projectRoot);
 
   // Calculate what will be removed (for logging)
   const scannedPaths = new Set(scannedContexts.map(c => c.relativePath));
   const oldPaths = Object.keys(registry.contexts);
-  const deletedPaths = oldPaths.filter(p => !scannedPaths.has(p));
+  const unmatchedPaths = oldPaths.filter(p => !scannedPaths.has(p));
 
-  // Log deletions
-  if (deletedPaths.length > 0) {
-    console.log(chalk.gray('\n  Removed from registry:'));
-    deletedPaths.forEach(p => console.log(chalk.gray(`    - ${p}`)));
-    console.log();
+  // Handle unmatched paths based on prune option
+  if (unmatchedPaths.length > 0) {
+    if (options.prune) {
+      // Remove unmatched entries
+      console.log(chalk.gray('\n  Removed from registry:'));
+      unmatchedPaths.forEach(p => console.log(chalk.gray(`    - ${p}`)));
+      console.log();
+    } else {
+      // Warn but keep entries
+      console.log(chalk.yellow('\n⚠️  Warning: These files are in registry but not matched by context_paths:'));
+      unmatchedPaths.forEach(p => console.log(chalk.yellow(`  - ${p}`)));
+      console.log();
+      console.log(chalk.yellow('They are kept in registry for now.'));
+      console.log(chalk.gray('To remove them, run: ') + chalk.white('ctx sync --prune'));
+      console.log(chalk.gray('To keep them tracked, add matching pattern: ') + chalk.white('ctx add-pattern "<pattern>" "Description"'));
+      console.log();
+    }
   }
 
-  // Clear contexts (rebuild from scratch)
-  // SoT: File system scan result = registry state
+  // Clear or preserve contexts based on prune option
+  const oldContexts = options.prune ? {} : { ...registry.contexts };
   registry.contexts = {};
 
   let syncedCount = 0;
@@ -340,6 +354,16 @@ async function syncProjectContextsToRegistry(projectRoot: string): Promise<numbe
       syncedCount++;
     } catch (error) {
       console.error(chalk.red(`✗ Error processing ${scanned.relativePath}: ${error}`));
+    }
+  }
+
+  // Re-add preserved old contexts (if not pruning)
+  if (!options.prune) {
+    for (const [path, entry] of Object.entries(oldContexts)) {
+      // Only add if not already scanned (to avoid duplicates)
+      if (!scannedPaths.has(path)) {
+        registry.contexts[path] = entry;
+      }
     }
   }
 
