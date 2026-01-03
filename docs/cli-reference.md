@@ -157,19 +157,25 @@ ctx check --pretty               # Human-readable output
 Create a new context file from template.
 
 ```bash
-ctx create src/api.ts                    # Local (src/api.ctx.md)
-ctx create --project architecture        # Project (.ctx/contexts/architecture.md)
-ctx create --global typescript-patterns  # Global (~/.ctx/contexts/...)
-ctx create --force src/api.ts            # Force overwrite
-ctx create --template detailed src/api.ts  # Use specific template
+# Project contexts (default)
+ctx create .ctx/contexts/architecture.md
+ctx create .ctx/docs/api-guide.md
+ctx create src/api.ctx.md
+ctx create src/api.ctx.md --target src/api.ts
+
+# Global contexts
+ctx create --global contexts/typescript-tips.md
+ctx create --global rules/api.md --target "**/*.ts"
+
+# Force overwrite
+ctx create --force .ctx/contexts/auth.md
 ```
 
 | Flag | Description |
 |------|-------------|
-| `--template <type>` | Template type (default: `default`) |
+| `--target <pattern>` | Optional target file/pattern for frontmatter |
 | `--force` | Overwrite existing context file without confirmation |
-| `--global` | Create a global context in `~/.ctx/contexts/` |
-| `--project` | Create a project context in `.ctx/contexts/` |
+| `--global` | Create in global registry (`~/.ctx/`) |
 
 **Output:** Path to created context file.
 
@@ -309,15 +315,16 @@ ctx refresh
 ### Initialize a new project
 
 ```bash
-ctx init .                       # Create .ctx/ structure
-ctx create --project readme      # Create first context
-ctx sync                         # Sync to registry
+ctx init .                              # Create .ctx/ structure
+ctx create .ctx/contexts/readme.md      # Create first context
+ctx sync                                # Sync to registry
 ```
 
 ### Create and sync context
 
 ```bash
-ctx create src/api.ts && ctx sync
+ctx create .ctx/contexts/api.md && ctx sync
+ctx create src/api.ctx.md --target src/api.ts && ctx sync
 ```
 
 ### Check and fix issues

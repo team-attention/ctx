@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { TestEnvironment, suppressConsole } from '../helpers/testUtils.js';
-import YAML from 'yaml';
 
 // Create mock function with proper typing
 const mockPrompt = jest.fn<any>();
@@ -43,75 +42,61 @@ describe('create command', () => {
     await testEnv.cleanup();
   });
 
-  describe('local context creation', () => {
-    it('should create context file for a source file', async () => {
-      // Create target source file
-      await testEnv.createFile('src/services/payment.ts', 'export class Payment {}');
+  describe('project context creation', () => {
+    it('should create context file with full path', async () => {
+      await createCommand('.ctx/contexts/api.md', { force: true });
 
-      await createCommand('src/services/payment.ts', { force: true });
-
-      // Check context file was created
-      expect(await testEnv.fileExists('src/services/payment.ctx.md')).toBe(true);
+      expect(await testEnv.fileExists('.ctx/contexts/api.md')).toBe(true);
     });
 
     it('should create context file with correct template structure', async () => {
-      await testEnv.createFile('src/utils/helpers.ts', 'export function help() {}');
+      await createCommand('.ctx/contexts/helpers.md', { force: true });
 
-      await createCommand('src/utils/helpers.ts', { force: true });
-
-      const contextContent = await testEnv.readFile('src/utils/helpers.ctx.md');
+      const contextContent = await testEnv.readFile('.ctx/contexts/helpers.md');
 
       // Check for frontmatter markers
       expect(contextContent).toContain('---');
-      expect(contextContent).toContain('target:');
       expect(contextContent).toContain('what:');
       expect(contextContent).toContain('when:');
     });
 
-    it('should render template with absolute target path', async () => {
-      await testEnv.createFile('src/models/user.ts', 'export interface User {}');
+    it('should add .md extension if not present', async () => {
+      await createCommand('.ctx/contexts/architecture', { force: true });
 
-      await createCommand('src/models/user.ts', { force: true });
-
-      const contextContent = await testEnv.readFile('src/models/user.ctx.md');
-
-      // Target path should be absolute (starts with /)
-      expect(contextContent).toContain('target: /src/models/user.ts');
+      expect(await testEnv.fileExists('.ctx/contexts/architecture.md')).toBe(true);
     });
 
-    it('should create context file for directory', async () => {
-      await testEnv.createFile('src/api/.gitkeep', '');
+    it('should include target in frontmatter when --target is provided', async () => {
+      await createCommand('src/api.ctx.md', { force: true, target: 'src/api.ts' });
 
-      await createCommand('src/api/', { force: true });
+      const contextContent = await testEnv.readFile('src/api.ctx.md');
 
-      // For directories, context file is ctx.md inside the directory
-      expect(await testEnv.fileExists('src/api/ctx.md')).toBe(true);
+      expect(contextContent).toContain('target: src/api.ts');
+    });
+
+    it('should have empty target when --target is not provided', async () => {
+      await createCommand('.ctx/contexts/general.md', { force: true });
+
+      const contextContent = await testEnv.readFile('.ctx/contexts/general.md');
+
+      // Should have empty target line (can be filled later)
+      expect(contextContent).toContain('target:');
+      expect(contextContent).not.toContain('target: src/');
     });
 
     it('should create nested directories if they do not exist', async () => {
-      // Don't create the directory structure
-      // create command should handle it
+      await createCommand('.ctx/docs/guides/getting-started.md', { force: true });
 
-      await createCommand('src/deeply/nested/path/file.ts', { force: true });
-
-      // Context file should be created along with directories
-      expect(await testEnv.fileExists('src/deeply/nested/path/file.ctx.md')).toBe(true);
+      expect(await testEnv.fileExists('.ctx/docs/guides/getting-started.md')).toBe(true);
     });
 
-    it('should warn if target file does not exist but still create context', async () => {
-      // Don't create target file
+    it('should render title from filename', async () => {
+      await createCommand('.ctx/contexts/api-patterns.md', { force: true });
 
-      await createCommand('src/nonexistent.ts', { force: true });
+      const contextContent = await testEnv.readFile('.ctx/contexts/api-patterns.md');
 
-      // Context file should still be created
-      expect(await testEnv.fileExists('src/nonexistent.ctx.md')).toBe(true);
-
-      // Check console output for warning
-      const output = consoleOutput.getOutput();
-      const warningFound = output.log.some(log =>
-        log.includes('Warning') && log.includes('does not exist')
-      );
-      expect(warningFound).toBe(true);
+      // Title should be derived from filename
+      expect(contextContent).toContain('# Api Patterns');
     });
   });
 
@@ -121,23 +106,22 @@ describe('create command', () => {
       await testEnv.initGlobal();
     });
 
-    it('should create global context in ~/.ctx/contexts/ directory', async () => {
-      await createCommand('architecture/caching', { global: true, force: true });
+    it('should create global context in ~/.ctx/ directory', async () => {
+      await createCommand('contexts/caching.md', { global: true, force: true });
 
-      // Should create in home/.ctx/contexts/ directory with .md extension
-      expect(await testEnv.fileExists('home/.ctx/contexts/architecture/caching.md')).toBe(true);
+      expect(await testEnv.fileExists('home/.ctx/contexts/caching.md')).toBe(true);
     });
 
     it('should add .md extension if not present', async () => {
-      await createCommand('architecture/database', { global: true, force: true });
+      await createCommand('contexts/database', { global: true, force: true });
 
-      expect(await testEnv.fileExists('home/.ctx/contexts/architecture/database.md')).toBe(true);
+      expect(await testEnv.fileExists('home/.ctx/contexts/database.md')).toBe(true);
     });
 
     it('should render template with document title', async () => {
-      await createCommand('architecture/api-versioning', { global: true, force: true });
+      await createCommand('contexts/api-versioning.md', { global: true, force: true });
 
-      const content = await testEnv.readFile('home/.ctx/contexts/architecture/api-versioning.md');
+      const content = await testEnv.readFile('home/.ctx/contexts/api-versioning.md');
 
       // Check for frontmatter structure
       expect(content).toContain('---');
@@ -149,9 +133,16 @@ describe('create command', () => {
     });
 
     it('should create nested directories for global contexts', async () => {
-      await createCommand('deep/nested/structure/doc', { global: true, force: true });
+      await createCommand('rules/typescript/strict-mode.md', { global: true, force: true });
 
-      expect(await testEnv.fileExists('home/.ctx/contexts/deep/nested/structure/doc.md')).toBe(true);
+      expect(await testEnv.fileExists('home/.ctx/rules/typescript/strict-mode.md')).toBe(true);
+    });
+
+    it('should include target when --target is provided', async () => {
+      await createCommand('contexts/ts-patterns.md', { global: true, force: true, target: '**/*.ts' });
+
+      const content = await testEnv.readFile('home/.ctx/contexts/ts-patterns.md');
+      expect(content).toContain('target: **/*.ts');
     });
   });
 
@@ -160,7 +151,7 @@ describe('create command', () => {
       // Create existing context file
       await testEnv.createFile(
         'src/existing.ctx.md',
-        '---\ntarget: /src/existing.ts\nwhat: old content\nwhen:\n  - test\n---\n\n# Old Content'
+        '---\ntarget: src/existing.ts\nwhat: old content\nwhen:\n  - test\n---\n\n# Old Content'
       );
     });
 
@@ -168,7 +159,7 @@ describe('create command', () => {
       // Mock user declining overwrite
       mockPrompt.mockResolvedValueOnce({ overwrite: false });
 
-      await createCommand('src/existing.ts', {}); // No force flag
+      await createCommand('src/existing.ctx.md', {}); // No force flag
 
       // Should have prompted
       expect(mockPrompt).toHaveBeenCalled();
@@ -179,7 +170,7 @@ describe('create command', () => {
     });
 
     it('should overwrite with --force flag without prompting', async () => {
-      await createCommand('src/existing.ts', { force: true });
+      await createCommand('src/existing.ctx.md', { force: true });
 
       // Should not have prompted
       expect(mockPrompt).not.toHaveBeenCalled();
@@ -187,14 +178,14 @@ describe('create command', () => {
       // File should be overwritten (no longer contains old content)
       const content = await testEnv.readFile('src/existing.ctx.md');
       expect(content).not.toContain('old content');
-      expect(content).toContain('Brief description');
+      expect(content).toContain('TODO');
     });
 
     it('should overwrite if user confirms prompt', async () => {
       // Mock user confirming overwrite
       mockPrompt.mockResolvedValueOnce({ overwrite: true });
 
-      await createCommand('src/existing.ts', {});
+      await createCommand('src/existing.ctx.md', {});
 
       // Should have prompted
       expect(mockPrompt).toHaveBeenCalled();
@@ -214,33 +205,52 @@ describe('create command', () => {
       // Don't call initProject()
 
       await expect(async () => {
-        await createCommand('src/test.ts', { force: true });
+        await createCommand('.ctx/contexts/test.md', { force: true });
       }).rejects.toThrow('process.exit(1)');
     });
 
-    it('should handle empty target path gracefully', async () => {
-      // Empty path creates .ctx.md in project root (or returns early)
-      // This behavior is acceptable - no crash
-      await createCommand('', { force: true });
-      // Test passes if no exception thrown
+    it('should fail for global if global is not initialized', async () => {
+      // Project is initialized but not global
+      // Set HOME to a non-existent directory to ensure global is not initialized
+      const originalHome = process.env.HOME;
+      process.env.HOME = testEnv.getPath('nonexistent-home');
+
+      try {
+        await expect(async () => {
+          await createCommand('contexts/test.md', { global: true, force: true });
+        }).rejects.toThrow('process.exit(1)');
+      } finally {
+        process.env.HOME = originalHome;
+      }
     });
   });
 
   describe('idempotency', () => {
     it('should produce same result when run multiple times with --force', async () => {
-      await testEnv.createFile('src/test.ts', 'export class Test {}');
-
       // First run
-      await createCommand('src/test.ts', { force: true });
-      const firstContent = await testEnv.readFile('src/test.ctx.md');
+      await createCommand('.ctx/contexts/test.md', { force: true });
+      const firstContent = await testEnv.readFile('.ctx/contexts/test.md');
 
       // Second run
-      await createCommand('src/test.ts', { force: true });
-      const secondContent = await testEnv.readFile('src/test.ctx.md');
+      await createCommand('.ctx/contexts/test.md', { force: true });
+      const secondContent = await testEnv.readFile('.ctx/contexts/test.md');
 
       // Content should be identical
       expect(firstContent).toBe(secondContent);
-      expect(firstContent).toContain('target: /src/test.ts');
+    });
+
+    it('should produce same result with target option', async () => {
+      // First run
+      await createCommand('src/api.ctx.md', { force: true, target: 'src/api.ts' });
+      const firstContent = await testEnv.readFile('src/api.ctx.md');
+
+      // Second run
+      await createCommand('src/api.ctx.md', { force: true, target: 'src/api.ts' });
+      const secondContent = await testEnv.readFile('src/api.ctx.md');
+
+      // Content should be identical and contain target
+      expect(firstContent).toBe(secondContent);
+      expect(firstContent).toContain('target: src/api.ts');
     });
 
     it('should produce consistent global context structure', async () => {
@@ -248,17 +258,15 @@ describe('create command', () => {
       await testEnv.initGlobal();
 
       // First run
-      await createCommand('test-doc', { global: true, force: true });
+      await createCommand('contexts/test-doc.md', { global: true, force: true });
       const firstContent = await testEnv.readFile('home/.ctx/contexts/test-doc.md');
 
       // Second run
-      await createCommand('test-doc', { global: true, force: true });
+      await createCommand('contexts/test-doc.md', { global: true, force: true });
       const secondContent = await testEnv.readFile('home/.ctx/contexts/test-doc.md');
 
       // Content structure should be identical
-      expect(firstContent.split('\n').slice(0, 10)).toEqual(
-        secondContent.split('\n').slice(0, 10)
-      );
+      expect(firstContent).toBe(secondContent);
     });
   });
 });

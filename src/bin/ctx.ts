@@ -41,12 +41,11 @@ program
   .action(initCommand);
 
 program
-  .command('create <target>')
-  .description('Create a new context file from template')
-  .option('--template <type>', 'Template type (default: default)', 'default')
+  .command('create <path>')
+  .description('Create a new context file (path relative to project root or ~/.ctx/ with --global)')
+  .option('--target <pattern>', 'Optional target file/pattern for frontmatter')
   .option('--force', 'Overwrite existing context file without confirmation')
-  .option('--global', 'Create a global context in ~/.ctx/contexts/')
-  .option('--project', 'Create a project context in .ctx/contexts/')
+  .option('--global', 'Create in global registry (~/.ctx/)')
   .action(createCommand);
 
 program

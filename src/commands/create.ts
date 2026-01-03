@@ -3,15 +3,12 @@ import fs from 'fs/promises';
 import path from 'path';
 import chalk from 'chalk';
 import {
-  fileExists,
-  resolveContextPath,
-  resolveAbsoluteTargetPath,
   extractDocumentTitle,
   getDirectory,
   ensureDirectory,
 } from '../lib/fileUtils.js';
 import { checkContextFileExists } from '../lib/validation.js';
-import { loadTemplate, renderTemplate, ContextType } from '../lib/templates.js';
+import { loadContextTemplate, renderContextTemplate } from '../lib/templates.js';
 import {
   findProjectRoot,
   isGlobalCtxInitialized,
@@ -20,71 +17,63 @@ import {
   readGlobalCtxRegistry,
   writeGlobalCtxRegistry,
   updateGlobalIndex,
-  CTX_DIR,
-  CONTEXTS_DIR,
   getGlobalCtxDir,
 } from '../lib/registry.js';
 import { ContextEntry } from '../lib/types.js';
 import { computeChecksum } from '../lib/checksum.js';
-import { extractPreviewFromGlobal, extractPreviewFromLocal, parseContextFile } from '../lib/parser.js';
+import { extractPreviewFromGlobal } from '../lib/parser.js';
 
 export interface CreateOptions {
-  template?: string;
   force?: boolean;
   global?: boolean;
-  project?: boolean;
+  target?: string; // Optional target path/pattern for frontmatter
 }
 
-export async function createCommand(target: string, options: CreateOptions = {}) {
+/**
+ * Create a new context file
+ *
+ * @param contextPath - Full path to the context file (e.g., ".ctx/contexts/arch.md", "src/api.ctx.md")
+ * @param options - Creation options
+ */
+export async function createCommand(contextPath: string, options: CreateOptions = {}) {
   try {
-    const projectRoot = await findProjectRoot();
-    const globalInitialized = await isGlobalCtxInitialized();
-
     const isGlobal = options.global || false;
-    const isProject = options.project || false;
-    const isLocal = !isGlobal && !isProject;
 
-    // Validation based on scope
-    if (isGlobal && !globalInitialized) {
-      console.error(chalk.red('✗ Error: Global ctx not initialized.'));
-      console.log(chalk.gray("  Run 'ctx init' first to initialize global context management."));
-      process.exit(1);
+    // Ensure path ends with .md
+    if (!contextPath.endsWith('.md')) {
+      contextPath = `${contextPath}.md`;
     }
 
-    if ((isProject || isLocal) && !projectRoot) {
-      console.error(chalk.red('✗ Error: Project not initialized.'));
-      console.log(chalk.gray("  Run 'ctx init .' first to initialize project context management."));
-      process.exit(1);
+    // Validation: check initialization
+    if (isGlobal) {
+      const globalInitialized = await isGlobalCtxInitialized();
+      if (!globalInitialized) {
+        console.error(chalk.red('✗ Error: Global ctx not initialized.'));
+        console.log(chalk.gray("  Run 'ctx init' first to initialize global context management."));
+        process.exit(1);
+      }
+    } else {
+      const projectRoot = await findProjectRoot();
+      if (!projectRoot) {
+        console.error(chalk.red('✗ Error: Project not initialized.'));
+        console.log(chalk.gray("  Run 'ctx init .' first to initialize project context management."));
+        process.exit(1);
+      }
     }
 
-    let contextPath: string;
+    // Resolve absolute path
     let absoluteContextPath: string;
-    let templateData: Record<string, string>;
-    let contextType: ContextType;
+    let registryContextPath: string; // Path stored in registry (relative)
 
     if (isGlobal) {
-      // Global context: create in ~/.ctx/contexts/
-      contextType = 'global';
-      const filename = target.endsWith('.md') ? target : `${target}.md`;
-      contextPath = path.join(CONTEXTS_DIR, filename);
+      // Global: path is relative to ~/.ctx/
       absoluteContextPath = path.join(getGlobalCtxDir(), contextPath);
-      const documentTitle = extractDocumentTitle(target);
-      templateData = { documentTitle };
-    } else if (isProject) {
-      // Project context: create in .ctx/contexts/
-      contextType = 'global';
-      const filename = target.endsWith('.md') ? target : `${target}.md`;
-      contextPath = path.join(CTX_DIR, CONTEXTS_DIR, filename);
-      absoluteContextPath = path.join(projectRoot!, contextPath);
-      const documentTitle = extractDocumentTitle(target);
-      templateData = { documentTitle };
+      registryContextPath = contextPath;
     } else {
-      // Local context: create as target.ctx.md
-      contextType = 'local';
-      contextPath = resolveContextPath(target);
-      absoluteContextPath = path.join(projectRoot!, contextPath);
-      const absoluteTargetPath = resolveAbsoluteTargetPath(target);
-      templateData = { targetPath: absoluteTargetPath };
+      // Project: path is relative to project root
+      const projectRoot = (await findProjectRoot())!;
+      absoluteContextPath = path.join(projectRoot, contextPath);
+      registryContextPath = contextPath;
     }
 
     // Check if context file already exists
@@ -103,25 +92,18 @@ export async function createCommand(target: string, options: CreateOptions = {})
 
       if (!overwrite) {
         console.log(chalk.gray('Operation cancelled.'));
-        console.log(chalk.gray(`  Use --force to overwrite without confirmation.`));
+        console.log(chalk.gray('  Use --force to overwrite without confirmation.'));
         return;
       }
     }
 
-    // Check if target file exists (warning only, local contexts only)
-    if (isLocal && projectRoot) {
-      const targetFilePath = path.join(projectRoot, target);
-      const targetExists = await fileExists(targetFilePath);
-      if (!targetExists) {
-        console.log(chalk.yellow(`⚠️  Warning: Target file does not exist: ${target}`));
-        console.log(chalk.gray('  Context file will be created anyway.'));
-      }
-    }
-
     // Load and render template
-    const templateType = options.template || 'default';
-    const template = await loadTemplate(contextType, templateType);
-    const rendered = renderTemplate(template, templateData);
+    const template = await loadContextTemplate();
+    const title = extractDocumentTitle(contextPath);
+    const rendered = renderContextTemplate(template, {
+      target: options.target,
+      title,
+    });
 
     // Ensure directory exists
     const contextDir = getDirectory(absoluteContextPath);
@@ -132,12 +114,9 @@ export async function createCommand(target: string, options: CreateOptions = {})
 
     // Auto-register to registry
     try {
-      await registerContext(contextPath, absoluteContextPath, rendered, {
+      await registerContext(registryContextPath, rendered, {
         isGlobal,
-        isProject,
-        isLocal,
-        projectRoot,
-        target: isLocal ? target : undefined,
+        target: options.target,
       });
       console.log(chalk.green(`✓ Created and registered: ${contextPath}`));
     } catch (error) {
@@ -145,14 +124,15 @@ export async function createCommand(target: string, options: CreateOptions = {})
       console.warn(chalk.yellow(`⚠️  Warning: Failed to register to registry: ${error}`));
     }
 
-    // Show scope info
+    // Show info
     if (isGlobal) {
       console.log(chalk.gray(`  Scope: Global (~/.ctx/)`));
-    } else if (isProject) {
-      console.log(chalk.gray(`  Scope: Project (.ctx/contexts/)`));
     } else {
-      console.log(chalk.gray(`  Scope: Local (companion file)`));
-      console.log(chalk.gray(`  Target: ${target}`));
+      console.log(chalk.gray(`  Scope: Project`));
+    }
+
+    if (options.target) {
+      console.log(chalk.gray(`  Target: ${options.target}`));
     }
 
     console.log();
@@ -171,13 +151,9 @@ export async function createCommand(target: string, options: CreateOptions = {})
  */
 async function registerContext(
   contextPath: string,
-  absoluteContextPath: string,
   content: string,
   opts: {
     isGlobal: boolean;
-    isProject: boolean;
-    isLocal: boolean;
-    projectRoot: string | null;
     target?: string;
   }
 ) {
@@ -187,21 +163,15 @@ async function registerContext(
   // Extract preview from content
   let preview: { what: string; when: string[] };
   try {
-    if (opts.isLocal && opts.target) {
-      const contextFile = parseContextFile(contextPath, content);
-      const extracted = extractPreviewFromLocal(contextFile);
-      preview = extracted || { what: 'TODO: Fill in', when: [] };
-    } else {
-      const extracted = extractPreviewFromGlobal(content);
-      preview = extracted || { what: 'TODO: Fill in', when: [] };
-    }
+    const extracted = extractPreviewFromGlobal(content);
+    preview = extracted || { what: 'TODO: Fill in', when: [] };
   } catch {
     preview = { what: 'TODO: Fill in', when: [] };
   }
 
   const entry: ContextEntry = {
     source: contextPath,
-    target: opts.isLocal && opts.target ? `/${opts.target.replace(/^\//, '')}` : undefined,
+    target: opts.target,
     checksum,
     last_modified: now,
     preview,
@@ -211,14 +181,16 @@ async function registerContext(
     const registry = await readGlobalCtxRegistry();
     registry.contexts[contextPath] = entry;
     await writeGlobalCtxRegistry(registry);
-  } else if (opts.projectRoot) {
-    const registry = await readProjectRegistry(opts.projectRoot);
+  } else {
+    const projectRoot = (await findProjectRoot())!;
+    const registry = await readProjectRegistry(projectRoot);
     registry.contexts[contextPath] = entry;
-    await writeProjectRegistry(opts.projectRoot, registry);
+    await writeProjectRegistry(projectRoot, registry);
 
+    // Update global index if global is initialized
     const globalInitialized = await isGlobalCtxInitialized();
     if (globalInitialized) {
-      await updateGlobalIndex(opts.projectRoot);
+      await updateGlobalIndex(projectRoot);
     }
   }
 }

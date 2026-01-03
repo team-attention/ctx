@@ -5,58 +5,72 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-export type ContextType = 'local' | 'global';
+export interface ContextTemplateData {
+  target?: string; // Optional target path/pattern
+  title: string; // Document title (derived from filename)
+}
 
+/**
+ * Load the unified context template
+ */
+export async function loadContextTemplate(): Promise<string> {
+  const templatePath = path.join(__dirname, '..', 'templates', 'context.md');
+
+  try {
+    return await fs.readFile(templatePath, 'utf-8');
+  } catch (error) {
+    throw new Error(`Template not found at: ${templatePath}`);
+  }
+}
+
+/**
+ * Render context template with data
+ * - If target provided: fills in target value
+ * - If no target: leaves target empty (can be filled later)
+ */
+export function renderContextTemplate(template: string, data: ContextTemplateData): string {
+  let rendered = template;
+
+  // Handle TARGET: if target exists, fill value, otherwise leave empty
+  rendered = rendered.replace('{{TARGET}}', data.target || '');
+
+  // Replace TITLE
+  rendered = rendered.replace(/\{\{TITLE\}\}/g, data.title);
+
+  return rendered;
+}
+
+// ===== Legacy exports for backward compatibility =====
+
+/** @deprecated Use ContextTemplateData instead */
 export interface TemplateData {
   targetPath?: string;
   documentTitle?: string;
   [key: string]: string | undefined;
 }
 
-/**
- * Load a template file by context type
- * Uses package's dist/templates/ directory
- */
+/** @deprecated Use loadContextTemplate instead */
+export type ContextType = 'local' | 'global';
+
+/** @deprecated Use loadContextTemplate instead */
 export async function loadTemplate(
-  contextType: ContextType = 'local',
-  templateType: string = 'default'
+  _contextType: ContextType = 'local',
+  _templateType: string = 'default'
 ): Promise<string> {
-  const templateFileName = contextType === 'global'
-    ? 'global-context.md'
-    : 'local-context.md';
-
-  const packageTemplatePath = path.join(__dirname, '..', 'templates', templateFileName);
-
-  try {
-    const content = await fs.readFile(packageTemplatePath, 'utf-8');
-    return content;
-  } catch (error) {
-    throw new Error(
-      `Template not found: ${templateFileName}. ` +
-      `Expected at: ${packageTemplatePath}`
-    );
-  }
+  return loadContextTemplate();
 }
 
-/**
- * Render a template by replacing placeholders with values
- * Converts camelCase keys to SNAKE_CASE placeholders
- * e.g., targetPath -> {{TARGET_PATH}}
- */
+/** @deprecated Use renderContextTemplate instead */
 export function renderTemplate(template: string, data: TemplateData): string {
-  let rendered = template;
-
-  for (const [key, value] of Object.entries(data)) {
-    if (value !== undefined) {
-      // Convert camelCase to SNAKE_CASE
-      const snakeCase = key.replace(/([A-Z])/g, '_$1').toUpperCase();
-      const placeholder = `{{${snakeCase}}}`;
-      rendered = rendered.replace(new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'), value);
-    }
-  }
-
-  return rendered;
+  // Convert old format to new format
+  const newData: ContextTemplateData = {
+    target: data.targetPath,
+    title: data.documentTitle || data.targetPath || 'Untitled',
+  };
+  return renderContextTemplate(template, newData);
 }
+
+// ===== AI Command & Hook Templates =====
 
 /**
  * Get all AI command template names
@@ -70,7 +84,6 @@ export async function getAICommandTemplates(): Promise<string[]> {
 
     for (const entry of entries) {
       if (entry.isFile() && entry.name.endsWith('.md')) {
-        // Get relative path from ai-commands directory
         const relativePath = path.relative(templatesDir, path.join(entry.parentPath || entry.path, entry.name));
         templates.push(relativePath);
       }

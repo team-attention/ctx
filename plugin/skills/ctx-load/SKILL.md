@@ -38,7 +38,7 @@ Use `npx ctx` commands to interact with the context system:
 | `ctx status` | Show context status (JSON) | `--pretty`, `--target <path>` |
 | `ctx sync` | Sync context files to registries | `--local`, `--global` |
 | `ctx check` | Check context health/freshness | `--local`, `--global`, `--path <file>`, `--fix`, `--pretty` |
-| `ctx create <target>` | Create new context file | `--template <type>`, `--force`, `--global` |
+| `ctx create <path>` | Create new context file | `--target`, `--force`, `--global` |
 | `ctx refresh` | Refresh AI commands with config | - |
 
 ### Common Usage Patterns

@@ -76,7 +76,7 @@ Save this? [Y/n]
 User: Y
 
 AI:
-npx ctx create --project auth-patterns
+npx ctx create .ctx/contexts/auth-patterns.md
 [Writes content with Edit tool]
 npx ctx sync
 
@@ -145,7 +145,7 @@ Does this look correct? Edit or approve.
 User: Looks good, save it
 
 AI:
-npx ctx create --project deployment
+npx ctx create .ctx/contexts/deployment.md
 [Writes content]
 npx ctx sync
 
