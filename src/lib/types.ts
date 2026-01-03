@@ -149,7 +149,6 @@ export interface GlobalContextRegistry {
 // ===== Sync Types =====
 
 export interface SyncOptions {
-  local?: boolean;
   global?: boolean;
 }
 
@@ -170,7 +169,6 @@ export interface ScannedContext {
 // ===== Check Types =====
 
 export interface CheckOptions {
-  local?: boolean;
   global?: boolean;
   fix?: boolean;
   pretty?: boolean;

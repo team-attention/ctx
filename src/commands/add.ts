@@ -3,7 +3,8 @@ import path from 'path';
 import chalk from 'chalk';
 import { glob } from 'glob';
 import { computeChecksum } from '../lib/checksum.js';
-import { extractPreviewFromGlobal } from '../lib/parser.js';
+import { extractPreviewFromGlobal, parseContextFile } from '../lib/parser.js';
+import { resolveTargetFromContext } from '../lib/fileUtils.js';
 import {
   findProjectRoot,
   isGlobalCtxInitialized,
@@ -90,20 +91,33 @@ async function addToProject(patterns: string[]) {
         continue;
       }
 
-      // Determine scope based on path
-      const scope = file.includes('.ctx/') ? 'project' : 'local';
       const stats = await fs.stat(absolutePath);
 
+      // Determine if this is a bound context (*.ctx.md) or standalone (.ctx/contexts/*.md)
+      const isLocalContext = file.endsWith('.ctx.md') && !file.includes('.ctx/');
+      let target: string | undefined;
+
+      if (isLocalContext) {
+        try {
+          // Parse frontmatter to get explicit target if any
+          const contextFile = parseContextFile(file, content);
+          target = await resolveTargetFromContext(file, contextFile.meta.target);
+        } catch {
+          // If parsing fails, try to infer from filename
+          target = await resolveTargetFromContext(file);
+        }
+      }
+
       const entry: ContextEntry = {
-        scope,
         source: file,
+        target,
         checksum: computeChecksum(content),
         last_modified: stats.mtime.toISOString(),
         preview,
       };
 
       registry.contexts[file] = entry;
-      console.log(chalk.green(`  add: ${file}`));
+      console.log(chalk.green(`  add: ${file}${target ? ` → ${target}` : ''}`));
       added++;
     }
   }

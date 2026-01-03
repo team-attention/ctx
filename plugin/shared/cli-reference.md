@@ -3,7 +3,7 @@
 Shared CLI reference for CTX plugin skills.
 
 ## Commands Overview
-
+-
 | Command | Description |
 |---------|-------------|
 | `ctx init` | Initialize context management |

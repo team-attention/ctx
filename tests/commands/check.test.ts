@@ -46,7 +46,7 @@ when:
 # Test
 `);
 
-      await checkCommand({ local: true });
+      await checkCommand({});
 
       const output = consoleOutput.getOutput();
       const logOutput = output.log.join('\n');

@@ -39,7 +39,7 @@ when:
 `);
 
       // Sync should complete without throwing
-      await syncCommand({ local: true });
+      await syncCommand({});
 
       // Registry should be updated
       const registry = YAML.parse(await testEnv.readFile('.ctx/registry.yaml'));
@@ -60,7 +60,7 @@ when: [test]
 ---
 `);
 
-      await syncCommand({ local: true });
+      await syncCommand({});
 
       const registry = YAML.parse(await testEnv.readFile('.ctx/registry.yaml'));
       const contextKeys = Object.keys(registry.contexts || {});

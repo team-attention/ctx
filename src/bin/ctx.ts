@@ -52,7 +52,6 @@ program
 program
   .command('sync')
   .description('Sync context files to registries')
-  .option('--local', 'Sync only local contexts')
   .option('--global', 'Sync only global contexts')
   .option('--rebuild-index', 'Rebuild global index from all registered projects')
   .action(syncCommand);
@@ -60,7 +59,6 @@ program
 program
   .command('check')
   .description('Check context health and freshness')
-  .option('--local', 'Check only local contexts')
   .option('--global', 'Check only global contexts')
   .option('--path <contextPath>', 'Check only a specific context file')
   .option('--fix', 'Update registry to match filesystem')
