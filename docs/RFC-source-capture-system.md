@@ -2,7 +2,9 @@
 
 > CTX 외부 데이터 소스 통합 제안서
 > 작성일: 2026-01-03
+> 수정일: 2026-01-04
 > 작성자: Claude (Opus 4.5) + Agent Council (Codex, Gemini)
+> 리뷰어: Agent Council (Codex, Gemini) - 2026-01-04
 
 ---
 
@@ -67,7 +69,92 @@ GitHub 이슈 조사 결과 확인된 제약:
 
 ---
 
-## 3. 제안 아키텍처
+## 3. 보안 및 프라이버시 정책 (신규)
+
+> ⚠️ Agent Council 리뷰에서 강조된 필수 선행 요구사항
+
+### 3.1 스코프 정책
+
+| 스코프 | 기본값 | 동작 |
+|--------|--------|------|
+| **현재 프로젝트** | ✅ 기본 | 확인 없이 진행 |
+| **특정 프로젝트** | - | 프로젝트 경로 명시 필요 |
+| **전체 프로젝트** | - | ⚠️ 확인 프롬프트 필수 |
+
+**광범위 스코프 확인 예시:**
+```
+⚠️ 전체 프로젝트 검색을 요청하셨습니다.
+이 작업은 ~/.claude/projects/ 아래 모든 세션을 검색합니다.
+민감한 정보가 포함될 수 있습니다.
+
+계속하시겠습니까? [y/N]
+```
+
+### 3.2 민감 정보 처리
+
+**자동 Redaction 대상:**
+```
+패턴 매칭으로 자동 마스킹:
+- API 키: sk-*, xoxb-*, ghp_*, AKIA*
+- 비밀번호: password=*, secret=*
+- 토큰: Bearer *, token=*
+- 개인정보: 이메일, 전화번호 패턴
+```
+
+**Redaction 적용 시점:**
+1. **inbox 저장 전**: raw 데이터에서 1차 필터링
+2. **ctx save 전**: 최종 context에서 2차 확인
+
+**사용자 제어:**
+```bash
+# Redaction 비활성화 (위험 - 명시적 동의 필요)
+/ctx.capture slack #channel --no-redact
+
+# 추가 패턴 지정
+/ctx.capture session --redact-pattern "INTERNAL_*"
+```
+
+### 3.3 Inbox 보안 정책
+
+| 정책 | 설정 | 설명 |
+|------|------|------|
+| **저장 위치** | `.ctx/inbox/` | 프로젝트 로컬, Git 제외 |
+| **Git 제외** | `.gitignore` 필수 | `**/.ctx/inbox/` 추가 |
+| **보관 기간** | 7일 (기본) | 자동 정리, 설정 가능 |
+| **수동 정리** | `ctx inbox clean` | 즉시 삭제 |
+| **암호화** | 선택적 | 민감 프로젝트용 |
+
+**자동 정리 동작:**
+```bash
+# 7일 이상 된 inbox 파일 자동 삭제
+# ctx sync 실행 시 트리거
+ctx sync  # inbox 정리도 함께 수행
+```
+
+### 3.4 Provenance (출처 추적)
+
+**최종 저장된 context에 필수 포함 정보:**
+
+```yaml
+---
+# Context frontmatter에 자동 추가
+captured_from:
+  sources:
+    - type: slack
+      channel: "#team-ai"
+      time_range: "2026-01-02 ~ 2026-01-03"
+      message_count: 42
+    - type: session
+      project: "/Users/me/project"
+      session_count: 3
+  captured_at: "2026-01-03T10:00:00Z"
+  run_id: "550e8400-e29b-41d4-a716-446655440000"
+---
+```
+
+---
+
+## 4. 제안 아키텍처
 
 ### 전체 구조
 
@@ -129,7 +216,7 @@ GitHub 이슈 조사 결과 확인된 제약:
 
 ---
 
-## 4. 플러그인 파일 구조
+## 5. 플러그인 파일 구조
 
 ```
 plugin/
@@ -161,9 +248,9 @@ plugin/
 
 ---
 
-## 5. 상세 설계
+## 6. 상세 설계
 
-### 5.1 MCP 설정 (`.mcp.json`)
+### 6.1 MCP 설정 (`.mcp.json`)
 
 ```json
 {
@@ -181,7 +268,7 @@ plugin/
 
 **참고**: GitHub은 `gh` CLI 사용 권장 (더 안정적)
 
-### 5.2 ctx-capture Agent
+### 6.2 ctx-capture Agent
 
 ```yaml
 ---
@@ -197,7 +284,7 @@ description: "데이터 캡처", "소스에서 가져와", "슬랙/깃헙 저장
 4. inbox 결과 종합하여 인사이트 추출
 5. `ctx save`로 최종 context 저장
 
-### 5.3 Source Capture Skills
+### 6.3 Source Capture Skills
 
 #### slack-capture Skill
 
@@ -213,6 +300,32 @@ allowed-tools: mcp__slack__*, Write
 - `mcp__slack__slack_list_channels` - 채널 목록
 - `mcp__slack__slack_get_channel_history` - 채널 메시지
 - `mcp__slack__slack_get_thread_replies` - 스레드 답글
+
+**Pagination 전략** (신규):
+```
+1. slack_get_channel_history는 기본 limit=10
+2. 대량 데이터 필요 시:
+   - cursor 기반 pagination 사용
+   - 최대 200개/요청 (API 제한)
+   - 요청 간 1초 딜레이 (rate-limit 대응)
+```
+
+**Thread 확장 전략** (신규):
+```
+1. 기본: 메인 메시지만 수집
+2. --expand-threads 옵션:
+   - reply_count > 0인 메시지에 대해
+   - slack_get_thread_replies 호출
+   - rate-limit 고려하여 순차 처리
+```
+
+**Rate-limit 대응** (신규):
+```
+1. 429 에러 시 exponential backoff
+2. 기본 딜레이: 1초
+3. 최대 재시도: 3회
+4. Tier 1 제한: ~1 req/sec
+```
 
 #### session-capture Skill
 
@@ -241,29 +354,66 @@ allowed-tools: Read, Glob, Bash(cat:*), Write
 2. "오늘 작업한 것들 중 terraform 관련 인사이트 정리해줘"
 3. "이번 주 ctx 프로젝트 작업 요약해줘"
 
-> **구현 시 주의**: 스코프를 현재 프로젝트(cwd)로만 제한하지 말 것!
-> - 기본: 현재 프로젝트
-> - "모든 프로젝트에서..." → 전체 검색
-> - "terraform 프로젝트에서..." → 특정 프로젝트 검색
+> **스코프 정책** (Section 3.1 참조):
+> - **기본**: 현재 프로젝트 (확인 없이 진행)
+> - **특정 프로젝트**: 명시적 경로 필요
+> - **전체 프로젝트**: ⚠️ 확인 프롬프트 필수 (민감 정보 위험)
 >
-> 사용자 요청에 따라 유연하게 스코프 결정
+> 사용자 요청에 따라 유연하게 스코프 결정하되, 광범위 스코프는 반드시 확인
 
-### 5.4 inbox 스키마
+### 6.4 inbox 스키마
+
+> ⚠️ Agent Council 피드백 반영: schema versioning, run_id, provenance 추가
+
+#### 공통 스키마 (v1)
+```json
+{
+  "schema_version": "1.0",
+  "run_id": "550e8400-e29b-41d4-a716-446655440000",
+  "source": "<slack|session|github>",
+  "fetched_at": "2026-01-03T10:00:00Z",
+  "query": { ... },
+  "data": { ... },
+  "metadata": { ... },
+  "provenance": {
+    "tool": "ctx-capture",
+    "version": "1.0.0",
+    "user": "hoyeonlee",
+    "cwd": "/Users/hoyeonlee/team-attention/ctx"
+  }
+}
+```
 
 #### Slack inbox
 ```json
 {
+  "schema_version": "1.0",
+  "run_id": "550e8400-e29b-41d4-a716-446655440000",
   "source": "slack",
   "fetched_at": "2026-01-03T10:00:00Z",
   "query": {
     "channel": "#team-ai",
-    "since": "2026-01-02"
+    "channel_id": "C1234567890",
+    "since": "2026-01-02T00:00:00Z",
+    "until": "2026-01-03T00:00:00Z",
+    "timezone": "Asia/Seoul",
+    "expand_threads": false
   },
   "data": {
     "messages": [...]
   },
   "metadata": {
-    "count": 42
+    "message_count": 42,
+    "thread_count": 5,
+    "user_count": 8,
+    "has_more": false,
+    "redacted_count": 2
+  },
+  "provenance": {
+    "tool": "ctx-capture",
+    "version": "1.0.0",
+    "user": "hoyeonlee",
+    "cwd": "/Users/hoyeonlee/team-attention/ctx"
   }
 }
 ```
@@ -271,32 +421,51 @@ allowed-tools: Read, Glob, Bash(cat:*), Write
 #### Session inbox
 ```json
 {
+  "schema_version": "1.0",
+  "run_id": "550e8400-e29b-41d4-a716-446655440000",
   "source": "session",
   "fetched_at": "2026-01-03T10:00:00Z",
   "query": {
     "project": "/Users/hoyeonlee/team-attention/ctx",
-    "date": "2026-01-03",
+    "scope": "current_project",
+    "date_range": {
+      "since": "2026-01-03",
+      "until": "2026-01-03"
+    },
     "filter": "terraform"
   },
   "data": {
     "sessions": [
       {
         "session_id": "60394218-...",
+        "file_path": "~/.claude/projects/-Users-hoyeonlee-.../session.jsonl",
         "messages": [...]
       }
     ]
   },
   "metadata": {
     "session_count": 3,
-    "message_count": 150
+    "message_count": 150,
+    "filtered_message_count": 42,
+    "redacted_count": 0
+  },
+  "provenance": {
+    "tool": "ctx-capture",
+    "version": "1.0.0",
+    "user": "hoyeonlee",
+    "cwd": "/Users/hoyeonlee/team-attention/ctx"
   }
 }
 ```
 
-**저장 위치**: `.ctx/inbox/<source>/<date>.json`
-**보관 정책**: `.gitignore`에 추가, 임시 데이터로 취급
+**저장 위치**: `.ctx/inbox/<source>/<run_id>.json`
+**파일명 변경**: 날짜 대신 run_id 사용 → 동일 날짜 재실행 시 덮어쓰기 방지
+**보관 정책**:
+- `.gitignore`에 `**/.ctx/inbox/` 추가 필수
+- 7일 후 자동 정리 (ctx sync 시)
+- 수동 정리: `ctx inbox clean`
 
-### 5.5 최종 저장
+### 6.5 최종 저장
 
 **ctx save로 자유 경로에 저장** (별도 폴더 구조 강제 없음)
 
@@ -319,9 +488,9 @@ ctx save --path notes/team-meeting.md --content "..."
 
 ---
 
-## 6. 워크플로우
+## 7. 워크플로우
 
-### 6.1 단일 소스 (간단)
+### 7.1 단일 소스 (간단)
 
 ```
 User: "슬랙 #general 어제 대화 저장해"
@@ -342,7 +511,7 @@ User: "슬랙 #general 어제 대화 저장해"
     ctx save --path slack-2026-01-03.md  # 자유 경로
 ```
 
-### 6.2 복합 소스 (Agent 사용)
+### 7.2 복합 소스 (Agent 사용)
 
 ```
 User: "슬랙이랑 오늘 세션 기록 종합해서 저장해"
@@ -369,7 +538,7 @@ inbox/slack/           inbox/session/
     ctx save --path daily-summary-2026-01-03.md  # 자유 경로
 ```
 
-### 6.3 세션 기반 요청 예시
+### 7.3 세션 기반 요청 예시
 
 ```
 User: "오늘 작업하면서 terraform 관련해서 배운 것들 정리해줘"
@@ -393,7 +562,7 @@ User: "오늘 작업하면서 terraform 관련해서 배운 것들 정리해줘"
     인사이트 추출 → ctx save --path terraform-learnings.md
 ```
 
-### 6.4 /ctx.capture 명령어
+### 7.4 /ctx.capture 명령어
 
 ```bash
 /ctx.capture slack #team-ai 어제
@@ -403,34 +572,73 @@ User: "오늘 작업하면서 terraform 관련해서 배운 것들 정리해줘"
 
 ---
 
-## 7. 구현 계획
+## 8. 구현 계획
+
+> ⚠️ Agent Council 피드백 반영: Phase 0 추가, 순서 재조정
+
+### Phase 0: Policy Layer (최우선 - 신규)
+
+> 보안/프라이버시 정책 없이 구현 진행 금지
+
+- [ ] `shared/capture-policy.md` 작성
+  - 스코프 기본값 정의 (현재 프로젝트)
+  - 광범위 스코프 확인 프롬프트 템플릿
+  - 민감 정보 redaction 패턴 정의
+  - inbox retention 정책 (7일 기본)
+- [ ] `shared/inbox-schema.md` 작성
+  - schema_version 필드
+  - run_id (UUID) 생성 규칙
+  - provenance metadata 필수 필드
+- [ ] `.gitignore`에 `**/.ctx/inbox/` 추가
 
 ### Phase 1: 기반 구축
-- [ ] `.mcp.json` 생성 (Slack MCP 등록)
-- [ ] `inbox/` 디렉토리 구조 및 `.gitignore` 설정
-- [ ] `shared/inbox-schema.md` 작성
 
-### Phase 2: Skill 구현
+- [ ] `.mcp.json` 생성 (Slack MCP 등록)
+- [ ] `inbox/` 디렉토리 구조 설정
+- [ ] inbox 정리 로직 (`ctx sync` 연동)
+
+### Phase 2: session-capture 먼저 (Gemini 제안 채택)
+
+> 네트워크/API 없이 로컬 파일만 다룸 → 가장 먼저 검증 가능
+
+(skill development 스킬을 사용해서 만들어라)
+- [ ] `skills/session-capture/SKILL.md` 작성
+  - 기본 스코프: 현재 프로젝트
+  - 광범위 스코프 시 확인 요청 로직
+  - redaction 적용
+- [ ] E2E 테스트: capture → inbox → ctx save 파이프라인 검증
+
+### Phase 3: slack-capture
+
 (skill development 스킬을 사용해서 만들어라)
 - [ ] `skills/slack-capture/SKILL.md` 작성
-- [ ] `skills/session-capture/SKILL.md` 작성
+  - pagination 처리
+  - rate-limit 대응 (exponential backoff)
+  - thread 확장 옵션
+  - timezone 처리
+- [ ] 채널 설정 방안 구체화
 
-### Phase 3: Agent 구현
+### Phase 4: Orchestration & Polish
+
 (agent development 스킬을 사용해서 만들어라)
 - [ ] `agents/ctx-capture/AGENT.md` 작성
 - [ ] 인사이트 추출 로직 정의
 
-### Phase 4: 명령어 및 문서화
 (command development 스킬을 사용해서 만들어라)
 - [ ] `commands/capture.md` 작성
+  - `--save` 옵션 (1단계 실행)
+  - 진행 상태 피드백
+- [ ] UX 개선
+  - 진행 상태 표시 ("slack-capture: searching #channel...")
+  - 명확한 오류 메시지
 - [ ] AGENTS.md 업데이트
 - [ ] README 업데이트
 
 ---
 
-## 8. 향후 고려사항
+## 9. 향후 고려사항
 
-### 8.1 자동화 (Hooks)
+### 9.1 자동화 (Hooks)
 
 SessionEnd Hook으로 세션 종료 시 자동 캡처:
 
@@ -445,7 +653,7 @@ ctx-capture agent를 호출하여 session-capture를 실행합니다.
 
 **현재는 수동 실행으로 시작, 안정화 후 Hook 추가**
 
-### 8.2 추가 소스
+### 9.2 추가 소스
 
 확장 가능한 소스 후보:
 - Linear 이슈
@@ -454,7 +662,7 @@ ctx-capture agent를 호출하여 session-capture를 실행합니다.
 - Jira 이슈
 - Discord 채널
 
-### 8.3 병렬 실행 (미래)
+### 9.3 병렬 실행 (미래)
 
 Claude Code에서 Agent별 MCP 동적 로드가 지원되면:
 - Skill → Agent로 전환
@@ -466,14 +674,81 @@ Claude Code에서 Agent별 MCP 동적 로드가 지원되면:
 
 ---
 
-## 9. 결론
+## 10. Open Questions & Decisions (신규)
+
+> Agent Council (Codex)이 제기한 질문과 답변
+
+### Q1: 광범위 스코프 캡처 시 확인 프롬프트가 필요한가?
+
+**결정: ✅ 필요**
+
+- 현재 프로젝트 외의 스코프는 확인 필수
+- Section 3.1 스코프 정책 참조
+- UX: "이 작업은 모든 프로젝트를 검색합니다. 계속하시겠습니까?"
+
+### Q2: inbox/최종 context에서 토큰/시크릿 처리 방식은?
+
+**결정: 2단계 Redaction**
+
+1. **inbox 저장 전**: 패턴 매칭으로 1차 마스킹 (`sk-*` → `[REDACTED]`)
+2. **ctx save 전**: 최종 검토 기회 제공
+3. **명시적 비활성화**: `--no-redact` 플래그로만 가능 (위험 경고 표시)
+
+Section 3.2 민감 정보 처리 참조
+
+### Q3: inbox 정리는 자동(TTL) vs 수동?
+
+**결정: 하이브리드**
+
+| 방식 | 동작 |
+|------|------|
+| **자동** | 7일 후 `ctx sync` 시 정리 (기본) |
+| **수동** | `ctx inbox clean` 즉시 삭제 |
+| **비활성화** | `ctx inbox clean --keep` 정리 건너뛰기 |
+
+### Q4: 최종 저장 markdown에 포함할 최소 provenance는?
+
+**결정: frontmatter에 captured_from 필수**
+
+```yaml
+---
+what: "Slack #team-ai 대화 요약"
+when: ["slack", "team-ai", "2026-01"]
+captured_from:
+  sources:
+    - type: slack
+      channel: "#team-ai"
+      time_range: "2026-01-02 ~ 2026-01-03"
+  captured_at: "2026-01-03T10:00:00Z"
+  run_id: "550e8400-..."
+---
+```
+
+### Q5: `--save` 옵션으로 1단계 실행 지원할 것인가?
+
+**결정: ✅ 지원 (Phase 4)**
+
+```bash
+# 2단계 (기본) - 검토 기회 제공
+/ctx.capture slack #channel
+# inbox 확인 후
+ctx save ...
+
+# 1단계 (편의) - 신뢰할 수 있는 상황
+/ctx.capture slack #channel --save
+```
+
+---
+
+## 11. 결론
 
 ### 핵심 결정
 
 1. **Skill 기반 접근**: 현재 가장 안정적, MCP 버그 회피
-2. **2개 소스로 시작**: Slack (MCP), Session (로컬 파일)
-3. **inbox 패턴**: 중간 저장소로 디버깅/재현성 확보
+2. **2개 소스로 시작**: Session (로컬, 먼저), Slack (MCP)
+3. **inbox 패턴**: 중간 저장소로 디버깅/재현성 확보 + run_id로 덮어쓰기 방지
 4. **Agent Orchestration**: 복합 요청은 ctx-capture Agent가 처리
+5. **Policy Layer 선행**: 보안/프라이버시 정책 먼저 확립 (Phase 0)
 
 ### 장점
 
@@ -481,9 +756,10 @@ Claude Code에서 Agent별 MCP 동적 로드가 지원되면:
 |------|------|
 | **재사용성** | Skill을 Agent/Master 모두에서 사용 |
 | **모듈화** | 소스별 Skill 독립적 관리 |
-| **디버깅** | inbox에 중간 결과 저장 |
+| **디버깅** | inbox에 중간 결과 저장 + provenance 추적 |
 | **확장성** | 새 소스 = 새 Skill 추가 |
 | **안정성** | 검증된 MCP/CLI 활용 |
+| **보안** | redaction + 스코프 제한 + inbox TTL |
 
 ### 참고 자료
 
@@ -491,3 +767,4 @@ Claude Code에서 Agent별 MCP 동적 로드가 지원되면:
 - [Claude Code Hooks Reference](https://code.claude.com/docs/en/hooks)
 - [Slack MCP Server](https://glama.ai/mcp/servers/@modelcontextprotocol/slack)
 - Agent Council 논의 (2026-01-03)
+- Agent Council 리뷰 (2026-01-04) - Codex, Gemini
