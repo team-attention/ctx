@@ -1,7 +1,7 @@
 import path from 'path';
 import fs from 'fs/promises';
 import chalk from 'chalk';
-import { fileExists, resolveTargetFromContext } from '../lib/fileUtils.js';
+import { fileExists, getTargetFromFrontmatter } from '../lib/fileUtils.js';
 import {
   scanLocalContextsNew,
   scanProjectContexts,
@@ -29,6 +29,11 @@ export async function syncCommand(options: ExtendedSyncOptions = {}) {
     return rebuildGlobalIndex();
   }
 
+  // Handle --global option (sync global contexts)
+  if (options.global) {
+    return syncGlobalContexts();
+  }
+
   // Check if 3-level system is initialized
   const projectRoot = await findProjectRoot();
 
@@ -39,6 +44,67 @@ export async function syncCommand(options: ExtendedSyncOptions = {}) {
   }
 
   return syncCommandNew(projectRoot, options);
+}
+
+/**
+ * Sync global contexts (~/.ctx/contexts/*.md) to global registry
+ */
+async function syncGlobalContexts(): Promise<void> {
+  console.log(chalk.blue.bold('Syncing global contexts...\n'));
+
+  const globalInitialized = await isGlobalCtxInitialized();
+  if (!globalInitialized) {
+    console.error(chalk.red('✗ Error: Global ctx not initialized.'));
+    console.log(chalk.gray("  Run 'ctx init' first to initialize global context management."));
+    process.exit(1);
+  }
+
+  const { getGlobalCtxDir } = await import('../lib/registry.js');
+  const globalDir = getGlobalCtxDir();
+
+  try {
+    const scannedContexts = await scanProjectContexts(globalDir);
+    const registry = await readGlobalCtxRegistry();
+
+    let syncedCount = 0;
+    for (const scanned of scannedContexts) {
+      try {
+        const preview = extractPreviewFromGlobal(scanned.content);
+
+        if (!preview) {
+          console.warn(
+            chalk.yellow(
+              `⚠️  Warning: ${scanned.relativePath} has no valid frontmatter. Skipping.`
+            )
+          );
+          continue;
+        }
+
+        const contextChecksum = computeChecksum(scanned.content);
+        const stats = await fs.stat(scanned.contextPath);
+        const lastModified = stats.mtime.toISOString();
+
+        const entry: ContextEntry = {
+          source: scanned.relativePath,
+          checksum: contextChecksum,
+          last_modified: lastModified,
+          preview: preview,
+        };
+
+        registry.contexts[scanned.relativePath] = entry;
+        syncedCount++;
+      } catch (error) {
+        console.error(chalk.red(`✗ Error processing ${scanned.relativePath}: ${error}`));
+      }
+    }
+
+    await writeGlobalCtxRegistry(registry);
+
+    console.log(chalk.green(`✓ Synced ${syncedCount} global context(s)`));
+  } catch (error) {
+    console.error(chalk.red('✗ Error during global sync:'), error);
+    process.exit(1);
+  }
 }
 
 /**
@@ -196,28 +262,28 @@ async function syncLocalContextsNew(projectRoot: string): Promise<number> {
         continue;
       }
 
-      const targetPath = await resolveTargetFromContext(
-        scanned.relativePath,
-        contextFile.meta.target
-      );
+      // SoT: frontmatter's target field (no inference from filename)
+      const targetPath = getTargetFromFrontmatter(contextFile.meta.target);
 
       const contextChecksum = computeChecksum(scanned.content);
       const stats = await fs.stat(scanned.contextPath);
       const lastModified = stats.mtime.toISOString();
 
-      const absoluteTargetPath = path.join(projectRoot, targetPath.replace(/^\//, ''));
-      const targetExists = await fileExists(absoluteTargetPath);
+      // Only compute target checksum if target exists
       let targetChecksum: string | undefined;
-
-      if (targetExists) {
-        targetChecksum = await computeFileChecksum(absoluteTargetPath);
+      if (targetPath) {
+        const absoluteTargetPath = path.join(projectRoot, targetPath.replace(/^\//, ''));
+        const targetExists = await fileExists(absoluteTargetPath);
+        if (targetExists) {
+          targetChecksum = await computeFileChecksum(absoluteTargetPath);
+        }
       }
 
       const preview = extractPreviewFromLocal(contextFile);
 
       const entry: ContextEntry = {
         source: scanned.relativePath,
-        target: targetPath,
+        target: targetPath || undefined,  // null → undefined for YAML
         checksum: contextChecksum,
         target_checksum: targetChecksum,
         last_modified: lastModified,

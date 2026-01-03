@@ -1,7 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
-import { glob } from 'glob';
 
 // New 3-level constants
 const CTX_DIR = '.ctx';
@@ -150,52 +149,21 @@ export function extractDocumentTitle(globalPath: string): string {
 }
 
 /**
- * Resolve target path from context file path
- * Priority:
- * 1. Explicit target in frontmatter (if provided)
- * 2. Infer from filename (oauth.ctx.md -> oauth.*)
- * 3. If ctx.md, return directory path
+ * Get target from frontmatter
+ *
+ * SoT (Source of Truth) is the frontmatter's target field.
+ * - target exists → bound context (linked to specific file/pattern)
+ * - target missing → standalone context (loaded by keywords)
+ *
+ * File naming convention (*.ctx.md) is for identification only,
+ * it does NOT determine binding.
  */
-export async function resolveTargetFromContext(
-  contextPath: string,
+export function getTargetFromFrontmatter(
   explicitTarget?: string
-): Promise<string> {
-  // 1. Explicit target provided
-  if (explicitTarget) {
-    return explicitTarget;
-  }
-
-  const basename = path.basename(contextPath);
-  const dirname = path.dirname(contextPath);
-
-  // 2. Folder context (ctx.md)
-  if (basename === 'ctx.md') {
-    // Return directory as target
-    return resolveAbsoluteTargetPath(dirname);
-  }
-
-  // 3. File context (oauth.ctx.md -> oauth.*)
-  // Remove .ctx.md to get base name
-  const match = basename.match(/^(.+)\.ctx\.(md|yml|yaml)$/);
-  if (!match) {
-    throw new Error(`Invalid context filename format: ${basename}`);
-  }
-
-  const baseName = match[1]; // e.g., "oauth"
-  const searchPattern = `${path.join(dirname, baseName)}.*`;
-
-  // Find matching file (exclude .ctx.* files)
-  const candidates = await glob(searchPattern, {
-    ignore: ['**/*.ctx.*'],
-  });
-
-  if (candidates.length === 0) {
-    // Target file doesn't exist yet, return best guess
-    return resolveAbsoluteTargetPath(path.join(dirname, baseName));
-  }
-
-  // Return first matching file
-  return resolveAbsoluteTargetPath(candidates[0]);
+): string | null {
+  // Only use explicit target from frontmatter
+  // No inference from filename
+  return explicitTarget || null;
 }
 
 /**

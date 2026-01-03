@@ -50,8 +50,8 @@ program
 
 program
   .command('sync')
-  .description('Sync context files to registries')
-  .option('--global', 'Sync only global contexts')
+  .description('Sync context files to registry')
+  .option('--global', 'Sync global contexts (~/.ctx/)')
   .option('--rebuild-index', 'Rebuild global index from all registered projects')
   .action(syncCommand);
 

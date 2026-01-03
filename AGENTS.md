@@ -44,9 +44,9 @@ ctx create --global typescript-tips      # Global
 ctx create --project architecture        # Project
 
 # 동기화
-ctx sync              # 레지스트리 동기화 (체크섬, 프리뷰 업데이트)
-ctx sync --local      # Local만
-ctx sync --global     # Global만
+ctx sync                  # Project registry 동기화 (체크섬, 프리뷰 업데이트)
+ctx sync --global         # Global contexts 동기화 (~/.ctx/)
+ctx sync --rebuild-index  # Global index 재구축
 
 # 상태 확인
 ctx status            # JSON 출력

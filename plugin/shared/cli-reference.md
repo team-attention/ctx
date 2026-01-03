@@ -89,19 +89,17 @@ Human-readable dashboard showing global and project status with context counts.
 
 ### ctx sync
 
-Sync context files to registries. Updates checksums and preview fields.
+Sync context files to registry. Updates checksums and preview fields.
 
 ```bash
-ctx sync                # Sync all levels
-ctx sync --local        # Sync only local contexts
-ctx sync --global       # Sync only global contexts
+ctx sync                  # Sync project contexts
+ctx sync --global         # Sync global contexts (~/.ctx/)
 ctx sync --rebuild-index  # Rebuild global index
 ```
 
 | Flag | Description |
 |------|-------------|
-| `--local` | Sync only local contexts (*.ctx.md files) |
-| `--global` | Sync only global contexts (~/.ctx/) |
+| `--global` | Sync global contexts (~/.ctx/) |
 | `--rebuild-index` | Rebuild global index from all registered projects |
 
 **Output:** Summary of synced contexts with updated checksums.
@@ -113,17 +111,15 @@ ctx sync --rebuild-index  # Rebuild global index
 Check context health and freshness.
 
 ```bash
-ctx check                        # Check all
-ctx check --local                # Check only local
-ctx check --global               # Check only global
+ctx check                               # Check project contexts
+ctx check --global                      # Check only global
 ctx check --path .ctx/contexts/auth.md  # Check specific file
-ctx check --fix                  # Auto-fix registry issues
-ctx check --pretty               # Human-readable output
+ctx check --fix                         # Auto-fix registry issues
+ctx check --pretty                      # Human-readable output
 ```
 
 | Flag | Description |
 |------|-------------|
-| `--local` | Check only local contexts |
 | `--global` | Check only global contexts |
 | `--path <file>` | Check only a specific context file |
 | `--fix` | Update registry to match filesystem |
