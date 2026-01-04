@@ -6,7 +6,7 @@ Principles for developing Claude Code plugins (skills, commands, agents).
 
 ## Core Principles
 
-@../CORE_PRINCIPLE.md
+@../shared/CORE_PRINCIPLE.md
 
 > Key principle for plugins: **CLI First** (See #2)
 
@@ -149,6 +149,6 @@ Even then, always run `ctx sync` to ensure consistency.
 ## Related
 
 - `../AGENTS.md` - Project-wide guide
-- `shared/cli-reference.md` - Full CLI reference
+- `shared/CLI_REFERENCE.md` - Full CLI reference
 - `skills/ctx-load/SKILL.md` - ctx load skill
 - `skills/ctx-save/SKILL.md` - ctx save skill

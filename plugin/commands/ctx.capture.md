@@ -100,7 +100,7 @@ Inbox files are:
 
 ## Policies
 
-See `shared/capture-policy.md` for:
+See `shared/CAPTURE_POLICY.md` for:
 - Scope policies (current project, all projects)
 - Redaction patterns
 - Inbox retention (7 days)

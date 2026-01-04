@@ -234,3 +234,9 @@ Capture → Inbox → Save flow transforms external data into contexts.
 ## Reference
 
 - **`references/mode-examples.md`** - Detailed examples
+
+---
+
+## Full CLI Reference
+
+@../../shared/CLI_REFERENCE.md

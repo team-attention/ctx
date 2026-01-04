@@ -50,11 +50,20 @@ export async function statusCommand(options: StatusOptions = {}) {
       showProject = true;
     }
 
-    // Validate scope
+    // Validate scope with global fallback for read commands (CORE_PRINCIPLE #5)
+    let warning: string | undefined;
+
     if (showProject && !projectRoot) {
-      console.error(chalk.red('✗ Error: Not in a ctx project.'));
-      console.log(chalk.gray('  Use --global to show global status, or run \'ctx init .\' to initialize.'));
-      process.exit(1);
+      if (globalInitialized) {
+        // Warning + global fallback
+        warning = 'No project found. Falling back to global status.';
+        showProject = false;
+        showGlobal = true;
+      } else {
+        console.error(chalk.red('✗ Error: Not in a ctx project and global ctx not initialized.'));
+        console.log(chalk.gray("  Run 'ctx init' to initialize global, or 'ctx init .' for project."));
+        process.exit(1);
+      }
     }
 
     if (showGlobal && !globalInitialized) {
@@ -100,8 +109,13 @@ export async function statusCommand(options: StatusOptions = {}) {
     }
 
     if (options.pretty) {
+      if (warning) {
+        console.log();
+        console.log(chalk.yellow(`⚠️  ${warning}`));
+      }
       printPrettyStatus(status, options);
     } else {
+      if (warning) console.error(chalk.yellow(warning));
       console.log(JSON.stringify(status, null, 2));
     }
   } catch (error) {

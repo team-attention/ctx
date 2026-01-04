@@ -25,9 +25,9 @@ Before capturing, review these policies:
 
 | Policy | Location | Key Points |
 |--------|----------|------------|
-| **Scope Policy** | `shared/capture-policy.md` Section 1 | Default: current_project |
-| **Redaction** | `shared/capture-policy.md` Section 2 | Auto-mask sensitive data |
-| **Inbox Schema** | `shared/inbox-schema.md` Section 4 | Session inbox format |
+| **Scope Policy** | `shared/CAPTURE_POLICY.md` Section 1 | Default: current_project |
+| **Redaction** | `shared/CAPTURE_POLICY.md` Section 2 | Auto-mask sensitive data |
+| **Inbox Schema** | `shared/INBOX_SCHEMA.md` Section 4 | Session inbox format |
 
 ---
 
@@ -137,7 +137,7 @@ Filter messages containing the keyword in content.
 
 ### Step 6: Apply Redaction
 
-Apply redaction patterns from `shared/capture-policy.md`:
+Apply redaction patterns from `shared/CAPTURE_POLICY.md`:
 
 ```typescript
 const REDACTION_PATTERNS = [
@@ -295,8 +295,14 @@ ctx save --path learnings/terraform-2026-01-03.md --content "..."
 ## Related Resources
 
 ### Policy Files
-- `shared/capture-policy.md` - Security and privacy policies
-- `shared/inbox-schema.md` - Inbox data format
+- `shared/CAPTURE_POLICY.md` - Security and privacy policies
+- `shared/INBOX_SCHEMA.md` - Inbox data format
 
 ### Related Skills
 - **ctx-save** - Save final context from inbox
+
+---
+
+## CLI Reference
+
+@../../shared/CLI_REFERENCE.md

@@ -188,9 +188,11 @@ async function handleTargetMode(
 async function handleManualMode(
   keywords: string[],
   projectRoot: string | null,
-  options: LoadOptions = {}
+  options: LoadOptions = {},
+  scope?: { searchProject: boolean; searchGlobal: boolean }
 ): Promise<void> {
-  const { searchProject, searchGlobal } = determineScope(options);
+  // Use provided scope (respects fallback) or determine from options
+  const { searchProject, searchGlobal } = scope || determineScope(options);
   const allMatches: MatchedContext[] = [];
 
   // Check project registry
@@ -269,19 +271,31 @@ export async function loadCommand(options: LoadOptions): Promise<void> {
   const projectRoot = await findProjectRoot(process.cwd());
   const globalInitialized = await isGlobalCtxInitialized();
 
-  // Validate scope: if default (project) but no project, error
-  const { searchProject, searchGlobal } = determineScope(options);
+  // Validate scope with global fallback for read commands (CORE_PRINCIPLE #5)
+  let { searchProject, searchGlobal } = determineScope(options);
 
   if (searchProject && !projectRoot) {
-    console.error(chalk.red('✗ Error: Not in a ctx project.'));
-    console.log(chalk.gray('  Use --global to search global contexts, or run \'ctx init .\' to initialize.'));
-    process.exit(1);
+    if (globalInitialized) {
+      // Warning + global fallback
+      console.error(chalk.yellow('⚠️  No project found. Falling back to global contexts.'));
+      searchProject = false;
+      searchGlobal = true;
+    } else {
+      console.error(chalk.red('✗ Error: Not in a ctx project and global ctx not initialized.'));
+      console.log(chalk.gray("  Run 'ctx init' to initialize global, or 'ctx init .' for project."));
+      process.exit(1);
+    }
   }
 
   if (searchGlobal && !globalInitialized) {
     console.error(chalk.red('✗ Error: Global ctx not initialized.'));
     console.log(chalk.gray("  Run 'ctx init' first."));
     process.exit(1);
+  }
+
+  // Update options to reflect fallback scope
+  if (!searchProject && searchGlobal && !options.global) {
+    options.global = true;
   }
 
   const keywords = options.keywords || [];
@@ -300,7 +314,7 @@ export async function loadCommand(options: LoadOptions): Promise<void> {
 
   // --keywords provided: keyword search
   if (keywords.length > 0) {
-    await handleManualMode(keywords, projectRoot, options);
+    await handleManualMode(keywords, projectRoot, options, { searchProject, searchGlobal });
     return;
   }
 

@@ -243,7 +243,7 @@ plugin/
 │   └── capture.md               # /ctx.capture 명령어
 │
 └── shared/
-    └── inbox-schema.md          # inbox 저장 형식 정의
+    └── INBOX_SCHEMA.md          # inbox 저장 형식 정의
 ```
 
 ---
@@ -580,12 +580,12 @@ User: "오늘 작업하면서 terraform 관련해서 배운 것들 정리해줘"
 
 > 보안/프라이버시 정책 없이 구현 진행 금지
 
-- [ ] `shared/capture-policy.md` 작성
+- [ ] `shared/CAPTURE_POLICY.md` 작성
   - 스코프 기본값 정의 (현재 프로젝트)
   - 광범위 스코프 확인 프롬프트 템플릿
   - 민감 정보 redaction 패턴 정의
   - inbox retention 정책 (7일 기본)
-- [ ] `shared/inbox-schema.md` 작성
+- [ ] `shared/INBOX_SCHEMA.md` 작성
   - schema_version 필드
   - run_id (UUID) 생성 규칙
   - provenance metadata 필수 필드

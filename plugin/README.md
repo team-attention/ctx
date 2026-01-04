@@ -51,6 +51,6 @@ claude --plugin-dir ./plugin
 
 ## Documentation
 
-- [CLI Reference](shared/cli-reference.md)
-- [Capture Policy](shared/capture-policy.md)
+- [CLI Reference](shared/CLI_REFERENCE.md)
+- [Capture Policy](shared/CAPTURE_POLICY.md)
 - [Project AGENTS.md](../AGENTS.md)

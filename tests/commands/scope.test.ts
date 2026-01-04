@@ -12,7 +12,8 @@ const { syncCommand } = await import('../../src/commands/sync.js');
  *
  * Verifies consistent scope handling across all commands:
  * - Default scope is project
- * - Error when outside project without --global
+ * - Read commands: Warning + global fallback when outside project (CORE_PRINCIPLE #5)
+ * - Write commands: Error when outside project without --global
  * - --global and --project are mutually exclusive (for save)
  */
 describe('scope behavior', () => {
@@ -43,28 +44,39 @@ describe('scope behavior', () => {
     });
 
     describe('without --global flag', () => {
-      it('list: should error', async () => {
-        await expect(listCommand({})).rejects.toThrow('process.exit(1)');
+      // Read commands: Warning + global fallback (CORE_PRINCIPLE #5)
+      it('list: should fallback to global with warning', async () => {
+        await listCommand({});
 
         const output = consoleOutput.getOutput();
-        expect(output.error.join('')).toContain('Not in a ctx project');
+        // Should warn about fallback
+        expect(output.error.join('')).toContain('No project found');
+        // Should return global contexts (empty array in this case)
+        const parsed = JSON.parse(output.log.join(''));
+        expect(Array.isArray(parsed)).toBe(true);
       });
 
-      it('status: should error', async () => {
-        await expect(statusCommand({})).rejects.toThrow('process.exit(1)');
+      it('status: should fallback to global with warning', async () => {
+        await statusCommand({});
 
         const output = consoleOutput.getOutput();
-        expect(output.error.join('')).toContain('Not in a ctx project');
+        // Should warn about fallback
+        expect(output.error.join('')).toContain('No project found');
+        // Should return global status
+        const parsed = JSON.parse(output.log.join(''));
+        expect(parsed).toHaveProperty('initialized', true);
       });
 
-      it('load: should error', async () => {
-        await expect(loadCommand({ keywords: ['api'] })).rejects.toThrow('process.exit(1)');
+      it('load: should fallback to global with warning', async () => {
+        await loadCommand({ keywords: ['api'] });
 
         const output = consoleOutput.getOutput();
-        expect(output.error.join('')).toContain('Not in a ctx project');
+        // Should warn about fallback
+        expect(output.error.join('')).toContain('No project found');
       });
 
-      it('save: should error', async () => {
+      // Write commands: Error when outside project (CORE_PRINCIPLE #5)
+      it('save: should error (write command)', async () => {
         await expect(saveCommand({
           path: 'test.md',
           content: '# Test',

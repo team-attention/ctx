@@ -169,11 +169,18 @@ export async function listCommand(options: ListOptions = {}): Promise<void> {
       showProject = true;
     }
 
-    // Validate scope
+    // Validate scope with global fallback for read commands (CORE_PRINCIPLE #5)
     if (showProject && !projectRoot) {
-      console.error(chalk.red('✗ Error: Not in a ctx project.'));
-      console.log(chalk.gray('  Use --global to list global contexts, or run \'ctx init .\' to initialize.'));
-      process.exit(1);
+      if (globalInitialized) {
+        // Warning + global fallback
+        warning = 'No project found. Falling back to global contexts.';
+        showProject = false;
+        showGlobal = true;
+      } else {
+        console.error(chalk.red('✗ Error: Not in a ctx project and global ctx not initialized.'));
+        console.log(chalk.gray("  Run 'ctx init' to initialize global, or 'ctx init .' for project."));
+        process.exit(1);
+      }
     }
 
     if (showGlobal && !globalInitialized) {
