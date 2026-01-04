@@ -88,12 +88,31 @@ export async function saveCommand(options: SaveOptions = {}) {
       process.exit(1);
     }
 
-    // Determine absolute path from --path (deterministic)
+    // Determine absolute path from --path
+    // --global/--project flags FORCE the scope, not just validate
     let absolutePath: string;
     const filePath = options.path;
 
-    if (filePath.startsWith('~')) {
-      // Global path like ~/.ctx/contexts/xxx.md
+    if (options.global) {
+      // --global: Force save to global scope
+      if (filePath.startsWith('/') || filePath.startsWith('~')) {
+        // Absolute or home-relative path
+        absolutePath = filePath.startsWith('~')
+          ? filePath.replace('~', process.env.HOME || '')
+          : filePath;
+      } else {
+        // Relative path → relative to ~/.ctx/
+        absolutePath = path.join(getGlobalCtxDir(), filePath);
+      }
+    } else if (options.project) {
+      // --project: Force save to project scope
+      if (filePath.startsWith('/')) {
+        absolutePath = filePath;
+      } else {
+        absolutePath = path.join(projectRoot!, filePath);
+      }
+    } else if (filePath.startsWith('~')) {
+      // No flag, but path starts with ~ → global
       absolutePath = filePath.replace('~', process.env.HOME || '');
     } else if (filePath.startsWith('/')) {
       // Absolute path
@@ -101,11 +120,8 @@ export async function saveCommand(options: SaveOptions = {}) {
     } else if (projectRoot) {
       // Relative path in project context → relative to project root
       absolutePath = path.join(projectRoot, filePath);
-    } else if (options.global) {
-      // No project root but --global flag → relative to cwd
-      absolutePath = path.resolve(filePath);
     } else {
-      // No project root and no --global flag → error
+      // No project root and no flag → error
       console.error(chalk.red('✗ Error: Not in a ctx project.'));
       console.log(chalk.gray('  Use --global to save to global context, or run \'ctx init .\' to initialize.'));
       process.exit(1);

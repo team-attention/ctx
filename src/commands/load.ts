@@ -15,6 +15,7 @@ interface LoadOptions {
   keywords?: string[];  // Keywords for searching context metadata
   target?: string;      // Target file path for auto-matching (supports glob)
   paths?: boolean;      // Output paths only (newline separated)
+  pretty?: boolean;     // Human-readable markdown output
   global?: boolean;     // Search global only
   all?: boolean;        // Search both project and global
 }
@@ -177,8 +178,8 @@ async function handleTargetMode(
     // Paths only output
     allMatches.forEach(m => console.log(m.contextPath));
   } else {
-    // Default: full content output
-    await outputContexts(allMatches, projectRoot);
+    // JSON (default) or --pretty markdown
+    await outputContexts(allMatches, projectRoot, options);
   }
 }
 
@@ -231,32 +232,60 @@ async function handleManualMode(
   if (options.paths) {
     allMatches.forEach(m => console.log(m.contextPath));
   } else {
-    await outputContexts(allMatches, projectRoot);
+    await outputContexts(allMatches, projectRoot, options);
   }
 }
 
 /**
- * Output matched contexts
+ * Output matched contexts (JSON default, --pretty for markdown)
  */
-async function outputContexts(matches: MatchedContext[], projectRoot: string | null): Promise<void> {
-  for (const match of matches) {
-    const content = await loadContextContent(match.contextPath);
-    if (content) {
-      const relativePath = projectRoot
-        ? path.relative(projectRoot, match.contextPath)
-        : match.contextPath;
+async function outputContexts(
+  matches: MatchedContext[],
+  projectRoot: string | null,
+  options: LoadOptions = {}
+): Promise<void> {
+  if (options.pretty) {
+    // Human-readable markdown output
+    for (const match of matches) {
+      const content = await loadContextContent(match.contextPath);
+      if (content) {
+        const relativePath = projectRoot
+          ? path.relative(projectRoot, match.contextPath)
+          : match.contextPath;
 
-      const matchTypeLabel = match.matchType === 'exact' ? 'exact' : 'pattern';
-      const sourceLabel = match.source === 'project' ? 'Project' : 'Global';
+        const matchTypeLabel = match.matchType === 'exact' ? 'exact' : 'pattern';
+        const sourceLabel = match.source === 'project' ? 'Project' : 'Global';
 
-      console.log(`
+        console.log(`
 ---
 **Context loaded:** \`${relativePath}\` (${sourceLabel}, ${matchTypeLabel}${match.target ? `: \`${match.target}\`` : ''})
 ${match.preview?.what ? `> ${match.preview.what}` : ''}
 
 ${content}
 ---`);
+      }
     }
+  } else {
+    // Default: JSON output (CORE_PRINCIPLE #6)
+    const results = await Promise.all(
+      matches.map(async (match) => {
+        const content = await loadContextContent(match.contextPath);
+        const relativePath = projectRoot
+          ? path.relative(projectRoot, match.contextPath)
+          : match.contextPath;
+
+        return {
+          path: relativePath,
+          target: match.target || null,
+          source: match.source,
+          matchType: match.matchType,
+          what: match.preview?.what || null,
+          keywords: match.preview?.keywords || [],
+          content: content || null,
+        };
+      })
+    );
+    console.log(JSON.stringify(results, null, 2));
   }
 }
 

@@ -112,11 +112,12 @@ program
 
 program
   .command('load')
-  .description('Load context files by keywords or target file path (default: project only)')
+  .description('Load context files by keywords or target file path (default: project, JSON output)')
   .option('-k, --keywords <keywords...>', 'Keywords to search for in context metadata')
   .option('-t, --target <filePath>', 'File path to match against targets (supports glob)')
   .option('--global', 'Search global contexts only')
   .option('--all', 'Search both project and global contexts')
+  .option('--pretty', 'Human-readable markdown output')
   .option('--paths', 'Output paths only (newline separated)')
   .action(loadCommand);
 
