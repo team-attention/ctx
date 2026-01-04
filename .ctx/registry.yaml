@@ -1,0 +1,10 @@
+meta:
+  version: 2.0.0
+  last_synced: 2026-01-04T13:53:19.413Z
+settings:
+  context_paths:
+    - path: "**/*.ctx.md"
+      purpose: Bound contexts next to code
+    - path: .ctx/contexts/**/*.md
+      purpose: Centralized project contexts
+contexts: {}

@@ -3,7 +3,6 @@ import fs from 'fs/promises';
 import path from 'path';
 import chalk from 'chalk';
 import YAML from 'yaml';
-import { getPlatform } from '../lib/platforms/index.js';
 import {
   CTX_DIR,
   REGISTRY_FILE,
@@ -61,36 +60,46 @@ export function parseContextPathsOption(optionValue: string): ContextPathConfig[
 }
 
 /**
- * Interactive prompt for context paths
+ * Interactive prompt for context paths (simplified Y/n)
  */
 async function promptContextPaths(
-  scope: 'global' | 'project',
   defaults: ContextPathConfig[]
 ): Promise<ContextPathConfig[]> {
-  const defaultStr = defaults.map((cp) => `${cp.path}:${cp.purpose}`).join(', ');
-
-  console.log(chalk.gray('\nContext paths define glob patterns for context files.'));
-  console.log(chalk.gray('Format: pattern:purpose (comma-separated for multiple)'));
-  console.log(chalk.gray(`Example: contexts/**/*.md:General context,**/*.ctx.md:Bound contexts\n`));
-
-  const { contextPathsInput } = await inquirer.prompt([
+  const { useDefaults } = await inquirer.prompt([
     {
-      type: 'input',
-      name: 'contextPathsInput',
-      message: `Context paths for ${scope}:`,
-      default: defaultStr,
-      validate: (input: string) => {
-        try {
-          parseContextPathsOption(input);
-          return true;
-        } catch (error) {
-          return (error as Error).message;
-        }
-      },
+      type: 'confirm',
+      name: 'useDefaults',
+      message: 'Use default context paths?',
+      default: true,
     },
   ]);
 
-  return parseContextPathsOption(contextPathsInput);
+  if (useDefaults) {
+    return defaults;
+  }
+
+  // User chose not to use defaults - start with empty config
+  console.log(chalk.yellow('\nStarting with empty context paths.'));
+  console.log(chalk.gray('Add patterns later with: ctx add-pattern <pattern> <purpose>\n'));
+  return [];
+}
+
+/**
+ * Display configured context paths after setup
+ */
+function displayConfiguredPaths(contextPaths: ContextPathConfig[]): void {
+  if (contextPaths.length === 0) {
+    console.log(chalk.gray('\nNo context paths configured.'));
+    console.log(chalk.gray('Add patterns with: ctx add-pattern <pattern> <purpose>'));
+    return;
+  }
+
+  console.log(chalk.green('\n✓ Context paths configured:'));
+  for (const cp of contextPaths) {
+    console.log(chalk.white(`    ${cp.path}`));
+    console.log(chalk.gray(`      ${cp.purpose}`));
+  }
+  console.log(chalk.gray('\n  Tip: Change later with ctx add-pattern / ctx remove'));
 }
 
 export interface InitOptions {
@@ -110,11 +119,19 @@ export async function initCommand(targetPath?: string, options?: InitOptions) {
   return initGlobalCommand(options);
 }
 
+interface InternalInitOptions extends InitOptions {
+  standalone?: boolean; // true when called directly, false when called from project init
+}
+
 /**
  * Initialize global context (~/.ctx/)
  */
-async function initGlobalCommand(options?: InitOptions) {
-  console.log(chalk.blue.bold('\n🌍 Initializing Global Context\n'));
+async function initGlobalCommand(options?: InternalInitOptions) {
+  const standalone = options?.standalone !== false;
+
+  if (standalone) {
+    console.log(chalk.blue.bold('\n🔧 Setting up ctx\n'));
+  }
 
   try {
     const isInitialized = await isGlobalCtxInitialized();
@@ -148,7 +165,7 @@ async function initGlobalCommand(options?: InitOptions) {
     } else if (options?.yes) {
       contextPaths = DEFAULT_GLOBAL_CONTEXT_PATHS;
     } else {
-      contextPaths = await promptContextPaths('global', DEFAULT_GLOBAL_CONTEXT_PATHS);
+      contextPaths = await promptContextPaths(DEFAULT_GLOBAL_CONTEXT_PATHS);
     }
 
     // Create ~/.ctx/
@@ -193,17 +210,18 @@ async function initGlobalCommand(options?: InitOptions) {
     console.log(chalk.green(`✓ Created ${REGISTRY_FILE}`));
 
     // Display configured paths
-    console.log(chalk.gray('\nConfigured context paths:'));
-    for (const cp of contextPaths) {
-      console.log(chalk.gray(`  - ${cp.path}: ${cp.purpose}`));
+    displayConfiguredPaths(contextPaths);
+
+    if (standalone) {
+      console.log(chalk.blue.bold('\n✨ Setup complete!\n'));
+
+      console.log(chalk.gray('Next steps:'));
+      console.log(chalk.gray('  1. Go to your project directory'));
+      console.log(chalk.gray('  2. Run: ') + chalk.white('ctx init .'));
+      console.log(chalk.gray('  3. Create context files and run: ') + chalk.white('ctx sync\n'));
+    } else {
+      console.log(chalk.green('✓ ctx setup complete'));
     }
-
-    console.log(chalk.blue.bold('\n✨ Global initialization complete!\n'));
-
-    console.log(chalk.gray('Next steps:'));
-    console.log(chalk.gray('  1. Go to your project directory'));
-    console.log(chalk.gray('  2. Run: ') + chalk.white('ctx init .'));
-    console.log(chalk.gray('  3. Create context files and run: ') + chalk.white('ctx sync\n'));
 
   } catch (error) {
     console.error(chalk.red('Error during global initialization:'), error);
@@ -215,36 +233,18 @@ async function initGlobalCommand(options?: InitOptions) {
  * Initialize project context ({project}/.ctx/)
  */
 async function initProjectCommand(options?: InitOptions) {
-  console.log(chalk.blue.bold('\n📁 Initializing Project Context\n'));
-
   try {
     const projectRoot = process.cwd();
 
     // Check if global is initialized - if not, initialize it first
     const globalInitialized = await isGlobalCtxInitialized();
     if (!globalInitialized) {
-      console.log(chalk.yellow('⚠️  Global context is not initialized.\n'));
-
-      let shouldInitGlobal = options?.yes;
-      if (!shouldInitGlobal) {
-        const { initGlobal } = await inquirer.prompt([
-          {
-            type: 'confirm',
-            name: 'initGlobal',
-            message: 'Initialize global context first?',
-            default: true,
-          },
-        ]);
-        shouldInitGlobal = initGlobal;
-      }
-
-      if (shouldInitGlobal) {
-        await initGlobalCommand(options);
-        console.log(chalk.blue.bold('\n📁 Now initializing Project Context\n'));
-      } else {
-        console.log(chalk.gray('Skipping global initialization.\n'));
-      }
+      console.log(chalk.blue.bold('\n🔧 First-time setup required\n'));
+      await initGlobalCommand({ ...options, standalone: false });
+      console.log();
     }
+
+    console.log(chalk.blue.bold('📁 Initializing Project\n'));
 
     // Check if project is already initialized
     const projectInitialized = await isProjectCtxInitialized(projectRoot);
@@ -277,7 +277,7 @@ async function initProjectCommand(options?: InitOptions) {
     } else if (options?.yes) {
       contextPaths = DEFAULT_PROJECT_CONTEXT_PATHS;
     } else {
-      contextPaths = await promptContextPaths('project', DEFAULT_PROJECT_CONTEXT_PATHS);
+      contextPaths = await promptContextPaths(DEFAULT_PROJECT_CONTEXT_PATHS);
     }
 
     // Create .ctx/
@@ -321,28 +321,12 @@ async function initProjectCommand(options?: InitOptions) {
     console.log(chalk.green(`✓ Created ${CTX_DIR}/${REGISTRY_FILE}`));
 
     // Display configured paths
-    console.log(chalk.gray('\nConfigured context paths:'));
-    for (const cp of contextPaths) {
-      console.log(chalk.gray(`  - ${cp.path}: ${cp.purpose}`));
-    }
-
-    // Try to install AI commands (Claude Code)
-    try {
-      const platform = getPlatform('claude-code');
-      await platform.install();
-
-      if ('installHooks' in platform) {
-        await (platform as any).installHooks();
-      }
-    } catch {
-      // Platform installation is optional
-    }
+    displayConfiguredPaths(contextPaths);
 
     console.log(chalk.blue.bold('\n✨ Project initialization complete!\n'));
     console.log(chalk.gray('Next steps:'));
     console.log(chalk.gray('  1. Create context files: ') + chalk.white('<filename>.ctx.md'));
-    console.log(chalk.gray('  2. Or add to configured paths'));
-    console.log(chalk.gray('  3. Run: ') + chalk.white('ctx sync\n'));
+    console.log(chalk.gray('  2. Run: ') + chalk.white('ctx sync\n'));
 
   } catch (error) {
     console.error(chalk.red('Error during project initialization:'), error);
