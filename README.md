@@ -43,9 +43,21 @@ You describe what you want in plain language. AI handles the rest.
 
 ## Quick Start
 
+### 1. Install (once)
+
 ```bash
+npm install -g @team-attention/ctx
+```
+
+### 2. Initialize
+
+```bash
+# Global setup (once per machine)
+ctx init
+
+# Project setup
 cd your-project
-npx @team-attention/ctx init .
+ctx init .
 ```
 
 That's it. Now just talk to your AI:
