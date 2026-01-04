@@ -4,22 +4,19 @@ import os from 'os';
 import { glob } from 'glob';
 import { ScannedContext, Config, UnifiedRegistry, ContextPathConfig } from './types.js';
 import { DEFAULT_PATTERNS } from './config.js';
+import {
+  DEFAULT_PROJECT_CONTEXT_PATHS,
+  DEFAULT_GLOBAL_CONTEXT_PATHS,
+} from './context-path-matcher.js';
 
 // New 3-level constants
 const CTX_DIR = '.ctx';
-const CONTEXTS_DIR = 'contexts';
 const REGISTRY_FILE = 'registry.yaml';
 
 /** Get global ctx directory (uses current HOME, not cached) */
 function getGlobalCtxDir(): string {
   return path.join(os.homedir(), CTX_DIR);
 }
-
-/** Default context paths when settings not configured */
-const DEFAULT_CONTEXT_PATHS: ContextPathConfig[] = [
-  { path: '**/*.ctx.md', purpose: 'Bound contexts next to code' },
-  { path: '.ctx/contexts/**/*.md', purpose: 'Centralized project contexts' },
-];
 
 /**
  * Scan for local context files based on config patterns
@@ -149,7 +146,7 @@ async function getContextPathsFromRegistry(registryPath: string): Promise<Contex
   } catch {
     // Registry doesn't exist or is invalid
   }
-  return DEFAULT_CONTEXT_PATHS;
+  return DEFAULT_PROJECT_CONTEXT_PATHS;
 }
 
 /**

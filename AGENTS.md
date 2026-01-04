@@ -23,7 +23,7 @@ Project guide for AI agents working with CTX.
 | **Global** | `~/.ctx/` | Personal patterns, tool settings | Personal (all projects) |
 | **Project** | `.ctx/` + `*.ctx.md` | Team knowledge, architecture | Team (shared via Git) |
 
-> Context distinction and priority: See CORE_PRINCIPLE.md #6, #7
+> Context distinction and priority: See CORE_PRINCIPLE.md #7, #8
 
 ---
 
@@ -95,7 +95,7 @@ ctx check --pretty                # Human-readable output
 
 ## CLI Design Principles
 
-> See CORE_PRINCIPLE.md #3, #4, #5 for scope defaults, write/read distinction, and output format.
+> See CORE_PRINCIPLE.md #4, #5, #6 for scope defaults, write/read distinction, and output format.
 
 ---
 

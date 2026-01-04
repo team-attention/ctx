@@ -1,6 +1,15 @@
 # CTX Framework Core Principles
 
-## 1. UX Simplicity (Core Principle)
+## 1. Simplicity Over Fragmentation
+
+> **One way to do things. One place to look.**
+
+- Avoid creating multiple paths to the same goal
+- Centralize related functionality rather than scattering
+- When in doubt, simplify rather than add options
+- New features should reduce complexity, not add it
+
+## 2. UX Simplicity
 
 > **Design UX to be simple from the user's perspective.**
 
@@ -9,7 +18,7 @@
 - Advanced options hidden until needed
 - Error messages guide users to solutions
 
-## 2. CLI First (Plugin Principle)
+## 3. CLI First (Plugin Principle)
 
 > **Always interact with CTX through CLI**
 
@@ -24,7 +33,7 @@ Bad:   Parse .ctx/registry.yaml    # Direct access
 - **Consistency**: All components use the same interface
 - **Maintainability**: One CLI fix benefits all plugins
 
-## 3. Scope Defaults
+## 4. Scope Defaults
 
 > **Default = Project scope (narrowest, safest)**
 
@@ -36,33 +45,33 @@ ctx list --all        # Both
 
 Follows industry standards: `npm list` (project) vs `npm list -g` (global)
 
-## 4. Write vs Read Command Distinction
+## 5. Write vs Read Command Distinction
 
 | Type | No Project Found | Examples |
 |------|------------------|----------|
 | **Write** | Error + exit(1) | sync, create, add, save |
 | **Read** | Warning + global fallback | status, list, load |
 
-## 5. Output Format Principle
+## 6. Output Format Principle
 
 - **JSON is default** (machine-readable, scriptable)
 - `--pretty` → human-readable
 - `--paths` → simple line output (useful for piping)
 
-## 6. Context Distinction Criteria
+## 7. Context Distinction Criteria
 
 > **Based on `target` field presence (not file location)**
 
 - `target` present → Bound context (auto-loaded when reading that file)
 - `target` absent → Standalone context (loaded by keywords matching)
 
-## 7. Priority Order
+## 8. Priority Order
 
 ```
 Project (with target) > Project (without target) > Global
 ```
 
-## 8. Context Philosophy
+## 9. Context Philosophy
 
 > **Context is the bottleneck, not AI capability.**
 
