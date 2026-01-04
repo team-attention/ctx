@@ -32,7 +32,7 @@ describe('add command - Phase 2 auto-pattern', () => {
       const testFile = 'docs/test-guide.md';
       const testContent = `---
 what: Test guide
-when:
+keywords:
   - test
 ---
 
@@ -80,7 +80,7 @@ when:
       const testFile = 'docs/api-guide.md';
       const testContent = `---
 what: API Guide
-when:
+keywords:
   - api
 ---
 
@@ -115,7 +115,7 @@ when:
       for (const file of files) {
         const content = `---
 what: Test file
-when:
+keywords:
   - test
 ---
 
@@ -143,7 +143,7 @@ when:
       const testFile = 'test-sync.md';
       const testContent = `---
 what: Test sync
-when:
+keywords:
   - test
 ---
 

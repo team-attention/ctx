@@ -76,7 +76,7 @@ Then 모든 매칭된 파일이 registry에 등록된다
 ### Scenario: 키워드로 관련 컨텍스트 검색
 
 ```gherkin
-Given when: ["api", "routing"] 가진 컨텍스트가 있다
+Given keywords: ["api", "routing"] 가진 컨텍스트가 있다
 When `ctx load api` 실행
 Then 해당 컨텍스트 내용이 출력된다
 ```

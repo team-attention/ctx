@@ -39,7 +39,7 @@ describe('check command (3-level system)', () => {
       await testEnv.createFile('src/test.ctx.md', `---
 target: /src/test.ts
 what: Test module
-when:
+keywords:
   - Testing
 ---
 

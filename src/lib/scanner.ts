@@ -4,18 +4,19 @@ import os from 'os';
 import { glob } from 'glob';
 import { ScannedContext, Config, UnifiedRegistry, ContextPathConfig } from './types.js';
 import { DEFAULT_PATTERNS } from './config.js';
+import {
+  DEFAULT_PROJECT_CONTEXT_PATHS,
+  DEFAULT_GLOBAL_CONTEXT_PATHS,
+} from './context-path-matcher.js';
 
 // New 3-level constants
 const CTX_DIR = '.ctx';
-const CONTEXTS_DIR = 'contexts';
 const REGISTRY_FILE = 'registry.yaml';
-const GLOBAL_CTX_DIR = path.join(os.homedir(), CTX_DIR);
 
-/** Default context paths when settings not configured */
-const DEFAULT_CONTEXT_PATHS: ContextPathConfig[] = [
-  { path: '**/*.ctx.md', purpose: 'Bound contexts next to code' },
-  { path: '.ctx/contexts/**/*.md', purpose: 'Centralized project contexts' },
-];
+/** Get global ctx directory (uses current HOME, not cached) */
+function getGlobalCtxDir(): string {
+  return path.join(os.homedir(), CTX_DIR);
+}
 
 /**
  * Scan for local context files based on config patterns
@@ -132,9 +133,12 @@ export function extractFolder(relativePath: string, globalDir: string): string |
 
 /**
  * Get context paths from registry settings
- * Falls back to default paths if settings not configured
+ * Falls back to scope-appropriate default paths if settings not configured
  */
-async function getContextPathsFromRegistry(registryPath: string): Promise<ContextPathConfig[]> {
+async function getContextPathsFromRegistry(
+  registryPath: string,
+  scope: 'project' | 'global' = 'project'
+): Promise<ContextPathConfig[]> {
   try {
     const content = await fs.readFile(registryPath, 'utf-8');
     const { parse } = await import('yaml');
@@ -145,7 +149,7 @@ async function getContextPathsFromRegistry(registryPath: string): Promise<Contex
   } catch {
     // Registry doesn't exist or is invalid
   }
-  return DEFAULT_CONTEXT_PATHS;
+  return scope === 'global' ? DEFAULT_GLOBAL_CONTEXT_PATHS : DEFAULT_PROJECT_CONTEXT_PATHS;
 }
 
 /**
@@ -200,15 +204,16 @@ export async function scanProjectContexts(
  * Scan for global context files based on settings.context_paths in ~/.ctx/
  */
 export async function scanGlobalCtxContexts(): Promise<ScannedContext[]> {
-  const registryPath = path.join(GLOBAL_CTX_DIR, REGISTRY_FILE);
-  const contextPaths = await getContextPathsFromRegistry(registryPath);
+  const globalCtxDir = getGlobalCtxDir();
+  const registryPath = path.join(globalCtxDir, REGISTRY_FILE);
+  const contextPaths = await getContextPathsFromRegistry(registryPath, 'global');
 
   const contexts: ScannedContext[] = [];
   const seenPaths = new Set<string>();
 
   for (const cp of contextPaths) {
     const files = await glob(cp.path, {
-      cwd: GLOBAL_CTX_DIR,
+      cwd: globalCtxDir,
       absolute: false,
     });
 
@@ -216,7 +221,7 @@ export async function scanGlobalCtxContexts(): Promise<ScannedContext[]> {
       if (seenPaths.has(file)) continue;
       seenPaths.add(file);
 
-      const absolutePath = path.join(GLOBAL_CTX_DIR, file);
+      const absolutePath = path.join(globalCtxDir, file);
       try {
         const content = await fs.readFile(absolutePath, 'utf-8');
         contexts.push({

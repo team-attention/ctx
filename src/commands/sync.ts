@@ -12,10 +12,9 @@ import {
   findProjectRoot,
   isGlobalCtxInitialized,
   readProjectRegistry,
-  writeProjectRegistry,
+  writeProjectRegistryWithSync,
   readGlobalCtxRegistry,
   writeGlobalCtxRegistry,
-  updateGlobalIndex,
 } from '../lib/registry.js';
 import { SyncOptions, ContextEntry, ProjectIndexEntry } from '../lib/types.js';
 
@@ -174,7 +173,7 @@ async function rebuildGlobalIndex(): Promise<void> {
     const contexts = Object.entries(projectRegistry.contexts).map(([key, ctx]) => ({
       path: key,
       what: ctx.preview.what,
-      when: ctx.preview.when || [],
+      keywords: ctx.preview.keywords || [],
     }));
 
     newIndex[projectName] = {
@@ -206,21 +205,10 @@ async function syncCommandNew(projectRoot: string, options: ExtendedSyncOptions)
 
   try {
     // Sync all project contexts (unified scan)
+    // Note: writeProjectRegistryWithSync automatically updates global index
     console.log(chalk.blue('Scanning contexts...'));
     const syncedCount = await syncProjectContextsToRegistry(projectRoot, options);
     console.log(chalk.green(`✓ Synced ${syncedCount} context(s)`));
-
-    // Update global index
-    const globalInitialized = await isGlobalCtxInitialized();
-    if (globalInitialized) {
-      console.log(chalk.blue('Updating global index...'));
-      try {
-        await updateGlobalIndex(projectRoot);
-        console.log(chalk.green('✓ Updated global index'));
-      } catch (error) {
-        console.warn(chalk.yellow(`⚠️  Failed to update global index: ${error}`));
-      }
-    }
 
     // Summary
     console.log();
@@ -367,7 +355,7 @@ async function syncProjectContextsToRegistry(projectRoot: string, options: Exten
     }
   }
 
-  await writeProjectRegistry(projectRoot, registry);
+  await writeProjectRegistryWithSync(projectRoot, registry);
   return syncedCount;
 }
 

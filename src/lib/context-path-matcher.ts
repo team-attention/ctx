@@ -3,6 +3,20 @@ import path from 'path';
 import { ContextPathConfig } from './types.js';
 import { readProjectRegistry, readGlobalCtxRegistry, getGlobalCtxDir } from './registry.js';
 
+// ===== Centralized DEFAULT Constants =====
+// All context path defaults should be defined here to avoid fragmentation
+
+/** Default context paths for Project scope */
+export const DEFAULT_PROJECT_CONTEXT_PATHS: ContextPathConfig[] = [
+  { path: '**/*.ctx.md', purpose: 'Bound contexts next to code' },
+  { path: '.ctx/contexts/**/*.md', purpose: 'Centralized project contexts' },
+];
+
+/** Default context paths for Global scope */
+export const DEFAULT_GLOBAL_CONTEXT_PATHS: ContextPathConfig[] = [
+  { path: 'contexts/**/*.md', purpose: 'General context documents' },
+];
+
 /**
  * Check if a file path matches any of the context_paths patterns
  */
@@ -31,11 +45,7 @@ export async function getProjectContextPaths(projectRoot: string): Promise<Conte
     // Registry doesn't exist or is invalid
   }
 
-  // Default patterns
-  return [
-    { path: '**/*.ctx.md', purpose: 'Bound contexts next to code' },
-    { path: '.ctx/contexts/**/*.md', purpose: 'Centralized project contexts' },
-  ];
+  return DEFAULT_PROJECT_CONTEXT_PATHS;
 }
 
 /**
@@ -51,10 +61,7 @@ export async function getGlobalContextPaths(): Promise<ContextPathConfig[]> {
     // Registry doesn't exist or is invalid
   }
 
-  // Default patterns
-  return [
-    { path: 'contexts/**/*.md', purpose: 'General context documents' },
-  ];
+  return DEFAULT_GLOBAL_CONTEXT_PATHS;
 }
 
 /**

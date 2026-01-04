@@ -1,6 +1,6 @@
 ---
 name: ctx-load
-description: This skill should be used when the user asks to "load context about", "find context for", "show me the context", "what do we know about", "get documentation on", "/ctx.load", or wants to search and retrieve context files. Reads registry directly and uses semantic understanding to find relevant contexts.
+description: This skill should be used when the user asks to "load context about", "find context for", "show me the context", "what do we know about", "get documentation on", "/ctx.load", or wants to search and retrieve context files. Uses CLI to query metadata and applies semantic understanding to find relevant contexts.
 allowed-tools: Read, Glob, Grep, Bash
 ---
 
@@ -30,60 +30,56 @@ Load and present contexts in this priority order:
 
 ## CLI Reference
 
-Use `npx ctx` commands to interact with the context system:
-
-| Command | Description | Key Options |
-|---------|-------------|-------------|
-| `ctx init` | Initialize context management | - |
-| `ctx status` | Show context status (JSON) | `--pretty`, `--target <path>` |
-| `ctx sync` | Sync context files to registries | `--global`, `--rebuild-index`, `--prune` |
-| `ctx check` | Check context health/freshness | `--target <file>`, `--pretty` |
-| `ctx create <path>` | Create new context file | `--target`, `--force`, `--global` |
-| `ctx load` | Load context (for scripts/hooks) | `--target <path>`, `--json`, `--paths` |
-
-For complete CLI reference, see `../../shared/cli-reference.md`.
+@../../shared/CLI_REFERENCE.md
 
 ---
 
 ## Execution Algorithm
 
-### Step 1: Read Registries Directly
+### Step 1: Query Context Metadata via CLI
 
-Use the Read tool to read registry files:
+Use `ctx list` to get context metadata:
 
-**Project Registry:**
-```
-.ctx/registry.yaml
-```
+```bash
+# Project contexts only (default)
+npx ctx list
 
-**Global Registry:**
-```
-~/.ctx/registry.yaml
-```
+# Both project and global
+npx ctx list --all
 
-### Step 2: Analyze Context Index
-
-Each registry contains a `contexts` map with metadata:
-
-```yaml
-contexts:
-  '.ctx/contexts/architecture.md':
-    checksum: 'abc123'
-    preview:
-      what: "System architecture overview"
-      when: ["architecture", "structure", "design"]
-  'src/api.ctx.md':
-    target: 'src/api.ts'
-    checksum: 'def456'
-    preview:
-      what: "API routing patterns"
-      when: ["api", "routing", "endpoint"]
+# For specific target file
+npx ctx list --target src/api.ts
 ```
 
-**Key fields for relevance判断:**
-- `preview.what` - What this context is about
-- `preview.when` - Keywords that trigger this context
+**JSON Output Format:**
+```json
+[
+  {
+    "path": ".ctx/contexts/architecture.md",
+    "what": "System architecture overview",
+    "keywords": ["architecture", "structure", "design"],
+    "target": null,
+    "registry": "project",
+    "type": "standalone"
+  },
+  {
+    "path": "src/api.ctx.md",
+    "what": "API routing patterns",
+    "keywords": ["api", "routing", "endpoint"],
+    "target": "src/api.ts",
+    "registry": "project",
+    "type": "bound"
+  }
+]
+```
+
+### Step 2: Analyze Context Metadata
+
+**Key fields for relevance matching:**
+- `what` - What this context is about
+- `keywords` - Keywords that trigger this context
 - `target` - If present, this context is bound to a specific file
+- `type` - "bound" (file-specific) or "standalone" (general)
 
 ### Step 3: Select Relevant Contexts (AI Judgment)
 
@@ -94,7 +90,7 @@ Based on the user's request, determine which contexts are relevant using semanti
 - AI understands JWT is related to authentication → selects it
 
 **Selection criteria:**
-1. Direct keyword match in `when` array
+1. Direct keyword match in `keywords` array
 2. Semantic relevance of `what` description to user's request
 3. File path hints (e.g., `auth.ctx.md`, `security/`)
 4. Target file relevance (if user is working on specific files)
@@ -145,16 +141,16 @@ Loaded 2 contexts relevant to "authentication"
      '.ctx/contexts/api-design.md':
        preview:
          what: "REST API design conventions"
-         when: ["api", "rest", "endpoint"]
+         keywords: ["api", "rest", "endpoint"]
      '.ctx/contexts/architecture.md':
        preview:
          what: "System architecture overview"
-         when: ["architecture", "structure"]
+         keywords: ["architecture", "structure"]
      'src/routes.ctx.md':
        target: 'src/routes.ts'
        preview:
          what: "Route definitions and middleware"
-         when: ["routing", "middleware"]
+         keywords: ["routing", "middleware"]
    ```
 3. Select relevant: `api-design.md`, `routes.ctx.md` (semantic match)
 4. Read both files
@@ -162,17 +158,20 @@ Loaded 2 contexts relevant to "authentication"
 
 ---
 
-## When to Use CLI Instead
+## CLI Commands Summary
 
-The `ctx load` CLI command is useful for:
-- **Scripts/automation**: `npx ctx load --paths api | xargs cat`
-- **Hook integration**: Pipe JSON to stdin for auto-matching
-- **Quick terminal lookup**: `npx ctx load --json auth`
+| Command | Purpose | Output |
+|---------|---------|--------|
+| `ctx list` | Get context metadata for AI selection | JSON with what/keywords |
+| `ctx load -k <keywords>` | Load by keyword matching | Content or paths |
+| `ctx load -t <file>` | Load by target file | Content or paths |
 
-For AI-assisted context loading, **direct registry reading is preferred** because:
-- AI can apply semantic understanding (not just keyword matching)
-- Faster (no process spawn)
-- More flexible relevance judgment
+**Recommended workflow:**
+1. Use `ctx list` to get metadata
+2. AI applies semantic understanding to select relevant contexts
+3. Use Read tool to load selected context files
+
+This approach follows the **CLI First principle** while preserving AI semantic understanding.
 
 ---
 
@@ -187,7 +186,7 @@ index:
     contexts:
       - path: 'src/api.ctx.md'
         what: "API routing logic"
-        when: ["api", "routing"]
+        keywords: ["api", "routing"]
 ```
 
 This enables discovering contexts across all registered projects.
@@ -207,11 +206,10 @@ This enables discovering contexts across all registered projects.
 
 ## Performance Guidelines
 
-1. **Read registry first** - Small file, contains all metadata
+1. **Query metadata via CLI first** - `ctx list` returns all metadata needed for selection
 2. **Selective loading** - Only read contexts that are actually relevant
 3. **Parallel file reads** - Load multiple context files simultaneously
-4. **Session caching** - Skip re-loading already loaded contexts
-5. **Smart summarization** - For large contexts (>500 lines), show key sections only
+4. **Smart summarization** - For large contexts (>500 lines), show key sections only
 
 ---
 
@@ -219,7 +217,7 @@ This enables discovering contexts across all registered projects.
 
 After loading, suggest related contexts based on:
 - Same category/folder
-- Similar `when` keywords
+- Similar `keywords`
 - Referenced in loaded content
 
 ```markdown

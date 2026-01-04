@@ -1,252 +1,204 @@
-# Mode Examples
+# ctx-save Examples
 
-Detailed examples for each ctx-save mode.
+Principle-based save examples.
 
-## Auto Mode Examples (Non-Interactive)
+---
 
-### Example 1: Direct Path Specification
+## Basic Flow Examples
 
-```
-User: .ctx/contexts/auth-jwt.md에 JWT 인증 패턴 저장해. 내용은 토큰 갱신 방법.
-
-AI: [No questions - immediate execution]
-
-[Uses Write tool to create .ctx/contexts/auth-jwt.md]
-[Runs: npx ctx sync]
-
-Done. Saved to .ctx/contexts/auth-jwt.md
-```
-
-### Example 2: Scope + Filename Combination
+### Example 1: Create New Context
 
 ```
-User: 바로 project scope로 api-patterns.md 생성해줘
+User: GraphQL 패턴 저장해줘
 
-AI: [Auto Mode detected - executing immediately]
+AI: [Check registry - no GraphQL related]
 
-[Creates .ctx/contexts/api-patterns.md]
-[Syncs registry]
+    No related context found, creating new one.
+
+    [Create .ctx/contexts/graphql-patterns.md]
+    [ctx sync]
+
+Created: .ctx/contexts/graphql-patterns.md
+```
+
+### Example 2: Append to Existing
+
+```
+User: terraform 인사이트 저장해줘
+
+AI: [Check registry - found terraform.md]
+
+    terraform.md exists, so I'll add it there.
+
+    [Add new section to terraform.md]
+    [ctx sync]
+
+Appended to .ctx/contexts/terraform.md
+```
+
+### Example 3: Choose Among Multiple
+
+```
+User: 인프라 관련 저장해
+
+AI: [Check registry - found terraform.md, aws.md, docker.md]
+
+    Multiple related contexts found:
+    - terraform.md
+    - aws.md
+    - docker.md
+
+    Which one should I add to? (New file is also possible)
+
+User: aws.md
+
+AI: [Add to aws.md]
+
+Appended to .ctx/contexts/aws.md
+```
+
+---
+
+## Execution Judgment Examples
+
+### Clear Instruction → Execute Immediately
+
+```
+User: .ctx/contexts/auth.md에 저장해
+
+AI: [Clear path - execute immediately]
+    [Create/append to auth.md]
+    [ctx sync]
+
+Done.
+```
+
+```
+User: 바로 저장해줘
+
+AI: [Immediate execution requested - execute]
+    [Save to appropriate location]
+    [ctx sync]
+
+Done.
+```
+
+### Uncertain → Confirm
+
+```
+User: 이거 저장해
+
+AI: [Check registry - 2 similar contexts]
+
+    Found auth.md and security.md.
+    auth.md seems more relevant. Should I add there?
+
+User: ㅇㅇ
+
+AI: [Add to auth.md]
+
+Appended.
+```
+
+### Risky → Always Confirm
+
+```
+User: terraform.md 내용 교체해줘
+
+AI: [Replace request - risky]
+
+    ⚠️ Existing content will be deleted:
+
+    Current: # Terraform Patterns (15 lines)
+    New: # Terraform Best Practices (20 lines)
+
+    Are you sure you want to replace?
+
+User: ㅇㅇ
+
+AI: [Backup and replace]
+
+Replaced. Backup: .ctx/backup/terraform.md.bak
+```
+
+---
+
+## Scope Examples
+
+### Project (Default)
+
+```
+User: API 패턴 저장해
+
+AI: [Project knowledge → Project scope]
+
+    Creating .ctx/contexts/api-patterns.md.
 
 Created: .ctx/contexts/api-patterns.md
 ```
 
-### Example 3: Global Scope Direct Save
+### Global
 
 ```
-User: Global에 typescript-tips.md로 저장, 내용은 strict mode 설정법
+User: 내 디버깅 팁 global로 저장해
 
-AI: [Auto Mode - no confirmation needed]
+AI: [Personal knowledge → Global scope]
 
-[Creates ~/.ctx/contexts/typescript-tips.md]
-[Runs: npx ctx sync]
+    Creating ~/.ctx/contexts/debug-tips.md.
 
-Saved to ~/.ctx/contexts/typescript-tips.md
+Created: ~/.ctx/contexts/debug-tips.md
 ```
 
----
-
-## Quick Mode Examples
-
-### Example 1: Session Knowledge Extraction
+### Local (Target Binding)
 
 ```
-User: This auth pattern we figured out, save it
+User: 이 auth.ts 파일에 대한 컨텍스트 저장해
 
-AI: Analyzing conversation for valuable knowledge...
+AI: [Specific file → Local scope]
 
-Found:
-- JWT refresh token rotation pattern
-- Token storage best practices
-- Middleware structure for auth checks
+    Creating src/auth.ctx.md and binding to auth.ts.
 
-Recommended: Project context at `.ctx/contexts/auth-patterns.md`
-(Project-specific knowledge for team sharing)
+    [ctx create src/auth.ctx.md --target src/auth.ts]
 
-Content preview:
----
-# Authentication Patterns
-
-## JWT Refresh Token Rotation
-When access token expires...
-[preview of content]
----
-
-Save this? [Y/n]
-
-User: Y
-
-AI:
-npx ctx create .ctx/contexts/auth-patterns.md
-[Writes content with Edit tool]
-npx ctx sync
-
-Saved: .ctx/contexts/auth-patterns.md
-Synced with Global index
-```
-
-### Example 2: Quick Pattern Save
-
-```
-User: remember this error handling approach
-
-AI: Extracting error handling pattern from our discussion...
-
-Key points:
-- Custom error classes with status codes
-- Centralized error middleware
-- Consistent error response format
-
-Scope: Project (team knowledge)
-Location: .ctx/contexts/error-handling.md
-
-[Shows content preview]
-
-Save? [Y/n]
-
-User: y
-
-AI: Saved to .ctx/contexts/error-handling.md
+Created: src/auth.ctx.md (bound to src/auth.ts)
 ```
 
 ---
 
-## Deliberate Mode Examples
+## Capture Integration Examples
 
-### Example 1: From Slack Thread
-
-```
-User: Extract context from that Slack thread about deployment
-
-AI: Accessing Slack via MCP...
-
-[Uses Slack MCP to fetch thread]
-
-Found thread with 15 messages about deployment pipeline.
-
-Key points extracted:
-1. Blue-green deployment strategy
-2. Rollback procedure
-3. Monitoring checklist
-
-Where to save?
-
-1. Global (~/.ctx/contexts/devops/) - Personal reference
-2. Project (.ctx/contexts/deployment.md) - Team knowledge
-3. Local (deploy.ctx.md) - Specific to deploy script
-
-User: 2
-
-AI: Creating project context...
-
-[Shows full content for review]
-
-Does this look correct? Edit or approve.
-
-User: Looks good, save it
-
-AI:
-npx ctx create .ctx/contexts/deployment.md
-[Writes content]
-npx ctx sync
-
-Saved: .ctx/contexts/deployment.md
-```
-
-### Example 2: From URL
+### Session → Save
 
 ```
-User: Save context from this documentation URL
+User: 오늘 세션 내용 저장해줘
 
-AI: Provide the URL to extract context from.
+AI: [Run session-capture]
+    → .ctx/inbox/session/abc123.json
 
-User: https://example.com/api-docs
+    [Extract insights]
 
-AI: [Fetches URL via WebFetch]
+    [Check registry - no related]
 
-Extracted from documentation:
-- API authentication methods
-- Rate limiting rules
-- Endpoint patterns
+    Creating session-2026-01-04.md.
 
-Review the extracted content:
-[Shows content]
-
-Select scope:
-1. Global - Personal API reference
-2. Project - Team API documentation
-3. Local - Specific endpoint context
-
-User: 2, but add the pagination section too
-
-AI: Updated content with pagination section.
-
-[Shows updated content]
-
-Confirm save to .ctx/contexts/api-docs.md? [Y/n]
-
-User: Y
-
-AI: Saved: .ctx/contexts/api-docs.md
-```
-
-### Example 3: Updating Existing Context
-
-```
-User: Update the auth context with the new refresh token flow
-
-AI: Found existing context: .ctx/contexts/auth-patterns.md
-
-Current content:
-[Shows existing content]
-
-Proposed changes:
-[Shows diff with new refresh token flow]
-
-Apply these changes? [Y/n]
-
-User: Y
-
-AI: Updated .ctx/contexts/auth-patterns.md
-Synced registry.
+Created: .ctx/contexts/session-2026-01-04.md
 ```
 
 ---
 
-## Source-Specific Flows
+## Append Strategy
 
-### From Session (Default)
+When adding to existing file:
 
-1. Analyze current conversation
-2. Extract valuable knowledge (patterns, decisions, gotchas)
-3. Summarize into structured content
-4. Propose scope and location
+```markdown
+# Existing content preserved
+...
 
-### From Slack (Requires MCP)
+## New Section (Added: 2026-01-04)
 
-1. Request channel/thread identifier
-2. Fetch messages via Slack MCP
-3. Extract key points and decisions
-4. Present for user review
-5. Save to selected location
+Newly added content
+```
 
-### From URL
-
-1. Request URL
-2. Fetch content via WebFetch
-3. Extract relevant sections
-4. Allow user editing
-5. Save to selected location
-
-### From Clipboard
-
-1. Request user to paste content
-2. Analyze and structure content
-3. Propose scope based on content type
-4. Save after confirmation
-
-### Direct Input
-
-1. Accept natural language description
-2. Structure into context format
-3. Infer appropriate scope
-4. Save with minimal friction
+- Don't touch existing sections
+- Date stamp for tracking
+- Update `keywords` in frontmatter if needed

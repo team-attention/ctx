@@ -143,8 +143,7 @@ export function searchContexts(
   for (const [targetPath, entry] of Object.entries(localRegistry)) {
     const searchText = [
       entry.preview.what,
-      ...entry.preview.when,
-      ...(entry.preview.not_when || []),
+      ...(entry.preview.keywords || []),
       targetPath,
       entry.source,
     ]
@@ -171,8 +170,7 @@ export function searchContexts(
   for (const [documentPath, entry] of Object.entries(globalRegistry)) {
     const searchText = [
       entry.preview.what,
-      ...entry.preview.when,
-      ...(entry.preview.not_when || []),
+      ...(entry.preview.keywords || []),
       documentPath,
       entry.source,
       entry.folder || '',

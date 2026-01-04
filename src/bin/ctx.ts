@@ -14,6 +14,7 @@ import { addPatternCommand } from '../commands/add-pattern.js';
 import { removeCommand } from '../commands/remove.js';
 import { adoptCommand } from '../commands/adopt.js';
 import { loadCommand } from '../commands/load.js';
+import { listCommand } from '../commands/list.js';
 import { saveCommand } from '../commands/save.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -67,12 +68,23 @@ program
 
 program
   .command('status')
-  .description('Show current ctx status (JSON by default)')
+  .description('Show current ctx status (default: project, JSON output)')
   .option('--pretty', 'Human-readable dashboard output')
-  .option('--global', 'Show global registry contexts only')
-  .option('--all', 'Show all registered projects from global index')
+  .option('--global', 'Show global status only')
+  .option('--all', 'Show both project and global status')
   .option('--target <filePath>', 'Show contexts bound to this file (supports glob)')
   .action(statusCommand);
+
+program
+  .command('list')
+  .description('List context files from registry (default: project, JSON output)')
+  .option('--global', 'Show global contexts only')
+  .option('--all', 'Show both project and global contexts')
+  .option('--target <filePath>', 'Show contexts bound to this file (supports glob)')
+  .option('--json', 'Output as JSON (default)')
+  .option('--pretty', 'Human-readable output')
+  .option('--paths', 'Output paths only (newline separated)')
+  .action(listCommand);
 
 program
   .command('add <patterns...>')
@@ -99,10 +111,13 @@ program
   .action(adoptCommand);
 
 program
-  .command('load [keywords...]')
-  .description('Load context files by keywords or auto-match by file path')
-  .option('--target <filePath>', 'File path to match against targets (supports glob)')
-  .option('--json', 'Output as JSON (paths + metadata only, no content)')
+  .command('load')
+  .description('Load context files by keywords or target file path (default: project, JSON output)')
+  .option('-k, --keywords <keywords...>', 'Keywords to search for in context metadata')
+  .option('-t, --target <filePath>', 'File path to match against targets (supports glob)')
+  .option('--global', 'Search global contexts only')
+  .option('--all', 'Search both project and global contexts')
+  .option('--pretty', 'Human-readable markdown output')
   .option('--paths', 'Output paths only (newline separated)')
   .action(loadCommand);
 
@@ -110,9 +125,10 @@ program
   .command('save')
   .description('Save content to a context file (non-interactive)')
   .option('--path <filepath>', 'Path for the context file (required)')
-  .option('--content <text>', 'Content to save (or pipe via stdin)')
+  .option('--content <text>', 'Content to save (required, or pipe via stdin)')
   .option('--what <description>', 'Brief description for frontmatter')
-  .option('--when <keywords>', 'Comma-separated keywords for auto-loading')
+  .option('--keywords <keywords>', 'Comma-separated keywords for auto-loading')
+  .option('--target <pattern>', 'Target file/pattern for frontmatter')
   .option('--global', 'Save to global context (~/.ctx/contexts/)')
   .option('--project', 'Save to project context (.ctx/contexts/)')
   .option('--force', 'Overwrite existing file')

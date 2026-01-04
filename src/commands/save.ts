@@ -5,7 +5,7 @@ import {
   findProjectRoot,
   isGlobalCtxInitialized,
   readProjectRegistry,
-  writeProjectRegistry,
+  writeProjectRegistryWithSync,
   readGlobalCtxRegistry,
   writeGlobalCtxRegistry,
   CONTEXTS_DIR,
@@ -18,18 +18,21 @@ export interface SaveOptions {
   path?: string;
   content?: string;
   what?: string;
-  when?: string; // comma-separated keywords
+  keywords?: string; // comma-separated keywords
+  target?: string; // target file/pattern for frontmatter
   global?: boolean;
   project?: boolean;
   force?: boolean;
 }
 
 /**
- * ctx save - Save content to a context file
+ * ctx save - Save content to a context file (content required)
  *
  * Examples:
- *   ctx save --path .ctx/contexts/auth.md --content "# Auth" --what "Auth patterns" --when "authentication,JWT"
+ *   ctx save --path .ctx/contexts/auth.md --content "# Auth" --what "Auth patterns" --keywords "authentication,JWT"
  *   echo "# Test" | ctx save --path test.md --global
+ *
+ * Note: Use `ctx create` for template-based scaffolding
  */
 export async function saveCommand(options: SaveOptions = {}) {
   try {
@@ -40,7 +43,7 @@ export async function saveCommand(options: SaveOptions = {}) {
       process.exit(1);
     }
 
-    // Get content from --content or stdin
+    // Get content from --content or stdin (required)
     let content = options.content || '';
 
     if (!content) {
@@ -52,8 +55,12 @@ export async function saveCommand(options: SaveOptions = {}) {
     }
 
     if (!content) {
+      // No content provided - error with guidance
       console.error(chalk.red('✗ Error: No content provided'));
       console.log(chalk.gray('  Use --content "..." or pipe content via stdin'));
+      console.log();
+      console.log(chalk.blue('💡 Tip: Use `ctx create` for template-based scaffolding:'));
+      console.log(chalk.gray('  ctx create .ctx/contexts/name.md --what "description"'));
       process.exit(1);
     }
 
@@ -61,30 +68,63 @@ export async function saveCommand(options: SaveOptions = {}) {
     const projectRoot = await findProjectRoot();
     const globalInitialized = await isGlobalCtxInitialized();
 
-    // Determine absolute path
+    // Validate mutually exclusive options
+    if (options.global && options.project) {
+      console.error(chalk.red('✗ Error: --global and --project are mutually exclusive'));
+      process.exit(1);
+    }
+
+    // Validate scope requirements
+    // --project/--global only validate initialization, don't affect path
+    if (options.project && !projectRoot) {
+      console.error(chalk.red('✗ Error: Not in a ctx project.'));
+      console.log(chalk.gray('  Use --global to save to global context, or run \'ctx init .\' to initialize.'));
+      process.exit(1);
+    }
+
+    if (options.global && !globalInitialized) {
+      console.error(chalk.red('✗ Error: Global ctx not initialized.'));
+      console.log(chalk.gray("  Run 'ctx init' first."));
+      process.exit(1);
+    }
+
+    // Determine absolute path from --path
+    // --global/--project flags FORCE the scope, not just validate
     let absolutePath: string;
     const filePath = options.path;
 
-    if (filePath.startsWith('~')) {
-      // Global path like ~/.ctx/contexts/xxx.md
+    if (options.global) {
+      // --global: Force save to global scope
+      if (filePath.startsWith('/') || filePath.startsWith('~')) {
+        // Absolute or home-relative path
+        absolutePath = filePath.startsWith('~')
+          ? filePath.replace('~', process.env.HOME || '')
+          : filePath;
+      } else {
+        // Relative path → relative to ~/.ctx/
+        absolutePath = path.join(getGlobalCtxDir(), filePath);
+      }
+    } else if (options.project) {
+      // --project: Force save to project scope
+      if (filePath.startsWith('/')) {
+        absolutePath = filePath;
+      } else {
+        absolutePath = path.join(projectRoot!, filePath);
+      }
+    } else if (filePath.startsWith('~')) {
+      // No flag, but path starts with ~ → global
       absolutePath = filePath.replace('~', process.env.HOME || '');
     } else if (filePath.startsWith('/')) {
       // Absolute path
       absolutePath = filePath;
-    } else if (options.global && !filePath.includes('/')) {
-      // Just filename with --global flag → save to ~/.ctx/contexts/
-      if (!globalInitialized) {
-        console.error(chalk.red('✗ Error: Global ctx not initialized.'));
-        console.log(chalk.gray("  Run 'ctx init' first."));
-        process.exit(1);
-      }
-      absolutePath = path.join(getGlobalCtxDir(), CONTEXTS_DIR, filePath);
     } else if (projectRoot) {
-      // Relative path in project context
+      // Relative path in project context → relative to project root
       absolutePath = path.join(projectRoot, filePath);
     } else {
-      // Relative to cwd (no project root found)
-      absolutePath = path.resolve(filePath);
+      // No project root and no flag → error
+      console.error(chalk.red('✗ Error: Not in a ctx project.'));
+      console.log(chalk.gray('  Use --global to save to global context, or run \'ctx init .\' to initialize.'));
+      process.exit(1);
     }
 
     // Ensure .md extension
@@ -100,11 +140,12 @@ export async function saveCommand(options: SaveOptions = {}) {
       process.exit(1);
     }
 
-    // Build content with frontmatter if what/when provided
+    // Build final content with frontmatter
     let finalContent = content;
-    if (options.what || options.when) {
-      const frontmatter = buildFrontmatter(options.what, options.when);
+    if (options.what || options.keywords || options.target) {
+      const frontmatter = buildFrontmatter(options.what, options.keywords, options.target);
       if (!content.startsWith('---')) {
+        // Prepend frontmatter to content
         finalContent = frontmatter + '\n' + content;
       }
     }
@@ -126,16 +167,20 @@ export async function saveCommand(options: SaveOptions = {}) {
   }
 }
 
-function buildFrontmatter(what?: string, when?: string): string {
+function buildFrontmatter(what?: string, keywordsStr?: string, target?: string): string {
   const lines = ['---'];
+
+  if (target) {
+    lines.push(`target: ${target}`);
+  }
 
   if (what) {
     lines.push(`what: "${what}"`);
   }
 
-  if (when) {
-    const keywords = when.split(',').map(k => k.trim());
-    lines.push('when:');
+  if (keywordsStr) {
+    const keywords = keywordsStr.split(',').map(k => k.trim());
+    lines.push('keywords:');
     for (const kw of keywords) {
       lines.push(`  - "${kw}"`);
     }
@@ -193,7 +238,7 @@ async function autoRegister(
   // Build preview from options
   const preview: ContextPreview = {
     what: options.what || '',
-    when: options.when ? options.when.split(',').map(k => k.trim()) : [],
+    keywords: options.keywords ? options.keywords.split(',').map(k => k.trim()) : [],
   };
 
   // Check if it's a global context
@@ -205,6 +250,7 @@ async function autoRegister(
 
     const entry: ContextEntry = {
       source: relativePath,
+      target: options.target,
       checksum,
       last_modified: now,
       preview,
@@ -224,6 +270,7 @@ async function autoRegister(
 
     const entry: ContextEntry = {
       source: relativePath,
+      target: options.target,
       checksum,
       last_modified: now,
       preview,
@@ -231,7 +278,7 @@ async function autoRegister(
 
     registry.contexts[relativePath] = entry;
 
-    await writeProjectRegistry(projectRoot, registry);
+    await writeProjectRegistryWithSync(projectRoot, registry);
     console.log(chalk.gray(`  Registered in project registry`));
     return;
   }

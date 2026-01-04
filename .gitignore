@@ -55,3 +55,6 @@ Thumbs.db
 # Example project generated files
 example/.ctx/
 example/pnpm-lock.yaml
+
+# Source capture inbox (temporary, contains raw data)
+**/.ctx/inbox/

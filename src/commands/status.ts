@@ -11,11 +11,18 @@ import { findMatchingContexts, MatchedContext } from '../lib/target-matcher.js';
 
 interface StatusOptions {
   pretty?: boolean;
-  global?: boolean;
-  all?: boolean;
-  target?: string;  // Show contexts bound to this target file (supports glob)
+  global?: boolean;   // Show global status only
+  all?: boolean;      // Show both project and global status
+  target?: string;    // Show contexts bound to this target file (supports glob)
 }
 
+/**
+ * Show current ctx status
+ *
+ * Default: project only
+ * --global: global only
+ * --all: both project and global
+ */
 export async function statusCommand(options: StatusOptions = {}) {
   try {
     const globalInitialized = await isGlobalCtxInitialized();
@@ -27,21 +34,42 @@ export async function statusCommand(options: StatusOptions = {}) {
       return;
     }
 
-    if (!globalInitialized && !projectRoot) {
-      if (options.pretty) {
-        console.log(chalk.yellow('⚠️  CTX not initialized.'));
-        console.log();
-        console.log(chalk.gray('To get started:'));
-        console.log(chalk.gray('  ctx init      # Initialize global context'));
-        console.log(chalk.gray('  ctx init .    # Initialize project context'));
+    // Determine scope
+    let showProject = false;
+    let showGlobal = false;
+
+    if (options.all) {
+      // --all: show both
+      showProject = true;
+      showGlobal = true;
+    } else if (options.global) {
+      // --global: global only
+      showGlobal = true;
+    } else {
+      // Default: project only
+      showProject = true;
+    }
+
+    // Validate scope with global fallback for read commands (CORE_PRINCIPLE #5)
+    let warning: string | undefined;
+
+    if (showProject && !projectRoot) {
+      if (globalInitialized) {
+        // Warning + global fallback
+        warning = 'No project found. Falling back to global status.';
+        showProject = false;
+        showGlobal = true;
       } else {
-        console.log(JSON.stringify({
-          initialized: false,
-          global: null,
-          project: null,
-        }, null, 2));
+        console.error(chalk.red('✗ Error: Not in a ctx project and global ctx not initialized.'));
+        console.log(chalk.gray("  Run 'ctx init' to initialize global, or 'ctx init .' for project."));
+        process.exit(1);
       }
-      return;
+    }
+
+    if (showGlobal && !globalInitialized) {
+      console.error(chalk.red('✗ Error: Global ctx not initialized.'));
+      console.log(chalk.gray("  Run 'ctx init' first."));
+      process.exit(1);
     }
 
     const status: any = {
@@ -51,7 +79,7 @@ export async function statusCommand(options: StatusOptions = {}) {
     };
 
     // Global status
-    if (globalInitialized) {
+    if (showGlobal && globalInitialized) {
       const globalRegistry = await readGlobalCtxRegistry();
       status.global = {
         path: getGlobalCtxDir(),
@@ -62,7 +90,7 @@ export async function statusCommand(options: StatusOptions = {}) {
     }
 
     // Project status
-    if (projectRoot) {
+    if (showProject && projectRoot) {
       const projectRegistry = await readProjectRegistry(projectRoot);
       const contexts = projectRegistry.contexts;
 
@@ -81,8 +109,13 @@ export async function statusCommand(options: StatusOptions = {}) {
     }
 
     if (options.pretty) {
+      if (warning) {
+        console.log();
+        console.log(chalk.yellow(`⚠️  ${warning}`));
+      }
       printPrettyStatus(status, options);
     } else {
+      if (warning) console.error(chalk.yellow(warning));
       console.log(JSON.stringify(status, null, 2));
     }
   } catch (error) {
@@ -107,7 +140,7 @@ function printPrettyStatus(status: any, options: StatusOptions): void {
     console.log(chalk.gray(`  Projects indexed: ${status.global.projectCount}`));
     console.log(chalk.gray(`  Last synced: ${status.global.lastSynced}`));
     console.log();
-  } else {
+  } else if (options.all || options.global) {
     console.log(chalk.yellow('○ Global not initialized'));
     console.log(chalk.gray('  Run `ctx init` to initialize'));
     console.log();
@@ -119,7 +152,7 @@ function printPrettyStatus(status: any, options: StatusOptions): void {
     console.log(chalk.gray(`  Bound contexts: ${status.project.bound}`));
     console.log(chalk.gray(`  Standalone contexts: ${status.project.standalone}`));
     console.log(chalk.gray(`  Last synced: ${status.project.lastSynced}`));
-  } else {
+  } else if (options.all) {
     console.log(chalk.yellow('○ No project context in current directory'));
     console.log(chalk.gray('  Run `ctx init .` to initialize'));
   }
@@ -198,7 +231,7 @@ async function handleTargetStatus(
       source: m.source,
       matchType: m.matchType,
       what: m.preview?.what || null,
-      when: m.preview?.when || null,
+      keywords: m.preview?.keywords || null,
     }));
     console.log(JSON.stringify(output, null, 2));
   }

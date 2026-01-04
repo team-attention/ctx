@@ -8,6 +8,7 @@ Shared CLI reference for CTX plugin skills.
 |---------|-------------|
 | `ctx init` | Initialize context management |
 | `ctx status` | Show context status |
+| `ctx list` | List context files from registry |
 | `ctx sync` | Sync context files to registries |
 | `ctx check` | Check context health/freshness |
 | `ctx create` | Create new context file |
@@ -44,16 +45,20 @@ ctx init .            # Project initialization (.ctx/)
 
 ### ctx status
 
-Show current context status.
+Show current context status. Default scope is project only.
 
 ```bash
-ctx status                      # JSON output (default)
+ctx status                      # Project status (default), JSON output
+ctx status --global             # Global status only
+ctx status --all                # Both project and global
 ctx status --pretty             # Human-readable dashboard
 ctx status --target src/api.ts  # Show contexts for specific file
 ```
 
 | Flag | Description |
 |------|-------------|
+| `--global` | Show global status only |
+| `--all` | Show both project and global status |
 | `--pretty` | Human-readable dashboard output |
 | `--target <filePath>` | Show contexts bound to this file (supports glob) |
 
@@ -61,12 +66,7 @@ ctx status --target src/api.ts  # Show contexts for specific file
 ```json
 {
   "initialized": true,
-  "global": {
-    "path": "/Users/name/.ctx",
-    "contextCount": 5,
-    "projectCount": 3,
-    "lastSynced": "2025-01-03T10:00:00.000Z"
-  },
+  "global": null,
   "project": {
     "path": "/path/to/project",
     "name": "my-project",
@@ -79,7 +79,71 @@ ctx status --target src/api.ts  # Show contexts for specific file
 ```
 
 **Output (--pretty):**
-Human-readable dashboard showing global and project status with context counts.
+Human-readable dashboard showing status with context counts.
+
+---
+
+### ctx list
+
+List context files from registry. Default scope is project only.
+
+```bash
+ctx list                        # Project contexts (default), JSON output
+ctx list --global               # Global contexts only
+ctx list --all                  # Both project and global
+ctx list --target src/api.ts    # Contexts bound to specific file
+ctx list --pretty               # Human-readable output
+ctx list --paths                # Paths only (newline separated)
+```
+
+| Flag | Description |
+|------|-------------|
+| `--global` | Show global contexts only |
+| `--all` | Show both project and global contexts |
+| `--target <filePath>` | Show contexts bound to this file (supports glob) |
+| `--json` | Output as JSON (default) |
+| `--pretty` | Human-readable output |
+| `--paths` | Output paths only (newline separated) |
+
+**Output (JSON, default):**
+```json
+[
+  {
+    "path": ".ctx/contexts/api.md",
+    "what": "API design patterns",
+    "keywords": ["api", "rest"],
+    "target": null,
+    "registry": "project",
+    "type": "standalone"
+  },
+  {
+    "path": "src/auth.ctx.md",
+    "what": "Auth middleware",
+    "keywords": ["auth", "jwt"],
+    "target": "src/auth.ts",
+    "registry": "project",
+    "type": "bound"
+  }
+]
+```
+
+**Output (--pretty):**
+```
+Contexts (2)
+
+Project (2)
+  .ctx/contexts/api.md [standalone]
+    API design patterns
+  src/auth.ctx.md [bound]
+    Auth middleware
+    -> src/auth.ts
+```
+
+**Output (--paths):**
+```
+.ctx/contexts/api.md
+src/auth.ctx.md
+```
 
 ---
 
@@ -120,7 +184,9 @@ ctx check --pretty                 # Human-readable output
 
 | Flag | Description |
 |------|-------------|
+| `--global` | Check only global contexts |
 | `--target <filePath>` | Check only contexts bound to this file (supports glob) |
+| `--fix` | Update registry to match filesystem |
 | `--pretty` | Human-readable output (default is JSON) |
 
 **Checks performed:**
@@ -177,35 +243,27 @@ ctx create --force .ctx/contexts/auth.md
 
 ### ctx load
 
-Load context files by keywords or auto-match by file path.
+Load context files by keywords or target file path. Default scope is project only.
 
 ```bash
-ctx load api auth                # Load by keywords
-ctx load --target src/api.ts     # Match by file path (supports glob)
-ctx load --json                  # Output as JSON (metadata only)
-ctx load --paths                 # Output paths only
+ctx load -k api auth             # Load by keywords (project only)
+ctx load --keywords api auth     # Same as above
+ctx load -t src/api.ts           # Match by file path (supports glob)
+ctx load --target src/api.ts     # Same as above
+ctx load --global -k api         # Search global contexts only
+ctx load --all -k api            # Search both project and global
+ctx load -t src/api.ts --paths   # Output paths only
 ```
 
 | Flag | Description |
 |------|-------------|
-| `--target <filePath>` | File path to match against targets (supports glob) |
-| `--json` | Output as JSON (paths + metadata only, no content) |
+| `-k, --keywords <keywords...>` | Keywords to search for in context metadata |
+| `-t, --target <filePath>` | File path to match against targets (supports glob) |
+| `--global` | Search global contexts only |
+| `--all` | Search both project and global contexts |
 | `--paths` | Output paths only (newline separated) |
 
 **Output (default):** Full content of matched context files.
-
-**Output (--json):**
-```json
-[
-  {
-    "path": ".ctx/contexts/api.md",
-    "what": "API design patterns",
-    "registry": "project",
-    "matchType": "exact",
-    "target": "src/api.ts"
-  }
-]
-```
 
 **Output (--paths):**
 ```
@@ -213,15 +271,22 @@ ctx load --paths                 # Output paths only
 src/auth.ctx.md
 ```
 
+**Note:** For JSON metadata output, use `ctx list` instead.
+
 ---
 
 ### ctx save
 
-Save content to a context file (non-interactive).
+Save content to a context file (non-interactive). Content is required.
+
+> **Note:** Use `ctx create` for template-based scaffolding.
 
 ```bash
-# Save with all options
-ctx save --path src/api.ctx.md --content "..." --what "API patterns" --when "api,routing"
+# Save with content and metadata
+ctx save --path src/api.ctx.md --content "..." --what "API patterns" --keywords "api,routing"
+
+# Save with target binding
+ctx save --path src/auth.ctx.md --content "..." --target src/auth.ts --what "Auth"
 
 # Save to project context
 ctx save --project --path architecture.md --content "..."
@@ -231,14 +296,16 @@ ctx save --global --path typescript-tips.md --content "..."
 
 # Pipe content via stdin
 echo "content" | ctx save --path src/api.ctx.md --what "API patterns"
+cat notes.txt | ctx save --path .ctx/contexts/notes.md
 ```
 
 | Flag | Description |
 |------|-------------|
 | `--path <filepath>` | Path for the context file (required) |
-| `--content <text>` | Content to save (or pipe via stdin) |
+| `--content <text>` | Content to save (required, or pipe via stdin) |
 | `--what <description>` | Brief description for frontmatter |
-| `--when <keywords>` | Comma-separated keywords for auto-loading |
+| `--keywords <keywords>` | Comma-separated keywords for auto-loading |
+| `--target <pattern>` | Target file/pattern for frontmatter |
 | `--global` | Save to global context (`~/.ctx/contexts/`) |
 | `--project` | Save to project context (`.ctx/contexts/`) |
 | `--force` | Overwrite existing file |
@@ -295,7 +362,7 @@ ctx add-pattern --global '**/*.ctx.md' 'Global context pattern'
 
 Adopt existing documents by adding frontmatter.
 
-Automatically adds YAML frontmatter to existing markdown files, making them discoverable as context without manual editing. Generates `what` and `when` fields from filenames and directory structure.
+Automatically adds YAML frontmatter to existing markdown files, making them discoverable as context without manual editing. Generates `what` and `keywords` fields from filenames and directory structure.
 
 ```bash
 ctx adopt <patterns...>           # Adopt documents to project registry
@@ -319,7 +386,7 @@ ctx adopt --global ~/notes/*.md   # Adopt to global registry
 - Skips files that already have frontmatter
 - Skips non-markdown files
 - Skips `.ctx.md` context files
-- Auto-generates `what` and `when` from filename/path
+- Auto-generates `what` and `keywords` from filename/path
 - Automatically registers adopted files to registry
 
 ---
@@ -367,8 +434,9 @@ ctx check --pretty               # See issues
 ### Find context for a file
 
 ```bash
-ctx status --target src/api.ts         # Show metadata
-ctx load --target src/api.ts --json    # JSON output
+ctx status --target src/api.ts         # Show status
+ctx list --target src/api.ts           # List matching contexts (JSON)
+ctx list --target src/api.ts --pretty  # Human-readable list
 ctx load --target src/api.ts --paths   # Paths only
 ctx load --target src/api.ts           # Full content
 ctx check --target src/api.ts          # Check health
@@ -393,7 +461,7 @@ ctx sync --prune                                # Remove unmatched contexts
 
 ```bash
 # In scripts or hooks
-CONTEXTS=$(ctx load --paths api auth)
+CONTEXTS=$(ctx load -k api auth --paths)
 for ctx in $CONTEXTS; do
   cat "$ctx"
 done

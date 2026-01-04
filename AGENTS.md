@@ -4,18 +4,15 @@ Project guide for AI agents working with CTX.
 
 ---
 
+## Core Principles
+
+@shared/CORE_PRINCIPLE.md
+
+---
+
 ## Project Overview
 
 **CTX** is a persistent memory system for AI. Context is auto-loaded, grows over time, and travels with your code.
-
-**Core Philosophy:**
-> Context is the bottleneck, not AI capability.
-
-```
-Human insight  →  Saved as context  →  Auto-loaded when needed
-     ↑                                          │
-     └──────────── Feedback loop ───────────────┘
-```
 
 ---
 
@@ -26,11 +23,7 @@ Human insight  →  Saved as context  →  Auto-loaded when needed
 | **Global** | `~/.ctx/` | Personal patterns, tool settings | Personal (all projects) |
 | **Project** | `.ctx/` + `*.ctx.md` | Team knowledge, architecture | Team (shared via Git) |
 
-**Context distinction (SoT = frontmatter's `target` field):**
-- `target` present → Bound context (linked to specific file)
-- `target` absent → Standalone context (loaded by `when` keywords)
-
-**Priority:** Project (with target) > Project (without target) > Global
+> Context distinction and priority: See CORE_PRINCIPLE.md #7, #8
 
 ---
 
@@ -59,11 +52,20 @@ ctx adopt --global ~/notes/*.md  # Adopt to global registry
 # Manage patterns
 ctx add-pattern <pattern> <purpose>  # Add to context_paths
 
-# Load contexts
-ctx load api auth           # Load by keywords
-ctx load --target src/api.ts   # Match by file path
-ctx load --json             # Output as JSON
-ctx load --paths            # Output paths only
+# List contexts (default: project only)
+ctx list                    # Project contexts (default)
+ctx list --global           # Global only
+ctx list --all              # Both project and global
+ctx list --target src/api.ts   # Match by file path
+ctx list --pretty           # Human-readable output
+ctx list --paths            # Output paths only
+
+# Load contexts (default: project only)
+ctx load -k api auth        # Load by keywords (project only)
+ctx load --global -k api    # Global only
+ctx load --all -k api       # Both project and global
+ctx load -t src/api.ts      # Match by file path
+ctx load -t src/api.ts --paths  # Output paths only
 
 # Save contexts
 ctx save --path <path> --content "..."  # Save content
@@ -76,8 +78,10 @@ ctx sync --global         # Sync global contexts (~/.ctx/)
 ctx sync --rebuild-index  # Rebuild global index
 ctx sync --prune          # Remove entries not matching context_paths
 
-# Status
-ctx status            # JSON output
+# Status (default: project only)
+ctx status            # Project status (default)
+ctx status --global   # Global only
+ctx status --all      # Both project and global
 ctx status --pretty   # Human-readable format
 ctx status --target src/api.ts   # Find context for specific file
 
@@ -86,6 +90,12 @@ ctx check                         # Check context health
 ctx check --target src/api.ts     # Check contexts for specific file
 ctx check --pretty                # Human-readable output
 ```
+
+---
+
+## CLI Design Principles
+
+> See CORE_PRINCIPLE.md #4, #5, #6 for scope defaults, write/read distinction, and output format.
 
 ---
 
@@ -112,12 +122,19 @@ ctx/
 ├── plugin/               # Claude Code plugin
 │   ├── .claude-plugin/
 │   │   └── plugin.json   # Plugin config
+│   ├── .mcp.json         # MCP server config
+│   ├── agents/           # AI Agents (orchestrators)
+│   │   └── ctx-orchestrator/  # Central context orchestrator
 │   ├── skills/           # AI Skills
 │   │   ├── ctx-load/     # Context load skill
-│   │   └── ctx-save/     # Context save skill
+│   │   ├── ctx-save/     # Context save skill
+│   │   └── session-capture/  # Claude session capture
 │   ├── hooks/            # PostToolUse hooks
 │   ├── commands/         # /ctx.* commands
 │   └── shared/           # Shared resources
+│       ├── CLI_REFERENCE.md
+│       ├── CAPTURE_POLICY.md   # Capture security policy
+│       └── INBOX_SCHEMA.md     # Inbox data format
 ├── tests/
 ├── docs/
 └── dist/                 # Build output
@@ -166,13 +183,13 @@ contexts:
     checksum: 'abc123'
     preview:
       what: "System architecture overview"
-      when: ["architecture", "structure", "design"]
+      keywords: ["architecture", "structure", "design"]
   'src/api.ctx.md':
     target: 'src/api.ts'
     checksum: 'def456'
     preview:
       what: "API routing patterns"
-      when: ["api", "routing", "endpoint"]
+      keywords: ["api", "routing", "endpoint"]
 ```
 
 ### Global Registry (`~/.ctx/registry.yaml`)
@@ -184,14 +201,14 @@ contexts:
     checksum: 'xyz789'
     preview:
       what: "Personal coding style"
-      when: ["style", "convention"]
+      keywords: ["style", "convention"]
 
 index:
   'projects/myapp':
     contexts:
       - path: 'src/api.ctx.md'
         what: "API patterns"
-        when: ["api"]
+        keywords: ["api"]
 ```
 
 ---
@@ -226,6 +243,60 @@ allowed-tools: Read, Write, Edit, Bash
 
 ---
 
+## Source Capture System
+
+External data capture and context creation system.
+
+### Overview
+
+```
+/ctx.capture <source>  →  .ctx/inbox/  →  ctx save  →  .ctx/contexts/
+     │                        │                              │
+   Capture               Raw JSON                      Final Markdown
+```
+
+### Components
+
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| **ctx-orchestrator Agent** | `plugin/agents/ctx-orchestrator/` | Central orchestrator for all context operations |
+| **session-capture Skill** | `plugin/skills/session-capture/` | Capture Claude Code sessions |
+| **/ctx.capture Command** | `plugin/commands/ctx.capture.md` | User entry point |
+
+### Usage
+
+```bash
+# Session capture
+/ctx.capture session              # Today's sessions
+/ctx.capture session terraform    # Filter by keyword
+/ctx.capture session --save       # Auto-save without review
+```
+
+### Inbox
+
+Captured data is temporarily stored in `.ctx/inbox/`:
+
+```
+.ctx/inbox/
+└── session/<run_id>.json
+```
+
+- **Git-ignored**: `**/.ctx/inbox/` in `.gitignore`
+- **Auto-cleanup**: 7 days retention
+- **Schema**: See `plugin/shared/INBOX_SCHEMA.md`
+
+### Policies
+
+Security and privacy policies in `plugin/shared/CAPTURE_POLICY.md`:
+
+| Policy | Description |
+|--------|-------------|
+| **Scope** | Default: current project only |
+| **Redaction** | Auto-mask API keys, tokens, secrets |
+| **Provenance** | Track source info in frontmatter |
+
+---
+
 ## Common Mistakes
 
 ### 1. Forgetting to sync
@@ -243,7 +314,7 @@ Registry is auto-generated by `ctx sync`. Never edit manually.
 
 Distinction is based on **`target` field presence, not file location**:
 - `target` present → Bound (auto-loaded when reading that file)
-- `target` absent → Standalone (loaded by `when` keyword matching)
+- `target` absent → Standalone (loaded by `keywords` matching)
 
 ---
 
@@ -282,8 +353,8 @@ This must pass before PR. (typecheck → build → test)
 
 If you added/modified CLI commands or options:
 
-- [ ] Update `docs/cli-reference.md`
-- [ ] Update `plugin/shared/cli-reference.md`
+- [ ] Update `docs/CLI_REFERENCE.md`
+- [ ] Update `plugin/shared/CLI_REFERENCE.md`
 - [ ] Check `plugin/skills/ctx-load/SKILL.md` CLI Reference section
 - [ ] Check `plugin/skills/ctx-save/SKILL.md` CLI Reference section
 - [ ] Check `AGENTS.md` CLI commands section
@@ -301,7 +372,7 @@ Ensure these files maintain consistency:
 
 | Change | Files to update |
 |--------|-----------------|
-| CLI commands/options | `docs/cli-reference.md`, `plugin/shared/cli-reference.md`, `AGENTS.md` |
+| CLI commands/options | `docs/CLI_REFERENCE.md`, `plugin/shared/CLI_REFERENCE.md`, `AGENTS.md` |
 | 2-Level structure | `README.md`, `AGENTS.md`, `docs/RFC-*.md` |
 | Plugin structure | `plugin/.claude-plugin/plugin.json`, `AGENTS.md` |
 | Add skill | `plugin/skills/*/SKILL.md`, `AGENTS.md` project structure |
@@ -318,8 +389,12 @@ Ensure these files maintain consistency:
 | Document | Description |
 |----------|-------------|
 | `README.md` | User guide |
-| `docs/cli-reference.md` | CLI command reference |
-| `docs/RFC-3-level-context-system.md` | Design document |
+| `docs/CLI_REFERENCE.md` | CLI command reference |
+| `docs/RFC-3-level-context-system.md` | Context system design |
+| `docs/RFC-source-capture-system.md` | Source capture design |
 | `docs/REFACTORING-PLAN.md` | Refactoring plan |
-| `plugin/shared/cli-reference.md` | Plugin CLI reference |
+| `plugin/shared/CLI_REFERENCE.md` | Plugin CLI reference |
+| `plugin/shared/CAPTURE_POLICY.md` | Capture security policy |
+| `plugin/shared/INBOX_SCHEMA.md` | Inbox data format |
 | `plugin/skills/*/SKILL.md` | Individual skill guides |
+| `plugin/agents/*/AGENT.md` | Individual agent guides |

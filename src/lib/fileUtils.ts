@@ -5,7 +5,11 @@ import os from 'os';
 // New 3-level constants
 const CTX_DIR = '.ctx';
 const REGISTRY_FILE = 'registry.yaml';
-const GLOBAL_CTX_DIR = path.join(os.homedir(), CTX_DIR);
+
+/** Get global ctx directory (uses current HOME, not cached) */
+function getGlobalCtxDir(): string {
+  return path.join(os.homedir(), CTX_DIR);
+}
 
 /**
  * Check if a file or directory exists
@@ -41,7 +45,7 @@ export async function isProjectInitialized(projectRoot?: string): Promise<boolea
  * Check if global ctx is initialized (~/.ctx/registry.yaml exists)
  */
 export async function isGlobalInitialized(): Promise<boolean> {
-  const registryPath = path.join(GLOBAL_CTX_DIR, REGISTRY_FILE);
+  const registryPath = path.join(getGlobalCtxDir(), REGISTRY_FILE);
   return fileExists(registryPath);
 }
 

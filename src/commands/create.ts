@@ -14,9 +14,9 @@ import {
   isGlobalCtxInitialized,
   readProjectRegistry,
   writeProjectRegistry,
+  writeProjectRegistryWithSync,
   readGlobalCtxRegistry,
   writeGlobalCtxRegistry,
-  updateGlobalIndex,
   getGlobalCtxDir,
 } from '../lib/registry.js';
 import { ContextEntry, ContextPathConfig } from '../lib/types.js';
@@ -215,12 +215,12 @@ async function registerContext(
   const now = new Date().toISOString();
 
   // Extract preview from content
-  let preview: { what: string; when: string[] };
+  let preview: { what: string; keywords: string[] };
   try {
     const extracted = extractPreviewFromGlobal(content);
-    preview = extracted || { what: 'TODO: Fill in', when: [] };
+    preview = extracted || { what: 'TODO: Fill in', keywords: [] };
   } catch {
-    preview = { what: 'TODO: Fill in', when: [] };
+    preview = { what: 'TODO: Fill in', keywords: [] };
   }
 
   const entry: ContextEntry = {
@@ -239,12 +239,6 @@ async function registerContext(
     const projectRoot = (await findProjectRoot())!;
     const registry = await readProjectRegistry(projectRoot);
     registry.contexts[contextPath] = entry;
-    await writeProjectRegistry(projectRoot, registry);
-
-    // Update global index if global is initialized
-    const globalInitialized = await isGlobalCtxInitialized();
-    if (globalInitialized) {
-      await updateGlobalIndex(projectRoot);
-    }
+    await writeProjectRegistryWithSync(projectRoot, registry);
   }
 }

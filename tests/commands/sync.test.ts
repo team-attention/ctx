@@ -31,7 +31,7 @@ describe('sync command (3-level system)', () => {
       await testEnv.createFile('src/test.ctx.md', `---
 target: /src/test.ts
 what: Test module
-when:
+keywords:
   - testing
 ---
 
@@ -50,13 +50,13 @@ when:
       await testEnv.createFile('src/a.ctx.md', `---
 target: /src/a.ts
 what: A
-when: [test]
+keywords: [test]
 ---
 `);
       await testEnv.createFile('src/b.ctx.md', `---
 target: /src/b.ts
 what: B
-when: [test]
+keywords: [test]
 ---
 `);
 

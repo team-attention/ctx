@@ -37,8 +37,7 @@ function parseMarkdownContext(content: string): ContextFile {
       },
       frontmatter: {
         what: data.what || '',
-        when: data.when || [],
-        not_when: data.not_when,
+        keywords: data.keywords || [],
         future: data.future,
       },
       content: body.trim(),
@@ -62,8 +61,7 @@ function parseYAMLContext(content: string): ContextFile {
       },
       frontmatter: {
         what: parsed.what || '',
-        when: parsed.when || [],
-        not_when: parsed.not_when,
+        keywords: parsed.keywords || [],
         future: parsed.future,
       },
       content: '', // YAML format has no body content
@@ -94,12 +92,10 @@ export function validateContextFile(context: ContextFile): { valid: boolean; err
     errors.push('Missing required field: what');
   }
 
-  // Check frontmatter.when
-  if (!context.frontmatter?.when || !Array.isArray(context.frontmatter.when) || context.frontmatter.when.length === 0) {
-    errors.push('Missing or empty required field: when');
+  // Check frontmatter.keywords
+  if (!context.frontmatter?.keywords || !Array.isArray(context.frontmatter.keywords) || context.frontmatter.keywords.length === 0) {
+    errors.push('Missing or empty required field: keywords');
   }
-
-  // not_when is optional
 
   return {
     valid: errors.length === 0,
@@ -113,8 +109,7 @@ export function validateContextFile(context: ContextFile): { valid: boolean; err
 export function extractPreviewFromLocal(context: ContextFile): ContextPreview {
   return {
     what: context.frontmatter.what,
-    when: context.frontmatter.when,
-    not_when: context.frontmatter.not_when,
+    keywords: context.frontmatter.keywords,
   };
 }
 
@@ -126,7 +121,7 @@ export function extractPreviewFromGlobal(markdown: string): ContextPreview | nul
     const { data } = matter(markdown);
 
     // Validate required fields
-    if (!data.when || !Array.isArray(data.when) || data.when.length === 0) {
+    if (!data.keywords || !Array.isArray(data.keywords) || data.keywords.length === 0) {
       return null;
     }
     if (!data.what || typeof data.what !== 'string' || data.what.trim() === '') {
@@ -135,8 +130,7 @@ export function extractPreviewFromGlobal(markdown: string): ContextPreview | nul
 
     return {
       what: data.what,
-      when: data.when,
-      not_when: data.not_when || undefined,
+      keywords: data.keywords,
     };
   } catch (error) {
     return null;
