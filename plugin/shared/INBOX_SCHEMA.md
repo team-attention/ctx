@@ -240,4 +240,4 @@ ctx inbox migrate --from 1.0 --to 2.0
 ## References
 
 - [RFC: Source Capture System](../../../docs/RFC-source-capture-system.md)
-- [Capture Policy](./capture-policy.md)
+- [Capture Policy](./CAPTURE_POLICY.md)

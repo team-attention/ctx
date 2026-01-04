@@ -6,7 +6,7 @@ Project guide for AI agents working with CTX.
 
 ## Core Principles
 
-@CORE_PRINCIPLE.md
+@shared/CORE_PRINCIPLE.md
 
 ---
 
@@ -124,7 +124,7 @@ ctx/
 │   │   └── plugin.json   # Plugin config
 │   ├── .mcp.json         # MCP server config
 │   ├── agents/           # AI Agents (orchestrators)
-│   │   └── ctx-capture/  # Source capture orchestrator
+│   │   └── ctx-orchestrator/  # Central context orchestrator
 │   ├── skills/           # AI Skills
 │   │   ├── ctx-load/     # Context load skill
 │   │   ├── ctx-save/     # Context save skill
@@ -132,9 +132,9 @@ ctx/
 │   ├── hooks/            # PostToolUse hooks
 │   ├── commands/         # /ctx.* commands
 │   └── shared/           # Shared resources
-│       ├── cli-reference.md
-│       ├── capture-policy.md   # Capture security policy
-│       └── inbox-schema.md     # Inbox data format
+│       ├── CLI_REFERENCE.md
+│       ├── CAPTURE_POLICY.md   # Capture security policy
+│       └── INBOX_SCHEMA.md     # Inbox data format
 ├── tests/
 ├── docs/
 └── dist/                 # Build output
@@ -259,7 +259,7 @@ External data capture and context creation system.
 
 | Component | Location | Purpose |
 |-----------|----------|---------|
-| **ctx-capture Agent** | `plugin/agents/ctx-capture/` | Orchestrate multi-source capture |
+| **ctx-orchestrator Agent** | `plugin/agents/ctx-orchestrator/` | Central orchestrator for all context operations |
 | **session-capture Skill** | `plugin/skills/session-capture/` | Capture Claude Code sessions |
 | **/ctx.capture Command** | `plugin/commands/ctx.capture.md` | User entry point |
 
@@ -283,11 +283,11 @@ Captured data is temporarily stored in `.ctx/inbox/`:
 
 - **Git-ignored**: `**/.ctx/inbox/` in `.gitignore`
 - **Auto-cleanup**: 7 days retention
-- **Schema**: See `plugin/shared/inbox-schema.md`
+- **Schema**: See `plugin/shared/INBOX_SCHEMA.md`
 
 ### Policies
 
-Security and privacy policies in `plugin/shared/capture-policy.md`:
+Security and privacy policies in `plugin/shared/CAPTURE_POLICY.md`:
 
 | Policy | Description |
 |--------|-------------|
@@ -353,8 +353,8 @@ This must pass before PR. (typecheck → build → test)
 
 If you added/modified CLI commands or options:
 
-- [ ] Update `docs/cli-reference.md`
-- [ ] Update `plugin/shared/cli-reference.md`
+- [ ] Update `docs/CLI_REFERENCE.md`
+- [ ] Update `plugin/shared/CLI_REFERENCE.md`
 - [ ] Check `plugin/skills/ctx-load/SKILL.md` CLI Reference section
 - [ ] Check `plugin/skills/ctx-save/SKILL.md` CLI Reference section
 - [ ] Check `AGENTS.md` CLI commands section
@@ -372,7 +372,7 @@ Ensure these files maintain consistency:
 
 | Change | Files to update |
 |--------|-----------------|
-| CLI commands/options | `docs/cli-reference.md`, `plugin/shared/cli-reference.md`, `AGENTS.md` |
+| CLI commands/options | `docs/CLI_REFERENCE.md`, `plugin/shared/CLI_REFERENCE.md`, `AGENTS.md` |
 | 2-Level structure | `README.md`, `AGENTS.md`, `docs/RFC-*.md` |
 | Plugin structure | `plugin/.claude-plugin/plugin.json`, `AGENTS.md` |
 | Add skill | `plugin/skills/*/SKILL.md`, `AGENTS.md` project structure |
@@ -389,12 +389,12 @@ Ensure these files maintain consistency:
 | Document | Description |
 |----------|-------------|
 | `README.md` | User guide |
-| `docs/cli-reference.md` | CLI command reference |
+| `docs/CLI_REFERENCE.md` | CLI command reference |
 | `docs/RFC-3-level-context-system.md` | Context system design |
 | `docs/RFC-source-capture-system.md` | Source capture design |
 | `docs/REFACTORING-PLAN.md` | Refactoring plan |
-| `plugin/shared/cli-reference.md` | Plugin CLI reference |
-| `plugin/shared/capture-policy.md` | Capture security policy |
-| `plugin/shared/inbox-schema.md` | Inbox data format |
+| `plugin/shared/CLI_REFERENCE.md` | Plugin CLI reference |
+| `plugin/shared/CAPTURE_POLICY.md` | Capture security policy |
+| `plugin/shared/INBOX_SCHEMA.md` | Inbox data format |
 | `plugin/skills/*/SKILL.md` | Individual skill guides |
 | `plugin/agents/*/AGENT.md` | Individual agent guides |

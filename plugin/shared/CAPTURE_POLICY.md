@@ -216,4 +216,4 @@ captured_from:
 ## References
 
 - [RFC: Source Capture System](../../../docs/RFC-source-capture-system.md)
-- [Inbox Schema](./inbox-schema.md)
+- [Inbox Schema](./INBOX_SCHEMA.md)
