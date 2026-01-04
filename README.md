@@ -6,7 +6,7 @@
 
 Context that loads automatically, grows over time, and travels with your code.
 
-[Philosophy](#philosophy) · [Installation](#installation) · [Quick Start](#quick-start) · [How It Works](#how-it-works)
+[Philosophy](#philosophy) · [Quick Start](#quick-start) · [Talk to AI](#talk-to-ai) · [How It Works](#how-it-works)
 
 </div>
 
@@ -18,7 +18,7 @@ Context that loads automatically, grows over time, and travels with your code.
 
 AI models are powerful, but they start every session blank. They don't know *your* patterns, *your* decisions, or *your* standards. You end up repeating yourself. Every. Single. Time.
 
-**ctx** fixes this with one simple idea:
+**ctx** fixes this:
 
 ```
 Human insight  →  Saved as context  →  Auto-loaded when needed
@@ -28,119 +28,99 @@ Human insight  →  Saved as context  →  Auto-loaded when needed
 
 Every correction, every pattern, every "no, we do it this way" — captured once, loaded forever.
 
-**The result:** AI that remembers.
+### AI-First Design
+
+**ctx** is designed to be used through AI, not by humans directly.
+
+```
+You  →  Talk to AI  →  AI uses ctx CLI  →  Context managed
+         (natural)      (automated)         (persistent)
+```
+
+You describe what you want in plain language. AI handles the rest.
 
 ---
-
-## The Problem
-
-You've been here:
-
-```
-You: "Add a new API endpoint"
-AI: *ignores your patterns*
-You: "No, we use Zod for validation..."
-AI: *rewrites*
-You: "And we wrap responses in ApiResponse..."
-AI: *rewrites again*
-
-Next session: repeat from scratch.
-```
-
-## The Solution
-
-**ctx** is a context management system with 3 levels of memory:
-
-```
-Global   ~/.ctx/              Your personal patterns (all projects)
-Project  .ctx/                Team knowledge (shared via Git)
-Local    *.ctx.md             File-specific context (right next to code)
-```
-
-Context **auto-loads** when you read files. No manual loading. No commands to remember.
-
----
-
-## Installation
-
-```bash
-npm install -g @11x-lab/ctx
-```
 
 ## Quick Start
 
 ```bash
-# 1. Initialize global context (once per machine)
-ctx init
-
-# 2. Initialize project context
 cd your-project
-ctx init .
-
-# 3. Add existing docs as context
-ctx add docs/**/*.md
-
-# 4. Create file-specific context
-ctx create src/api/routes.ts
+npx @team-attention/ctx init .
 ```
 
-That's it. Context auto-loads when AI reads your files.
+That's it. Now just talk to your AI:
+
+```
+"Save our API validation pattern as context"
+"Load context related to authentication"
+"What contexts do we have for this project?"
+```
+
+---
+
+## Talk to AI
+
+Here's how to use ctx through natural conversation:
+
+### Save Context
+
+When AI does something right, or you teach it a pattern:
+
+```
+"Save this as context so you remember next time"
+"Remember: we always use Zod for validation in this project"
+"Create a context for our API response patterns"
+```
+
+### Load Context
+
+When you need specific knowledge:
+
+```
+"Load context about authentication"
+"What do we have documented about the API?"
+"Find context related to testing patterns"
+```
+
+### Manage Context
+
+```
+"Show me all contexts in this project"
+"Check if our contexts are healthy"
+"Sync the context registry"
+```
+
+### Capture Knowledge
+
+```
+"Save what we learned in this session as context"
+"Capture our discussion about error handling"
+```
 
 ---
 
 ## How It Works
 
-### 3-Level Context System
+### 2-Level Context System
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    3-Level Hierarchy                        │
+│                      2-Level Hierarchy                       │
 ├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  Global (~/.ctx/)                              [Personal]   │
-│  └─ Your coding style, tool preferences, patterns          │
-│  └─ Applies to ALL projects                                │
-│  └─ Not in Git (machine-specific)                          │
-│                                                             │
-│  Project (.ctx/)                               [Team]       │
-│  └─ Architecture, API patterns, business logic             │
-│  └─ Shared via Git                                         │
-│  └─ New teammate? Clone and go.                            │
-│                                                             │
-│  Local (*.ctx.md)                              [File]       │
-│  └─ File-specific context, right next to the code          │
-│  └─ src/api.ctx.md → loaded when reading src/api.ts        │
-│                                                             │
-│  Priority: Local > Project > Global                         │
-│  (More specific wins)                                       │
+│                                                              │
+│  Global (~/.ctx/)                               [Personal]   │
+│  └─ Your coding style, tool preferences, patterns           │
+│  └─ Applies to ALL projects                                  │
+│  └─ Not in Git (machine-specific)                            │
+│                                                              │
+│  Project (.ctx/ + *.ctx.md)                     [Team]       │
+│  └─ Architecture, API patterns, business logic               │
+│  └─ Shared via Git                                           │
+│  └─ New teammate? Clone and go.                              │
+│                                                              │
+│  Priority: Project > Global                                  │
+│  (More specific wins)                                        │
 └─────────────────────────────────────────────────────────────┘
-```
-
-### Directory Structure
-
-```
-~/.ctx/                          # Global (personal)
-├── registry.yaml                # Context index
-└── contexts/
-    ├── coding-style.md          # Your patterns
-    ├── typescript.md            # TS preferences
-    └── tools/
-        └── docker.md            # Tool-specific knowledge
-
-your-project/
-├── .ctx/                        # Project (team-shared, in Git)
-│   ├── registry.yaml            # Context index
-│   └── contexts/
-│       ├── architecture.md      # System design
-│       └── api-patterns.md      # API conventions
-├── src/
-│   ├── api.ts
-│   ├── api.ctx.md               # Local: api.ts specific
-│   └── utils/
-│       ├── ctx.md               # Local: utils/ folder
-│       └── helpers.ts
-└── docs/
-    └── api-guide.md             # Can be added as context
 ```
 
 ### Auto-Load Magic
@@ -149,14 +129,13 @@ When AI reads a file, matching contexts load automatically:
 
 ```
 AI reads: src/api.ts
-
-Auto-loaded (if target matches):
-  1. src/api.ctx.md           (exact match)
-  2. .ctx/contexts/ts.md      (glob: src/**/*.ts)
-  3. ~/.ctx/contexts/api.md   (glob: **/api.ts)
+    ↓
+Hook triggers: ctx load --target src/api.ts
+    ↓
+Matching contexts injected into conversation
 ```
 
-No commands. No manual loading. Just works.
+No commands. No manual loading. Context finds you.
 
 ### Context File Format
 
@@ -164,6 +143,7 @@ No commands. No manual loading. Just works.
 ---
 target: src/api/**/*.ts
 what: API routing patterns and conventions
+keywords: [api, routing, validation]
 ---
 
 ## Validation
@@ -171,166 +151,32 @@ Always use Zod schemas. Never trust raw input.
 
 ## Response Format
 Wrap all responses in `ApiResponse<T>`.
-
-## Error Handling
-Use `AppError` class for consistent error responses.
 ```
 
-The `target` field enables auto-loading. Without it, the context is still searchable but won't auto-load.
+The `target` field enables auto-loading. The `keywords` field enables search.
 
 ---
 
-## Commands
-
-### CLI
-
-```bash
-# ─────────────────────────────────────
-# Initialize
-# ─────────────────────────────────────
-ctx init                    # Create ~/.ctx/ (global, once per machine)
-ctx init .                  # Create .ctx/ (project)
-
-# ─────────────────────────────────────
-# Register/Unregister Context
-# ─────────────────────────────────────
-ctx add <path>              # Register file(s) as context
-ctx add docs/**/*.md        # Glob patterns supported
-ctx add --global <path>     # Add to global registry
-
-ctx remove <path>           # Unregister from context
-ctx remove docs/old/**      # Glob patterns supported
-
-# ─────────────────────────────────────
-# Create Context
-# ─────────────────────────────────────
-ctx create <path>           # Create context file at path
-ctx create src/api.ctx.md --target src/api.ts  # With target binding
-ctx create --global <path>  # Create global context
-
-# ─────────────────────────────────────
-# Load Context
-# ─────────────────────────────────────
-ctx load api auth           # Load by keywords
-ctx load --target <path>    # Get matching contexts for a file
-ctx load --json             # Output as JSON (metadata only)
-ctx load --paths            # Output paths only
-
-# ─────────────────────────────────────
-# Save Context
-# ─────────────────────────────────────
-ctx save --path <path> --content "..."  # Save content to context
-ctx save --project --path <name> ...    # Save to .ctx/contexts/
-ctx save --global --path <name> ...     # Save to ~/.ctx/contexts/
-
-# ─────────────────────────────────────
-# Adopt Existing Docs
-# ─────────────────────────────────────
-ctx adopt docs/**/*.md      # Add frontmatter to existing docs
-ctx adopt --global ~/notes/*.md  # Adopt to global registry
-
-# ─────────────────────────────────────
-# Manage Patterns
-# ─────────────────────────────────────
-ctx add-pattern <pattern> <purpose>  # Add to context_paths
-
-# ─────────────────────────────────────
-# Sync & Check
-# ─────────────────────────────────────
-ctx sync                    # Sync project registry
-ctx sync --global           # Sync global registry only
-ctx sync --prune            # Remove entries not matching context_paths
-ctx check                   # Health check
-ctx check --pretty          # Human-readable output
-
-# ─────────────────────────────────────
-# Status
-# ─────────────────────────────────────
-ctx status                  # Show project contexts (JSON)
-ctx status --pretty         # Human-readable dashboard
-ctx status --target <path>  # Show contexts for specific file
+## Directory Structure
 
 ```
+~/.ctx/                          # Global (personal, not in Git)
+├── registry.yaml
+└── contexts/
+    └── coding-style.md
 
-### AI Skills (Claude Code Plugin)
-
-```bash
-/ctx.save [message]         # Save context from session/input
-                            # AI suggests scope and location
-
-/ctx.load [keywords]        # Search and load contexts
-                            # "auth jwt" → finds auth-related contexts
-
-/ctx.sync                   # Sync registries
-/ctx.status                 # Show context status
+your-project/
+├── .ctx/                        # Project (team-shared, in Git)
+│   ├── registry.yaml
+│   └── contexts/
+│       ├── architecture.md
+│       └── api-patterns.md
+├── src/
+│   ├── api.ts
+│   └── api.ctx.md               # File-specific context
+└── docs/
+    └── api-guide.md             # Can be added as context
 ```
-
----
-
-## Registry (No Config Needed)
-
-**ctx** uses a single `registry.yaml` per scope. No separate config file.
-
-```yaml
-# .ctx/registry.yaml (Project)
-meta:
-  version: "1.0.0"
-  last_synced: "2025-12-30T10:00:00Z"
-
-settings:
-  context_paths:
-    - path: '.ctx/contexts/'
-      purpose: "Project architecture and patterns"
-    - path: 'docs/'
-      purpose: "API documentation"
-
-contexts:
-  # Project context (no target = won't auto-load)
-  '.ctx/contexts/architecture.md':
-    checksum: abc123
-    what: "System architecture overview"
-
-  # Local context (has target = auto-loads)
-  'src/api.ctx.md':
-    target: 'src/api.ts'
-    checksum: def456
-    what: "API routing patterns"
-
-  # Glob target (auto-loads for matching files)
-  '.ctx/contexts/test-guide.md':
-    target: '**/*.test.ts'
-    checksum: ghi789
-    what: "Testing conventions"
-```
-
-### Why No Config?
-
-| Old (config.yaml) | New (registry only) |
-|-------------------|---------------------|
-| `contexts.include` patterns | `ctx add docs/**/*.md` |
-| `contexts.ignore` patterns | Just don't add them |
-| `frontmatter.mode` | Frontmatter is always required |
-| Separate config + registry | Single registry.yaml |
-
-Simpler. Explicit. Predictable.
-
----
-
-## Auto-Load Hook
-
-The Claude Code plugin includes a hook that auto-loads context:
-
-```
-AI calls Read("src/api.ts")
-    ↓
-PostToolUse hook triggers
-    ↓
-ctx load --target src/api.ts
-    ↓
-Matching contexts injected into conversation
-```
-
-This is the core value: **context finds you, not the other way around.**
 
 ---
 
@@ -338,9 +184,8 @@ This is the core value: **context finds you, not the other way around.**
 
 ```
 ~/.ctx/                  ❌ Not in Git (personal)
-.ctx/registry.yaml       ✅ In Git (team-shared)
-.ctx/contexts/**         ✅ In Git (team-shared)
-**/*.ctx.md              ✅ In Git (team-shared)
+.ctx/                    ✅ In Git (team-shared)
+*.ctx.md                 ✅ In Git (team-shared)
 ```
 
 New teammate joins?
@@ -351,45 +196,22 @@ git clone <repo>
 
 ---
 
-## Plugin Structure
+## For Advanced Users
 
-```
-ctx/
-├── src/                      # CLI
-│   └── commands/
-│       ├── init.ts
-│       ├── add.ts
-│       ├── add-pattern.ts
-│       ├── adopt.ts
-│       ├── remove.ts
-│       ├── create.ts
-│       ├── load.ts
-│       ├── save.ts
-│       ├── sync.ts
-│       ├── check.ts
-│       └── status.ts
-│
-└── plugin/                   # Claude Code Plugin
-    ├── skills/
-    │   ├── ctx-save/
-    │   │   └── SKILL.md      # /ctx.save
-    │   └── ctx-load/
-    │       └── SKILL.md      # /ctx.load
-    └── hooks/
-        └── auto-load-context.sh  # PostToolUse(Read)
-```
+Need direct CLI access? See [CLI Reference](docs/CLI_REFERENCE.md).
 
-Install plugin after `ctx init`:
-```bash
-claude plugins install ctx
-```
+Common scenarios:
+- CI/CD automation
+- Bulk operations
+- Debugging context issues
+- Scripting
 
 ---
 
 <div align="center">
 
-**Stop repeating yourself. Let context load itself.**
+**Stop repeating yourself. Just talk to AI.**
 
-MIT License · [GitHub](https://github.com/11x-lab/ctx)
+MIT License · [GitHub](https://github.com/team-attention/ctx)
 
 </div>

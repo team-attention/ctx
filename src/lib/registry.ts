@@ -7,7 +7,6 @@ import { UnifiedRegistry, ProjectIndexEntry } from './types.js';
 // 3-level constants
 export const CTX_DIR = '.ctx';
 export const REGISTRY_FILE = 'registry.yaml';
-export const CONTEXTS_DIR = 'contexts';
 
 /**
  * Get global ctx directory path (~/.ctx/)

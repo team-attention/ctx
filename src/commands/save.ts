@@ -8,7 +8,6 @@ import {
   writeProjectRegistryWithSync,
   readGlobalCtxRegistry,
   writeGlobalCtxRegistry,
-  CONTEXTS_DIR,
   getGlobalCtxDir,
 } from '../lib/registry.js';
 import { ContextEntry, ContextPreview } from '../lib/types.js';
