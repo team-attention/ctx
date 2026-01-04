@@ -164,7 +164,7 @@ pnpm typecheck        # Type check only (no build)
 ```bash
 # Build and run locally
 pnpm build
-npx ctx status
+ctx status
 
 # Or run directly with tsx
 pnpm tsx src/bin/ctx.ts status
@@ -322,17 +322,17 @@ Distinction is based on **`target` field presence, not file location**:
 
 ```bash
 # Check current status
-npx ctx status --pretty
+ctx status --pretty
 
 # Inspect registry directly
 cat .ctx/registry.yaml
 cat ~/.ctx/registry.yaml
 
 # Health check
-npx ctx check --pretty
+ctx check --pretty
 
 # Find context for specific file
-npx ctx status --target src/api.ts
+ctx status --target src/api.ts
 ```
 
 ---

@@ -59,7 +59,7 @@ First token analysis:
 
 1. **Search for target in registry**:
    ```bash
-   npx ctx status --target [targetPath]
+   ctx status --target [targetPath]
    ```
 
 2. **Parse JSON response**:
@@ -83,7 +83,7 @@ First token analysis:
 **Run check for contexts:**
 
 ```bash
-npx ctx check
+ctx check
 ```
 
 This verifies the registry is in sync with filesystem.
@@ -110,7 +110,7 @@ When no path is provided, use semantic analysis:
 
 2. **Get current context status**:
    ```bash
-   npx ctx status
+   ctx status
    ```
 
 3. **Present options to the user**:
@@ -128,14 +128,14 @@ When no path is provided, use semantic analysis:
 
 ### CREATE Mode (context file does NOT exist)
 
-**Use `npx ctx create` to generate the context file from the project's template:**
+**Use `ctx create` to generate the context file from the project's template:**
 
 ```bash
 # For local context
-npx ctx create [target-path] --force
+ctx create [target-path] --force
 
 # For global context
-npx ctx create --global [topic-name] --force
+ctx create --global [topic-name] --force
 ```
 
 This creates a properly structured context file using the project's configured templates. The template structure may vary based on user customization.
@@ -176,10 +176,10 @@ This creates a properly structured context file using the project's configured t
 
 ```bash
 # For local scope
-npx ctx sync --local
+ctx sync --local
 
 # For global scope
-npx ctx sync --global
+ctx sync --global
 ```
 
 ### Handle Results
@@ -223,7 +223,7 @@ npx ctx sync --global
 
 # Important Rules
 
-1. **Use `npx ctx create` for new contexts** - Never hardcode context structure; always use the CLI to generate from templates
+1. **Use `ctx create` for new contexts** - Never hardcode context structure; always use the CLI to generate from templates
 
 2. **Read the created file** - After `ctx create`, read the file to see the actual template structure (may be customized by user)
 

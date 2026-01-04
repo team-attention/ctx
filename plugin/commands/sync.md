@@ -21,11 +21,11 @@ Run the CLI command based on arguments:
 ```bash
 # Parse $ARGUMENTS
 if [[ "$ARGUMENTS" == *"--rebuild-index"* ]]; then
-  npx ctx sync --rebuild-index
+  ctx sync --rebuild-index
 elif [[ "$ARGUMENTS" == *"--global"* ]]; then
-  npx ctx sync --global
+  ctx sync --global
 else
-  npx ctx sync
+  ctx sync
 fi
 ```
 

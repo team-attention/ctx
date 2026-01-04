@@ -42,13 +42,13 @@ Use `ctx list` to get context metadata:
 
 ```bash
 # Project contexts only (default)
-npx ctx list
+ctx list
 
 # Both project and global
-npx ctx list --all
+ctx list --all
 
 # For specific target file
-npx ctx list --target src/api.ts
+ctx list --target src/api.ts
 ```
 
 **JSON Output Format:**

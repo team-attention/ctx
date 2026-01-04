@@ -73,8 +73,8 @@ export class ClaudeCodePlatform implements Platform {
       await fs.writeFile(targetPath, content, 'utf-8');
     }
 
-    // Add permission for npx ctx commands
-    await this.updatePermissions('Bash(npx ctx:*)');
+    // Add permission for ctx commands
+    await this.updatePermissions('Bash(ctx:*)');
 
     console.log(chalk.green(`✓ Installed ${templates.length} AI commands to .claude/commands/`));
   }

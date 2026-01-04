@@ -230,30 +230,30 @@ Reference: `shared/CAPTURE_POLICY.md`
 
 ```bash
 # Load
-npx ctx load -k <keywords>
-npx ctx load -t <target-file>
+ctx load -k <keywords>
+ctx load -t <target-file>
 
 # Save
-npx ctx save --project --path <path> --content "..."
+ctx save --project --path <path> --content "..."
 
 # Status
-npx ctx status --pretty
+ctx status --pretty
 
 # Sync
-npx ctx sync
+ctx sync
 ```
 
 ### Common Patterns
 
 ```bash
 # Check existing contexts before save
-npx ctx list --pretty
+ctx list --pretty
 
 # Find context for specific file
-npx ctx status --target src/api.ts
+ctx status --target src/api.ts
 
 # Health check
-npx ctx check --pretty
+ctx check --pretty
 ```
 
 ---

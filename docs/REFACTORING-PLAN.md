@@ -98,9 +98,9 @@ CTX를 "팀 단위 개발 협업 도구"에서 **"범용 컨텍스트 관리 플
 npm run build  # TypeScript 컴파일 성공 확인
 
 # 수동 체크
-npx ctx init   # work 관련 prompt 없어야 함
-npx ctx status # work 섹션 없어야 함
-npx ctx sync   # 기존 기능 정상 동작
+ctx init   # work 관련 prompt 없어야 함
+ctx status # work 섹션 없어야 함
+ctx sync   # 기존 기능 정상 동작
 ```
 
 ---
@@ -1629,30 +1629,30 @@ describe('CTX 3-Level Full Workflow', () => {
   });
 
   test('1. Global init with context_paths', async () => {
-    await exec('npx ctx init --context-paths "contexts/:일반,rules/:규칙"');
+    await exec('ctx init --context-paths "contexts/:일반,rules/:규칙"');
     const registry = await readYaml('~/.ctx/registry.yaml');
     expect(registry.settings.context_paths).toHaveLength(2);
   });
 
   test('2. Project init', async () => {
-    await exec('npx ctx init . --context-paths ".ctx/contexts/:프로젝트"');
+    await exec('ctx init . --context-paths ".ctx/contexts/:프로젝트"');
     expect(await fileExists('.ctx/registry.yaml')).toBe(true);
   });
 
   test('3. Create and auto-register', async () => {
-    await exec('npx ctx create --project architecture');
+    await exec('ctx create --project architecture');
     const registry = await readYaml('.ctx/registry.yaml');
     expect(registry.contexts['.ctx/contexts/architecture.md']).toBeDefined();
   });
 
   test('4. Sync updates Global index', async () => {
-    await exec('npx ctx sync');
+    await exec('ctx sync');
     const globalRegistry = await readYaml('~/.ctx/registry.yaml');
     expect(globalRegistry.index[projectName]).toBeDefined();
   });
 
   test('5. Status --all shows everything', async () => {
-    const output = await exec('npx ctx status --all');
+    const output = await exec('ctx status --all');
     expect(output).toContain('Global Contexts');
     expect(output).toContain('Registered Projects');
   });

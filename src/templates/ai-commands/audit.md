@@ -22,7 +22,7 @@ You are performing a comprehensive audit of the context ecosystem.
 Run mechanical health check:
 
 ```bash
-npx ctx check
+ctx check
 ```
 
 {{snippet:check-issues#check-output}}
@@ -37,7 +37,7 @@ npx ctx check
 
 1. **Get registry data:**
    ```bash
-   npx ctx status --json
+   ctx status --json
    ```
 
 2. **Filter relevant contexts:**
@@ -61,7 +61,7 @@ npx ctx check
 
 1. **Get all previews:**
    ```bash
-   npx ctx status --json
+   ctx status --json
    ```
 
 2. **Extract all preview data:**
@@ -129,7 +129,7 @@ npx ctx check
 - `[contextPath]`
   - Target changed: [targetPath]
   - Last synced: [lastModified]
-  - Action: Review context, run `npx ctx check --fix` if OK
+  - Action: Review context, run `ctx check --fix` if OK
 
 #### 💡 Unsynced (N)
 [For new/deleted/modified]
@@ -176,7 +176,7 @@ npx ctx check
 3. [Third priority]
 
 **Quick Fixes:**
-- Run `npx ctx check --fix` to sync registry
+- Run `ctx check --fix` to sync registry
 - [Other one-liner fixes]
 
 **Needs Review:**
@@ -195,7 +195,7 @@ npx ctx check
 
 {{snippet:check-issues#check-commands}}
 
-- `npx ctx sync` - Force sync all contexts
+- `ctx sync` - Force sync all contexts
 - `/ctx.save` - Update a specific context
 
 ---
@@ -208,8 +208,8 @@ npx ctx check
 User: /ctx.audit
 
 AI:
-[Runs: npx ctx check]
-[Runs: npx ctx status --json]
+[Runs: ctx check]
+[Runs: ctx status --json]
 [Analyzes previews for semantic issues]
 
 ## 🔍 Context Audit Report
@@ -263,7 +263,7 @@ AI:
 2. Review stale contexts for payment and auth services
 
 **Quick Fixes:**
-- Run `npx ctx check --fix` to sync the new users context
+- Run `ctx check --fix` to sync the new users context
 
 **Needs Review:**
 - Consider splitting helpers.ctx.md into focused contexts
@@ -277,8 +277,8 @@ AI:
 User: /ctx.audit 인증 관련 컨텍스트 점검해줘
 
 AI:
-[Runs: npx ctx check]
-[Runs: npx ctx status --json]
+[Runs: ctx check]
+[Runs: ctx status --json]
 [Filters contexts where preview.what matches "인증", "auth", "authentication", "JWT", etc.]
 [Full reads: src/auth/jwt.ctx.md, src/auth/middleware.ctx.md, {{global.directory}}/rules/auth.md]
 [Also reads target files for local contexts]
@@ -338,7 +338,7 @@ AI:
 2. Add refresh token scenario to jwt.ctx.md
 
 **Quick Fixes:**
-- Run `npx ctx check --fix` after updates
+- Run `ctx check --fix` after updates
 ```
 
 ---
@@ -349,8 +349,8 @@ AI:
 User: /ctx.audit
 
 AI:
-[Runs: npx ctx check]
-[Runs: npx ctx status --json]
+[Runs: ctx check]
+[Runs: ctx status --json]
 [Analyzes previews]
 
 ## 🔍 Context Audit Report
@@ -380,7 +380,7 @@ Your context ecosystem is in great shape!
 
 **Maintenance Tips:**
 - Run `/ctx.audit` periodically (weekly recommended)
-- Use `npx ctx check` after coding sessions
+- Use `ctx check` after coding sessions
 - Keep contexts focused and up-to-date
 ```
 
@@ -388,7 +388,7 @@ Your context ecosystem is in great shape!
 
 # Rules
 
-1. **Always run mechanical check first** - `npx ctx check` catches structural issues
+1. **Always run mechanical check first** - `ctx check` catches structural issues
 2. **Semantic analysis is additive** - It finds issues mechanical checks can't
 3. **Be conservative with contradictions** - Only flag clear conflicts, not style differences
 4. **Prioritize actionable findings** - Every issue should have a clear resolution

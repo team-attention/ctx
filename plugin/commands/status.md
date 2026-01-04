@@ -22,13 +22,13 @@ Run the CLI command based on arguments:
 ```bash
 # Parse $ARGUMENTS
 if [[ "$ARGUMENTS" == *"--all"* ]]; then
-  npx ctx status --all
+  ctx status --all
 elif [[ "$ARGUMENTS" == *"--global"* ]]; then
-  npx ctx status --global
+  ctx status --global
 elif [[ "$ARGUMENTS" == *"--json"* ]]; then
-  npx ctx status --json
+  ctx status --json
 else
-  npx ctx status
+  ctx status
 fi
 ```
 

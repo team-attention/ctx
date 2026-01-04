@@ -6,14 +6,14 @@ allowed-tools: [Bash]
 
 # Task
 
-Run `npx ctx status` and display the output to the user.
+Run `ctx status` and display the output to the user.
 
 ---
 
 # Workflow
 
 ```bash
-npx ctx status
+ctx status
 ```
 
 Display the output as-is. The CLI handles all formatting.

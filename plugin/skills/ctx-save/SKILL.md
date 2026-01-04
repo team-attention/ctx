@@ -19,10 +19,10 @@ Search existing contexts before saving:
 
 ```bash
 # List all contexts
-npx ctx list --pretty
+ctx list --pretty
 
 # Or search by keywords
-npx ctx load <keyword> --paths
+ctx load <keyword> --paths
 ```
 
 **Search criteria:**
@@ -97,8 +97,8 @@ Two commands with distinct roles:
 
 ```bash
 # Create template file for manual editing
-npx ctx create .ctx/contexts/api.md
-npx ctx create src/auth.ctx.md --target src/auth.ts
+ctx create .ctx/contexts/api.md
+ctx create src/auth.ctx.md --target src/auth.ts
 ```
 
 **Workflow:** `ctx create` → Edit file manually → `ctx sync`
@@ -107,10 +107,10 @@ npx ctx create src/auth.ctx.md --target src/auth.ts
 
 ```bash
 # Save content directly (AI agent use case)
-npx ctx save --path .ctx/contexts/api.md --content "..." --what "API patterns" --keywords "api,rest"
+ctx save --path .ctx/contexts/api.md --content "..." --what "API patterns" --keywords "api,rest"
 
 # Pipe content via stdin
-echo "..." | npx ctx save --path notes.md --what "Notes"
+echo "..." | ctx save --path notes.md --what "Notes"
 ```
 
 **Note:** `--content` or stdin is required. No content = error with `ctx create` suggestion.

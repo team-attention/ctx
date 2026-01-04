@@ -188,4 +188,4 @@ Total: 5 contexts loaded
 # Reference
 - Local registry: `ctx/local-context-registry.yml`
 - Global registry: `ctx/global-context-registry.yml`
-- Keep registries updated: `npx ctx sync`
+- Keep registries updated: `ctx sync`

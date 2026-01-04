@@ -23,13 +23,13 @@ Run the sync command and report results clearly.
 ## Step 1: Determine Scope
 
 Parse $ARGUMENTS to determine flags:
-- No args → `npx ctx sync`
-- `--local` → `npx ctx sync --local`
-- `--global` → `npx ctx sync --global`
+- No args → `ctx sync`
+- `--local` → `ctx sync --local`
+- `--global` → `ctx sync --global`
 
 ## Step 2: Execute Command
 
-Run the appropriate `npx ctx sync` command.
+Run the appropriate `ctx sync` command.
 
 ## Step 3: Report Results
 
@@ -89,7 +89,7 @@ Parse the command output and present a clear summary to the user.
 User: /ctx.sync
 
 AI:
-[Runs: npx ctx sync]
+[Runs: ctx sync]
 
 ## ✓ Sync Complete
 
@@ -106,7 +106,7 @@ AI:
 User: /ctx.sync --local
 
 AI:
-[Runs: npx ctx sync --local]
+[Runs: ctx sync --local]
 
 ## ✓ Sync Complete
 
@@ -121,7 +121,7 @@ AI:
 User: /ctx.sync
 
 AI:
-[Runs: npx ctx sync]
+[Runs: ctx sync]
 
 ## ⚠️ Sync Completed with Warnings
 
