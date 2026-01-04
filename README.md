@@ -43,7 +43,7 @@ You describe what you want in plain language. AI handles the rest.
 
 ## Quick Start
 
-### 1. Install (once)
+### 1. Install CLI
 
 ```bash
 npm install -g @team-attention/ctx
@@ -58,6 +58,14 @@ ctx init
 # Project setup
 cd your-project
 ctx init .
+```
+
+### 3. Install Claude Code Plugin (optional)
+
+For auto-loading and AI skills, install the ctx plugin in Claude Code:
+
+```
+/plugin install ctx@team-attention/ctx
 ```
 
 That's it. Now just talk to your AI:

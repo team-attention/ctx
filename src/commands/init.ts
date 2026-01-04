@@ -1,8 +1,6 @@
 import inquirer from 'inquirer';
 import fs from 'fs/promises';
 import path from 'path';
-import { fileURLToPath } from 'url';
-import os from 'os';
 import chalk from 'chalk';
 import YAML from 'yaml';
 import { getPlatform } from '../lib/platforms/index.js';
@@ -18,12 +16,6 @@ import {
   DEFAULT_PROJECT_CONTEXT_PATHS,
   DEFAULT_GLOBAL_CONTEXT_PATHS,
 } from '../lib/context-path-matcher.js';
-
-// Claude Code plugin settings
-const CLAUDE_SETTINGS_DIR = '.claude';
-const CLAUDE_SETTINGS_FILE = 'settings.json';
-const CTX_MARKETPLACE_NAME = 'team-attention/ctx';
-const CTX_PLUGIN_NAME = 'ctx';
 
 /**
  * Parse --context-paths CLI option
@@ -104,53 +96,6 @@ async function promptContextPaths(
 export interface InitOptions {
   contextPaths?: string;
   yes?: boolean;
-}
-
-/**
- * Install Claude Code plugin to ~/.claude/settings.json
- * Uses GitHub as marketplace source for stable, path-independent installation
- */
-async function installClaudePlugin(): Promise<boolean> {
-  try {
-    const claudeDir = path.join(os.homedir(), CLAUDE_SETTINGS_DIR);
-    const settingsPath = path.join(claudeDir, CLAUDE_SETTINGS_FILE);
-
-    // Create ~/.claude/ if not exists
-    await fs.mkdir(claudeDir, { recursive: true });
-
-    // Read existing settings or create new
-    let settings: Record<string, unknown> = {};
-    try {
-      const content = await fs.readFile(settingsPath, 'utf-8');
-      settings = JSON.parse(content);
-    } catch {
-      // File doesn't exist or invalid JSON, start fresh
-    }
-
-    // Add marketplace (GitHub source)
-    const marketplaces = (settings.extraKnownMarketplaces as Record<string, unknown>) || {};
-    marketplaces[CTX_MARKETPLACE_NAME] = {
-      source: {
-        source: 'github',
-        repo: CTX_MARKETPLACE_NAME,
-      },
-    };
-    settings.extraKnownMarketplaces = marketplaces;
-
-    // Enable plugin
-    const enabledPlugins = (settings.enabledPlugins as Record<string, boolean>) || {};
-    enabledPlugins[`${CTX_PLUGIN_NAME}@${CTX_MARKETPLACE_NAME}`] = true;
-    settings.enabledPlugins = enabledPlugins;
-
-    // Write settings
-    await fs.writeFile(settingsPath, JSON.stringify(settings, null, 2), 'utf-8');
-
-    console.log(chalk.green(`✓ Registered ctx plugin in ${CLAUDE_SETTINGS_DIR}/${CLAUDE_SETTINGS_FILE}`));
-    return true;
-  } catch (error) {
-    console.log(chalk.yellow(`⚠️  Failed to register Claude Code plugin: ${(error as Error).message}`));
-    return false;
-  }
 }
 
 /**
@@ -251,35 +196,6 @@ async function initGlobalCommand(options?: InitOptions) {
     console.log(chalk.gray('\nConfigured context paths:'));
     for (const cp of contextPaths) {
       console.log(chalk.gray(`  - ${cp.path}: ${cp.purpose}`));
-    }
-
-    // Ask which AI agent to configure
-    console.log();
-    let selectedAgent: string;
-    if (options?.yes) {
-      selectedAgent = 'claude-code';
-    } else {
-      const { agent } = await inquirer.prompt([
-        {
-          type: 'list',
-          name: 'agent',
-          message: 'Which AI agent do you use?',
-          choices: [
-            { name: 'Claude Code', value: 'claude-code' },
-            { name: 'Cursor (coming soon)', value: 'cursor', disabled: true },
-            { name: 'Continue (coming soon)', value: 'continue', disabled: true },
-            { name: 'Skip', value: 'skip' },
-          ],
-        },
-      ]);
-      selectedAgent = agent;
-    }
-
-    // Install plugin for selected agent
-    if (selectedAgent === 'claude-code') {
-      await installClaudePlugin();
-    } else if (selectedAgent !== 'skip') {
-      console.log(chalk.gray(`  ${selectedAgent} support coming soon!`));
     }
 
     console.log(chalk.blue.bold('\n✨ Global initialization complete!\n'));
