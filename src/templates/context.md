@@ -1,9 +1,9 @@
 ---
 target: {{TARGET}}
 what: TODO - Brief description of this context
-when:
-  - TODO - When to use this context
-  - TODO - Another scenario
+keywords:
+  - TODO - keyword1
+  - TODO - keyword2
 ---
 
 # {{TITLE}}

@@ -78,6 +78,10 @@ contexts: {}
       `meta:
   version: '2.0.0'
   last_synced: '${new Date().toISOString()}'
+settings:
+  context_paths:
+    - path: 'contexts/**/*.md'
+      purpose: 'Global contexts'
 contexts: {}
 index: {}
 `,

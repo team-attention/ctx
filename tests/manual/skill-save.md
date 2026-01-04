@@ -100,39 +100,7 @@ pnpm build
 
 ---
 
-## Test 3: Deliberate Mode - 외부 소스
-
-### 시나리오
-> Slack에서 내용 추출하여 저장
-
-### 테스트 단계
-
-1. **Slack 소스 지정**
-   ```
-   User: Slack에서 배포 관련 내용 추출해줘
-   ```
-
-2. **검증 항목**
-   - [ ] "Deliberate mode" 진입
-   - [ ] Slack 채널/스레드 선택 UI
-   - [ ] 추출된 내용 프리뷰
-   - [ ] 수정 가능 여부 확인
-   - [ ] 저장 위치 N개 후보 제시
-   - [ ] 사용자 선택 후 저장
-
-3. **결과 확인**
-   ```bash
-   cat <저장된 경로>             # 내용 확인
-   cat .ctx/registry.yaml        # 등록 확인
-   ```
-
-### 결과
-- [ ] **PASS** / **FAIL**
-- 메모: _______________
-
----
-
-## Test 4: Deliberate Mode - URL
+## Test 3: Deliberate Mode - URL
 
 ### 시나리오
 > URL에서 내용 추출하여 저장
@@ -156,7 +124,7 @@ pnpm build
 
 ---
 
-## Test 5: 기존 Context 업데이트
+## Test 4: 기존 Context 업데이트
 
 ### 시나리오
 > 이미 존재하는 context 파일 수정
@@ -184,7 +152,7 @@ pnpm build
 
 ---
 
-## Test 6: Scope 자동 결정 로직
+## Test 5: Scope 자동 결정 로직
 
 ### 시나리오
 > AI가 적절한 scope를 추천하는지 확인
@@ -205,7 +173,7 @@ pnpm build
 
 ---
 
-## Test 7: 저장 후 자동 Sync
+## Test 6: 저장 후 자동 Sync
 
 ### 시나리오
 > 저장 후 registry와 Global index가 갱신되는지 확인
@@ -239,7 +207,7 @@ pnpm build
 
 ---
 
-## Test 8: 에러 처리
+## Test 7: 에러 처리
 
 ### 시나리오
 > 저장 실패 시 graceful 처리
@@ -264,14 +232,13 @@ pnpm build
 |-------|------|
 | Test 1: Quick Mode 기본 | [ ] |
 | Test 2: Quick Mode 트리거 | [ ] |
-| Test 3: Deliberate - Slack | [ ] |
-| Test 4: Deliberate - URL | [ ] |
-| Test 5: 기존 Context 업데이트 | [ ] |
-| Test 6: Scope 자동 결정 | [ ] |
-| Test 7: 자동 Sync | [ ] |
-| Test 8: 에러 처리 | [ ] |
+| Test 3: Deliberate - URL | [ ] |
+| Test 4: 기존 Context 업데이트 | [ ] |
+| Test 5: Scope 자동 결정 | [ ] |
+| Test 6: 자동 Sync | [ ] |
+| Test 7: 에러 처리 | [ ] |
 
-**전체 통과:** [ ] / 8
+**전체 통과:** [ ] / 7
 
 ---
 

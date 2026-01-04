@@ -4,10 +4,9 @@ import {
   findProjectRoot,
   isGlobalCtxInitialized,
   readProjectRegistry,
-  writeProjectRegistry,
+  writeProjectRegistryWithSync,
   readGlobalCtxRegistry,
   writeGlobalCtxRegistry,
-  updateGlobalIndex,
   getGlobalCtxDir,
 } from '../lib/registry.js';
 
@@ -76,13 +75,7 @@ async function removeFromProject(patterns: string[]) {
     }
   }
 
-  await writeProjectRegistry(projectRoot, registry);
-
-  // Update global index
-  const globalInitialized = await isGlobalCtxInitialized();
-  if (globalInitialized) {
-    await updateGlobalIndex(projectRoot);
-  }
+  await writeProjectRegistryWithSync(projectRoot, registry);
 
   console.log();
   console.log(chalk.blue.bold('Done!'));

@@ -1,37 +1,26 @@
 ---
 name: ctx.capture
-description: Capture data from external sources (Slack, session) and save as context
+description: Capture Claude Code session history and save as context
 ---
 
 # /ctx.capture
 
-Capture data from external sources and save as context.
+Capture session history and save as context.
 
 ## Usage
 
 ```
-/ctx.capture <source> [options]
+/ctx.capture session [options]
 ```
-
-### Sources
-
-| Source | Description |
-|--------|-------------|
-| `session` | Claude Code session history |
-| `slack` | Slack channel messages |
-| `all` | All available sources |
 
 ### Options
 
 | Option | Description |
 |--------|-------------|
 | `--save` | Auto-save without review (1-step) |
-| `--expand-threads` | Include Slack thread replies |
 | `--no-redact` | Disable sensitive data masking |
 
 ## Examples
-
-### Session Capture
 
 ```
 /ctx.capture session                    # Today's session
@@ -40,36 +29,13 @@ Capture data from external sources and save as context.
 /ctx.capture session "this week" --save # This week, auto-save
 ```
 
-### Slack Capture
-
-```
-/ctx.capture slack #general             # #general channel
-/ctx.capture slack #team-ai yesterday   # Yesterday's messages
-/ctx.capture slack #dev --expand-threads # Include threads
-```
-
-### Multi-Source Capture
-
-```
-/ctx.capture all today                  # All sources, today
-/ctx.capture all terraform              # All sources, filtered
-```
-
 ## How It Works
 
-### Single Source (Skill)
-
-For single source capture, the corresponding skill is invoked:
-- `session` → session-capture skill
-- `slack` → slack-capture skill
-
-### Multiple Sources (Agent)
-
-For `all` or multiple sources, the ctx-capture agent orchestrates:
-1. Execute each capture skill
-2. Save to inbox (`.ctx/inbox/<source>/`)
-3. Synthesize insights
-4. Save final context
+The session-capture skill is invoked to:
+1. Find session files in `~/.claude/projects/`
+2. Parse and filter messages
+3. Apply redaction (mask sensitive data)
+4. Save to inbox (`.ctx/inbox/session/`)
 
 ## Workflow
 
@@ -77,8 +43,8 @@ For `all` or multiple sources, the ctx-capture agent orchestrates:
 
 ```
 Step 1: Capture → Inbox
-/ctx.capture slack #team-ai
-# Result saved to .ctx/inbox/slack/<run_id>.json
+/ctx.capture session
+# Result saved to .ctx/inbox/session/<run_id>.json
 
 Step 2: Review → Save
 # Agent shows summary
@@ -115,8 +81,6 @@ Captured data is saved to:
 
 ```
 .ctx/inbox/
-├── slack/
-│   └── <run_id>.json
 └── session/
     └── <run_id>.json
 ```
@@ -125,16 +89,6 @@ Inbox files are:
 - Temporary (auto-cleaned after 7 days)
 - Git-ignored (`**/.ctx/inbox/`)
 - JSON format for debugging
-
-## Execution
-
-This command routes to appropriate skill or agent:
-
-| Request | Handler |
-|---------|---------|
-| Single source | Skill (session-capture, slack-capture) |
-| Multiple sources | Agent (ctx-capture) |
-| Complex synthesis | Agent (ctx-capture) |
 
 ## Related Commands
 

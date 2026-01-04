@@ -1,7 +1,9 @@
 import fs from 'fs/promises';
 import path from 'path';
+import chalk from 'chalk';
 import {
   findProjectRoot,
+  isGlobalCtxInitialized,
   readProjectRegistry,
   readGlobalCtxRegistry,
   getGlobalCtxDir,
@@ -10,9 +12,11 @@ import { ContextEntry } from '../lib/types.js';
 import { findMatchingContexts, MatchedContext } from '../lib/target-matcher.js';
 
 interface LoadOptions {
-  target?: string;  // Target file path for auto-matching (supports glob)
-  json?: boolean;   // Output as JSON (paths + metadata only)
-  paths?: boolean;  // Output paths only (newline separated)
+  keywords?: string[];  // Keywords for searching context metadata
+  target?: string;      // Target file path for auto-matching (supports glob)
+  paths?: boolean;      // Output paths only (newline separated)
+  global?: boolean;     // Search global only
+  all?: boolean;        // Search both project and global
 }
 
 /**
@@ -30,7 +34,7 @@ function findKeywordMatchingContexts(
   for (const [contextKey, entry] of Object.entries(contexts)) {
     const searchText = [
       entry.preview?.what || '',
-      ...(entry.preview?.when || []),
+      ...(entry.preview?.keywords || []),
     ].join(' ').toLowerCase();
 
     let score = 0;
@@ -80,7 +84,6 @@ async function handleAutoModeFromStdin(
   }
 
   if (!input.trim()) {
-    if (options.json) console.log('[]');
     process.exit(0);
   }
 
@@ -94,11 +97,24 @@ async function handleAutoModeFromStdin(
 
   const filePath = parsedInput.tool_input?.file_path;
   if (!filePath) {
-    if (options.json) console.log('[]');
     process.exit(0);
   }
 
   await handleTargetMode(filePath, projectRoot, options);
+}
+
+/**
+ * Determine search scope based on options
+ */
+function determineScope(options: LoadOptions): { searchProject: boolean; searchGlobal: boolean } {
+  if (options.all) {
+    return { searchProject: true, searchGlobal: true };
+  }
+  if (options.global) {
+    return { searchProject: false, searchGlobal: true };
+  }
+  // Default: project only
+  return { searchProject: true, searchGlobal: false };
 }
 
 /**
@@ -111,21 +127,20 @@ async function handleTargetMode(
 ): Promise<void> {
   // Skip context files
   if (filePath.endsWith('.ctx.md') || filePath.endsWith('/ctx.md')) {
-    if (options.json) console.log('[]');
     process.exit(0);
   }
 
   // Skip .ctx directory
   if (filePath.includes('/.ctx/')) {
-    if (options.json) console.log('[]');
     process.exit(0);
   }
 
+  const { searchProject, searchGlobal } = determineScope(options);
   const allMatches: MatchedContext[] = [];
   const effectiveRoot = projectRoot || process.cwd();
 
   // Check project registry
-  if (projectRoot) {
+  if (searchProject && projectRoot) {
     const projectRegistry = await readProjectRegistry(projectRoot);
     const projectMatches = findMatchingContexts(
       projectRegistry.contexts || {},
@@ -138,18 +153,19 @@ async function handleTargetMode(
   }
 
   // Check global registry
-  const globalRegistry = await readGlobalCtxRegistry();
-  const globalMatches = findMatchingContexts(
-    globalRegistry.contexts || {},
-    filePath,
-    effectiveRoot,
-    'global',
-    getGlobalCtxDir()
-  );
-  allMatches.push(...globalMatches);
+  if (searchGlobal) {
+    const globalRegistry = await readGlobalCtxRegistry();
+    const globalMatches = findMatchingContexts(
+      globalRegistry.contexts || {},
+      filePath,
+      effectiveRoot,
+      'global',
+      getGlobalCtxDir()
+    );
+    allMatches.push(...globalMatches);
+  }
 
   if (allMatches.length === 0) {
-    if (options.json) console.log('[]');
     process.exit(0);
   }
 
@@ -157,17 +173,7 @@ async function handleTargetMode(
   allMatches.sort((a, b) => a.priority - b.priority);
 
   // Output based on options
-  if (options.json) {
-    // JSON output: paths + metadata only (no content)
-    const output = allMatches.map(m => ({
-      path: m.contextPath,
-      what: m.preview?.what || '',
-      registry: m.source,  // 'project' or 'global' - which registry it came from
-      matchType: m.matchType,
-      target: m.target,
-    }));
-    console.log(JSON.stringify(output, null, 2));
-  } else if (options.paths) {
+  if (options.paths) {
     // Paths only output
     allMatches.forEach(m => console.log(m.contextPath));
   } else {
@@ -184,10 +190,11 @@ async function handleManualMode(
   projectRoot: string | null,
   options: LoadOptions = {}
 ): Promise<void> {
+  const { searchProject, searchGlobal } = determineScope(options);
   const allMatches: MatchedContext[] = [];
 
   // Check project registry
-  if (projectRoot) {
+  if (searchProject && projectRoot) {
     const projectRegistry = await readProjectRegistry(projectRoot);
     const projectMatches = findKeywordMatchingContexts(
       projectRegistry.contexts || {},
@@ -199,21 +206,19 @@ async function handleManualMode(
   }
 
   // Check global registry
-  const globalRegistry = await readGlobalCtxRegistry();
-  const globalMatches = findKeywordMatchingContexts(
-    globalRegistry.contexts || {},
-    keywords,
-    'global',
-    getGlobalCtxDir()
-  );
-  allMatches.push(...globalMatches);
+  if (searchGlobal) {
+    const globalRegistry = await readGlobalCtxRegistry();
+    const globalMatches = findKeywordMatchingContexts(
+      globalRegistry.contexts || {},
+      keywords,
+      'global',
+      getGlobalCtxDir()
+    );
+    allMatches.push(...globalMatches);
+  }
 
   if (allMatches.length === 0) {
-    if (options.json) {
-      console.log('[]');
-    } else {
-      console.log('No matching contexts found.');
-    }
+    console.log('No matching contexts found.');
     return;
   }
 
@@ -221,16 +226,7 @@ async function handleManualMode(
   allMatches.sort((a, b) => b.priority - a.priority);
 
   // Output based on options
-  if (options.json) {
-    const output = allMatches.map(m => ({
-      path: m.contextPath,
-      what: m.preview?.what || '',
-      registry: m.source,  // 'project' or 'global' - which registry it came from
-      matchType: m.matchType,
-      target: m.target,
-    }));
-    console.log(JSON.stringify(output, null, 2));
-  } else if (options.paths) {
+  if (options.paths) {
     allMatches.forEach(m => console.log(m.contextPath));
   } else {
     await outputContexts(allMatches, projectRoot);
@@ -264,12 +260,31 @@ ${content}
 
 /**
  * Main load command
+ *
+ * Default: project only
+ * --global: global only
+ * --all: both project and global
  */
-export async function loadCommand(
-  keywords: string[],
-  options: LoadOptions
-): Promise<void> {
+export async function loadCommand(options: LoadOptions): Promise<void> {
   const projectRoot = await findProjectRoot(process.cwd());
+  const globalInitialized = await isGlobalCtxInitialized();
+
+  // Validate scope: if default (project) but no project, error
+  const { searchProject, searchGlobal } = determineScope(options);
+
+  if (searchProject && !projectRoot) {
+    console.error(chalk.red('✗ Error: Not in a ctx project.'));
+    console.log(chalk.gray('  Use --global to search global contexts, or run \'ctx init .\' to initialize.'));
+    process.exit(1);
+  }
+
+  if (searchGlobal && !globalInitialized) {
+    console.error(chalk.red('✗ Error: Global ctx not initialized.'));
+    console.log(chalk.gray("  Run 'ctx init' first."));
+    process.exit(1);
+  }
+
+  const keywords = options.keywords || [];
 
   // --target option: path-based auto matching (supports glob)
   if (options.target) {
@@ -283,13 +298,13 @@ export async function loadCommand(
     return;
   }
 
-  // Keywords provided: manual keyword search
+  // --keywords provided: keyword search
   if (keywords.length > 0) {
     await handleManualMode(keywords, projectRoot, options);
     return;
   }
 
   // No input at all
-  console.error('Error: Provide keywords for search, or use --target <path> for auto-matching');
+  console.error('Error: Use --keywords <words> or --target <path>');
   process.exit(1);
 }

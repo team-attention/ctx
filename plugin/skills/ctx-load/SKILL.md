@@ -39,7 +39,7 @@ Use `npx ctx` commands to interact with the context system:
 | `ctx sync` | Sync context files to registries | `--global`, `--rebuild-index`, `--prune` |
 | `ctx check` | Check context health/freshness | `--target <file>`, `--pretty` |
 | `ctx create <path>` | Create new context file | `--target`, `--force`, `--global` |
-| `ctx load` | Load context (for scripts/hooks) | `--target <path>`, `--json`, `--paths` |
+| `ctx load` | Load context (for scripts/hooks) | `-k <keywords>`, `-t <path>`, `--paths` |
 
 For complete CLI reference, see `../../shared/cli-reference.md`.
 
@@ -71,18 +71,18 @@ contexts:
     checksum: 'abc123'
     preview:
       what: "System architecture overview"
-      when: ["architecture", "structure", "design"]
+      keywords: ["architecture", "structure", "design"]
   'src/api.ctx.md':
     target: 'src/api.ts'
     checksum: 'def456'
     preview:
       what: "API routing patterns"
-      when: ["api", "routing", "endpoint"]
+      keywords: ["api", "routing", "endpoint"]
 ```
 
-**Key fields for relevance判断:**
+**Key fields for relevance matching:**
 - `preview.what` - What this context is about
-- `preview.when` - Keywords that trigger this context
+- `preview.keywords` - Keywords that trigger this context
 - `target` - If present, this context is bound to a specific file
 
 ### Step 3: Select Relevant Contexts (AI Judgment)
@@ -94,7 +94,7 @@ Based on the user's request, determine which contexts are relevant using semanti
 - AI understands JWT is related to authentication → selects it
 
 **Selection criteria:**
-1. Direct keyword match in `when` array
+1. Direct keyword match in `keywords` array
 2. Semantic relevance of `what` description to user's request
 3. File path hints (e.g., `auth.ctx.md`, `security/`)
 4. Target file relevance (if user is working on specific files)
@@ -145,16 +145,16 @@ Loaded 2 contexts relevant to "authentication"
      '.ctx/contexts/api-design.md':
        preview:
          what: "REST API design conventions"
-         when: ["api", "rest", "endpoint"]
+         keywords: ["api", "rest", "endpoint"]
      '.ctx/contexts/architecture.md':
        preview:
          what: "System architecture overview"
-         when: ["architecture", "structure"]
+         keywords: ["architecture", "structure"]
      'src/routes.ctx.md':
        target: 'src/routes.ts'
        preview:
          what: "Route definitions and middleware"
-         when: ["routing", "middleware"]
+         keywords: ["routing", "middleware"]
    ```
 3. Select relevant: `api-design.md`, `routes.ctx.md` (semantic match)
 4. Read both files
@@ -165,9 +165,9 @@ Loaded 2 contexts relevant to "authentication"
 ## When to Use CLI Instead
 
 The `ctx load` CLI command is useful for:
-- **Scripts/automation**: `npx ctx load --paths api | xargs cat`
+- **Scripts/automation**: `npx ctx load -k api --paths | xargs cat`
 - **Hook integration**: Pipe JSON to stdin for auto-matching
-- **Quick terminal lookup**: `npx ctx load --json auth`
+- **Quick terminal lookup**: `npx ctx load -k auth`
 
 For AI-assisted context loading, **direct registry reading is preferred** because:
 - AI can apply semantic understanding (not just keyword matching)
@@ -187,7 +187,7 @@ index:
     contexts:
       - path: 'src/api.ctx.md'
         what: "API routing logic"
-        when: ["api", "routing"]
+        keywords: ["api", "routing"]
 ```
 
 This enables discovering contexts across all registered projects.
@@ -210,8 +210,7 @@ This enables discovering contexts across all registered projects.
 1. **Read registry first** - Small file, contains all metadata
 2. **Selective loading** - Only read contexts that are actually relevant
 3. **Parallel file reads** - Load multiple context files simultaneously
-4. **Session caching** - Skip re-loading already loaded contexts
-5. **Smart summarization** - For large contexts (>500 lines), show key sections only
+4. **Smart summarization** - For large contexts (>500 lines), show key sections only
 
 ---
 
@@ -219,7 +218,7 @@ This enables discovering contexts across all registered projects.
 
 After loading, suggest related contexts based on:
 - Same category/folder
-- Similar `when` keywords
+- Similar `keywords`
 - Referenced in loaded content
 
 ```markdown

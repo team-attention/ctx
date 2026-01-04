@@ -19,7 +19,6 @@
 ### Default Scope
 
 - **Session capture**: `current_project` (based on current working directory)
-- **Slack capture**: Per-channel (no scope concept)
 
 ### Wide Scope Confirmation Prompt
 
@@ -56,7 +55,6 @@ Continue? [y/N]
 | Category | Pattern | Example |
 |----------|---------|---------|
 | **API Key** | `sk-[a-zA-Z0-9]{20,}` | `sk-abc123...` → `[REDACTED:API_KEY]` |
-| **Slack Token** | `xox[baprs]-[a-zA-Z0-9-]+` | `xoxb-...` → `[REDACTED:SLACK_TOKEN]` |
 | **GitHub Token** | `ghp_[a-zA-Z0-9]{36}` | `ghp_abc...` → `[REDACTED:GITHUB_TOKEN]` |
 | **AWS Key** | `AKIA[A-Z0-9]{16}` | `AKIA...` → `[REDACTED:AWS_KEY]` |
 | **Bearer Token** | `Bearer\s+[a-zA-Z0-9._-]+` | `Bearer xyz...` → `[REDACTED:BEARER]` |
@@ -101,7 +99,6 @@ Continue? [y/N]
 ```typescript
 const REDACTION_PATTERNS = [
   { pattern: /sk-[a-zA-Z0-9]{20,}/g, replacement: '[REDACTED:API_KEY]' },
-  { pattern: /xox[baprs]-[a-zA-Z0-9-]+/g, replacement: '[REDACTED:SLACK_TOKEN]' },
   { pattern: /ghp_[a-zA-Z0-9]{36}/g, replacement: '[REDACTED:GITHUB_TOKEN]' },
   { pattern: /AKIA[A-Z0-9]{16}/g, replacement: '[REDACTED:AWS_KEY]' },
   { pattern: /Bearer\s+[a-zA-Z0-9._-]+/gi, replacement: '[REDACTED:BEARER]' },
@@ -166,17 +163,13 @@ Must be included in final context frontmatter:
 
 ```yaml
 ---
-what: "Slack #team-ai conversation summary"
-when: ["slack", "team-ai", "2026-01"]
+what: "Session work summary"
+keywords: ["session", "2026-01"]
 captured_from:
-  sources:
-    - type: slack
-      channel: "#team-ai"
-      time_range: "2026-01-02 ~ 2026-01-03"
-      message_count: 42
-    - type: session
-      project: "/Users/me/project"
-      session_count: 3
+  source: session
+  project: "/Users/me/project"
+  session_count: 3
+  time_range: "2026-01-02 ~ 2026-01-03"
   captured_at: "2026-01-03T10:00:00Z"
   run_id: "550e8400-e29b-41d4-a716-446655440000"
 ---
@@ -186,8 +179,8 @@ captured_from:
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `captured_from.sources` | ✅ | List of data sources |
-| `captured_from.sources[].type` | ✅ | Source type (slack, session, github) |
+| `captured_from.source` | ✅ | Source type (session) |
+| `captured_from.project` | ✅ | Project path |
 | `captured_from.captured_at` | ✅ | Capture timestamp (ISO 8601) |
 | `captured_from.run_id` | ✅ | Unique execution ID (UUID) |
 
@@ -213,8 +206,7 @@ captured_from:
 ### Inbox Cleanup Log
 
 ```
-ℹ️ Inbox cleanup: 3 files deleted (older than 7 days)
-   - slack/abc123.json (2025-12-25)
+ℹ️ Inbox cleanup: 2 files deleted (older than 7 days)
    - session/def456.json (2025-12-24)
    - session/ghi789.json (2025-12-23)
 ```

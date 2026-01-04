@@ -35,8 +35,7 @@ export interface ContextMeta {
 
 export interface ContextFrontmatter {
   what: string;
-  when: string[];
-  not_when?: string[];
+  keywords: string[];
   future?: string[];
 }
 
@@ -50,8 +49,7 @@ export interface ContextFile {
 
 export interface ContextPreview {
   what: string;
-  when: string[];
-  not_when?: string[];
+  keywords: string[];
 }
 
 // ===== Registry Types =====
@@ -101,7 +99,7 @@ export interface ProjectIndexEntry {
   contexts: Array<{
     path: string; // Relative path within project
     what: string;
-    when: string[];
+    keywords: string[];
   }>;
 }
 

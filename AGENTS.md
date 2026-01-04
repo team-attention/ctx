@@ -4,29 +4,15 @@ Project guide for AI agents working with CTX.
 
 ---
 
-## Core Principle
+## Core Principles
 
-> **Design UX to be simple from the user's perspective.**
-
-- Complex internal structures should surface as simple interfaces
-- Defaults optimized for the most common use cases
-- Advanced options hidden until needed
-- Error messages guide users to solutions
+@CORE_PRINCIPLE.md
 
 ---
 
 ## Project Overview
 
 **CTX** is a persistent memory system for AI. Context is auto-loaded, grows over time, and travels with your code.
-
-**Core Philosophy:**
-> Context is the bottleneck, not AI capability.
-
-```
-Human insight  →  Saved as context  →  Auto-loaded when needed
-     ↑                                          │
-     └──────────── Feedback loop ───────────────┘
-```
 
 ---
 
@@ -37,11 +23,7 @@ Human insight  →  Saved as context  →  Auto-loaded when needed
 | **Global** | `~/.ctx/` | Personal patterns, tool settings | Personal (all projects) |
 | **Project** | `.ctx/` + `*.ctx.md` | Team knowledge, architecture | Team (shared via Git) |
 
-**Context distinction (SoT = frontmatter's `target` field):**
-- `target` present → Bound context (linked to specific file)
-- `target` absent → Standalone context (loaded by `when` keywords)
-
-**Priority:** Project (with target) > Project (without target) > Global
+> Context distinction and priority: See CORE_PRINCIPLE.md #6, #7
 
 ---
 
@@ -70,11 +52,20 @@ ctx adopt --global ~/notes/*.md  # Adopt to global registry
 # Manage patterns
 ctx add-pattern <pattern> <purpose>  # Add to context_paths
 
-# Load contexts
-ctx load api auth           # Load by keywords
-ctx load --target src/api.ts   # Match by file path
-ctx load --json             # Output as JSON
-ctx load --paths            # Output paths only
+# List contexts (default: project only)
+ctx list                    # Project contexts (default)
+ctx list --global           # Global only
+ctx list --all              # Both project and global
+ctx list --target src/api.ts   # Match by file path
+ctx list --pretty           # Human-readable output
+ctx list --paths            # Output paths only
+
+# Load contexts (default: project only)
+ctx load -k api auth        # Load by keywords (project only)
+ctx load --global -k api    # Global only
+ctx load --all -k api       # Both project and global
+ctx load -t src/api.ts      # Match by file path
+ctx load -t src/api.ts --paths  # Output paths only
 
 # Save contexts
 ctx save --path <path> --content "..."  # Save content
@@ -87,8 +78,10 @@ ctx sync --global         # Sync global contexts (~/.ctx/)
 ctx sync --rebuild-index  # Rebuild global index
 ctx sync --prune          # Remove entries not matching context_paths
 
-# Status
-ctx status            # JSON output
+# Status (default: project only)
+ctx status            # Project status (default)
+ctx status --global   # Global only
+ctx status --all      # Both project and global
 ctx status --pretty   # Human-readable format
 ctx status --target src/api.ts   # Find context for specific file
 
@@ -97,6 +90,12 @@ ctx check                         # Check context health
 ctx check --target src/api.ts     # Check contexts for specific file
 ctx check --pretty                # Human-readable output
 ```
+
+---
+
+## CLI Design Principles
+
+> See CORE_PRINCIPLE.md #3, #4, #5 for scope defaults, write/read distinction, and output format.
 
 ---
 
@@ -123,14 +122,13 @@ ctx/
 ├── plugin/               # Claude Code plugin
 │   ├── .claude-plugin/
 │   │   └── plugin.json   # Plugin config
-│   ├── .mcp.json         # MCP server config (Slack, etc.)
+│   ├── .mcp.json         # MCP server config
 │   ├── agents/           # AI Agents (orchestrators)
 │   │   └── ctx-capture/  # Source capture orchestrator
 │   ├── skills/           # AI Skills
 │   │   ├── ctx-load/     # Context load skill
 │   │   ├── ctx-save/     # Context save skill
-│   │   ├── session-capture/  # Claude session capture
-│   │   └── slack-capture/    # Slack message capture
+│   │   └── session-capture/  # Claude session capture
 │   ├── hooks/            # PostToolUse hooks
 │   ├── commands/         # /ctx.* commands
 │   └── shared/           # Shared resources
@@ -185,13 +183,13 @@ contexts:
     checksum: 'abc123'
     preview:
       what: "System architecture overview"
-      when: ["architecture", "structure", "design"]
+      keywords: ["architecture", "structure", "design"]
   'src/api.ctx.md':
     target: 'src/api.ts'
     checksum: 'def456'
     preview:
       what: "API routing patterns"
-      when: ["api", "routing", "endpoint"]
+      keywords: ["api", "routing", "endpoint"]
 ```
 
 ### Global Registry (`~/.ctx/registry.yaml`)
@@ -203,14 +201,14 @@ contexts:
     checksum: 'xyz789'
     preview:
       what: "Personal coding style"
-      when: ["style", "convention"]
+      keywords: ["style", "convention"]
 
 index:
   'projects/myapp':
     contexts:
       - path: 'src/api.ctx.md'
         what: "API patterns"
-        when: ["api"]
+        keywords: ["api"]
 ```
 
 ---
@@ -263,7 +261,6 @@ External data capture and context creation system.
 |-----------|----------|---------|
 | **ctx-capture Agent** | `plugin/agents/ctx-capture/` | Orchestrate multi-source capture |
 | **session-capture Skill** | `plugin/skills/session-capture/` | Capture Claude Code sessions |
-| **slack-capture Skill** | `plugin/skills/slack-capture/` | Capture Slack messages |
 | **/ctx.capture Command** | `plugin/commands/ctx.capture.md` | User entry point |
 
 ### Usage
@@ -272,13 +269,7 @@ External data capture and context creation system.
 # Session capture
 /ctx.capture session              # Today's sessions
 /ctx.capture session terraform    # Filter by keyword
-
-# Slack capture
-/ctx.capture slack #team-ai       # Channel messages
-/ctx.capture slack #dev 어제      # Yesterday's messages
-
-# Multi-source (Agent)
-/ctx.capture all 오늘             # All sources, today
+/ctx.capture session --save       # Auto-save without review
 ```
 
 ### Inbox
@@ -287,7 +278,6 @@ Captured data is temporarily stored in `.ctx/inbox/`:
 
 ```
 .ctx/inbox/
-├── slack/<run_id>.json
 └── session/<run_id>.json
 ```
 
@@ -324,7 +314,7 @@ Registry is auto-generated by `ctx sync`. Never edit manually.
 
 Distinction is based on **`target` field presence, not file location**:
 - `target` present → Bound (auto-loaded when reading that file)
-- `target` absent → Standalone (loaded by `when` keyword matching)
+- `target` absent → Standalone (loaded by `keywords` matching)
 
 ---
 

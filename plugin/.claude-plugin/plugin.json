@@ -9,7 +9,7 @@
   "homepage": "https://github.com/team-attention/ctx",
   "repository": "https://github.com/team-attention/ctx",
   "license": "MIT",
-  "keywords": ["context", "memory", "workspace", "documentation", "knowledge-management", "capture", "slack", "session"],
+  "keywords": ["context", "memory", "workspace", "documentation", "knowledge-management", "capture", "session"],
   "commands": "./commands/",
   "skills": "./skills/",
   "agents": "./agents/",

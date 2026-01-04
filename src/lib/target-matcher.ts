@@ -44,7 +44,7 @@ export interface MatchedContext {
   priority: number;
   preview?: {
     what?: string;
-    when?: string[];
+    keywords?: string[];
   };
 }
 

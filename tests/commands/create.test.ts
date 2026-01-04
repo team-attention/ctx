@@ -58,7 +58,7 @@ describe('create command', () => {
       // Check for frontmatter markers
       expect(contextContent).toContain('---');
       expect(contextContent).toContain('what:');
-      expect(contextContent).toContain('when:');
+      expect(contextContent).toContain('keywords:');
     });
 
     it('should add .md extension if not present', async () => {
@@ -126,7 +126,7 @@ describe('create command', () => {
 
       // Check for frontmatter structure
       expect(content).toContain('---');
-      expect(content).toContain('when:');
+      expect(content).toContain('keywords:');
       expect(content).toContain('what:');
 
       // Document title should be rendered (converted from kebab-case)
@@ -152,7 +152,7 @@ describe('create command', () => {
       // Create existing context file
       await testEnv.createFile(
         'src/existing.ctx.md',
-        '---\ntarget: src/existing.ts\nwhat: old content\nwhen:\n  - test\n---\n\n# Old Content'
+        '---\ntarget: src/existing.ts\nwhat: old content\nkeywords:\n  - test\n---\n\n# Old Content'
       );
     });
 

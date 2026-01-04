@@ -68,7 +68,7 @@ npx ctx check
    ```
    For each context in local + global registries:
      - preview.what
-     - preview.when
+     - preview.keywords
      - source path
    ```
 

@@ -1712,7 +1712,7 @@ ctx status --all --pretty
 
 # 7. Auto-load 테스트
 touch src/test.ts
-echo "---\nwhat: Test\nwhen: [test]\n---\n# Test" > src/test.ctx.md
+echo "---\nwhat: Test\nkeywords: [test]\n---\n# Test" > src/test.ctx.md
 echo '{"tool_input":{"file_path":"src/test.ts"}}' | ./plugin/scripts/auto-load-context.sh
 
 # 8. Rebuild Index

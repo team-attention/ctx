@@ -247,38 +247,10 @@ echo "Note: Deliberate Mode requires multi-step interaction."
 echo "      Testing mode detection only."
 
 # -----------------------------------------------------------------------------
-# Test 3.1: Deliberate Mode - External source trigger (Slack)
+# Test 3.1: Deliberate Mode - URL source trigger
 # -----------------------------------------------------------------------------
 echo ""
-echo "Test 3.1: Deliberate Mode - Slack source"
-echo "-----------------------------------------"
-
-set +e
-output=$(claude -p "Slack에서 배포 관련 내용 추출해서 저장해줘" \
-  --allowedTools "Write,Read,Bash(ctx:*)" \
-  --dangerously-skip-permissions \
-  --max-turns 2 \
-  2>&1)
-exit_code=$?
-set -e
-
-# Deliberate mode should recognize Slack source - may hit max-turns (expected)
-if echo "$output" | grep -qi "slack\|channel\|채널\|thread\|스레드\|선택\|배포\|deploy\|MCP\|접근"; then
-  echo -e "${GREEN}  [OK]${NC} Deliberate mode detected (Slack source recognized)"
-elif echo "$output" | grep -qi "max turns"; then
-  echo -e "${GREEN}  [OK]${NC} Deliberate mode detected (multi-step, hit max-turns)"
-elif [ $exit_code -ne 0 ]; then
-  echo -e "${GREEN}  [OK]${NC} Deliberate mode detected (processing/waiting)"
-else
-  echo -e "${YELLOW}  [WARN]${NC} Deliberate mode (Slack) behavior unclear"
-  echo "  Output: ${output:0:100}..."
-fi
-
-# -----------------------------------------------------------------------------
-# Test 3.2: Deliberate Mode - URL source trigger
-# -----------------------------------------------------------------------------
-echo ""
-echo "Test 3.2: Deliberate Mode - URL source"
+echo "Test 3.1: Deliberate Mode - URL source"
 echo "---------------------------------------"
 
 set +e

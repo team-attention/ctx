@@ -8,10 +8,9 @@ import {
   findProjectRoot,
   isGlobalCtxInitialized,
   readProjectRegistry,
-  writeProjectRegistry,
+  writeProjectRegistryWithSync,
   readGlobalCtxRegistry,
   writeGlobalCtxRegistry,
-  updateGlobalIndex,
   getGlobalCtxDir,
 } from '../lib/registry.js';
 import { ContextEntry } from '../lib/types.js';
@@ -21,10 +20,10 @@ interface AdoptOptions {
 }
 
 /**
- * Generate what/when from filename
- * e.g., "docs/api-guide.md" → what: "api guide", when: ["api", "guide", "docs"]
+ * Generate what/keywords from filename
+ * e.g., "docs/api-guide.md" → what: "api guide", keywords: ["api", "guide", "docs"]
  */
-function generateFromFilename(filePath: string): { what: string; when: string[] } {
+function generateFromFilename(filePath: string): { what: string; keywords: string[] } {
   const basename = path.basename(filePath, path.extname(filePath));
   const dirname = path.dirname(filePath);
 
@@ -42,10 +41,10 @@ function generateFromFilename(filePath: string): { what: string; when: string[] 
     .filter(d => d && d !== '.' && d !== '..' && d !== 'src' && d !== 'lib')
     .map(d => d.toLowerCase());
 
-  const when = [...new Set([...words, ...dirWords])];
+  const keywords = [...new Set([...words, ...dirWords])];
   const what = words.join(' ');
 
-  return { what, when };
+  return { what, keywords };
 }
 
 /**
@@ -58,12 +57,12 @@ function hasFrontmatter(content: string): boolean {
 /**
  * Add frontmatter to content
  */
-function addFrontmatter(content: string, what: string, when: string[]): string {
-  const whenYaml = when.map(k => `  - ${k}`).join('\n');
+function addFrontmatter(content: string, what: string, keywords: string[]): string {
+  const keywordsYaml = keywords.map(k => `  - ${k}`).join('\n');
   const frontmatter = `---
 what: "${what}"
-when:
-${whenYaml}
+keywords:
+${keywordsYaml}
 ---
 
 `;
@@ -144,11 +143,11 @@ async function adoptToProject(patterns: string[]) {
         continue;
       }
 
-      // Generate what/when from filename
-      const { what, when } = generateFromFilename(file);
+      // Generate what/keywords from filename
+      const { what, keywords } = generateFromFilename(file);
 
       // Add frontmatter
-      const newContent = addFrontmatter(content, what, when);
+      const newContent = addFrontmatter(content, what, keywords);
 
       // Write back
       await fs.writeFile(absolutePath, newContent, 'utf-8');
@@ -167,18 +166,12 @@ async function adoptToProject(patterns: string[]) {
       registry.contexts[file] = entry;
       console.log(chalk.green(`  adopt: ${file}`));
       console.log(chalk.gray(`         what: "${what}"`));
-      console.log(chalk.gray(`         when: [${when.join(', ')}]`));
+      console.log(chalk.gray(`         keywords: [${keywords.join(', ')}]`));
       adopted++;
     }
   }
 
-  await writeProjectRegistry(projectRoot, registry);
-
-  // Update global index
-  const globalInitialized = await isGlobalCtxInitialized();
-  if (globalInitialized) {
-    await updateGlobalIndex(projectRoot);
-  }
+  await writeProjectRegistryWithSync(projectRoot, registry);
 
   console.log();
   console.log(chalk.blue.bold('Done!'));
@@ -241,11 +234,11 @@ async function adoptToGlobal(patterns: string[]) {
         continue;
       }
 
-      // Generate what/when
-      const { what, when } = generateFromFilename(relativePath);
+      // Generate what/keywords
+      const { what, keywords } = generateFromFilename(relativePath);
 
       // Add frontmatter
-      const newContent = addFrontmatter(content, what, when);
+      const newContent = addFrontmatter(content, what, keywords);
 
       // Write back
       await fs.writeFile(absolutePath, newContent, 'utf-8');
@@ -264,7 +257,7 @@ async function adoptToGlobal(patterns: string[]) {
       registry.contexts[relativePath] = entry;
       console.log(chalk.green(`  adopt: ${relativePath}`));
       console.log(chalk.gray(`         what: "${what}"`));
-      console.log(chalk.gray(`         when: [${when.join(', ')}]`));
+      console.log(chalk.gray(`         keywords: [${keywords.join(', ')}]`));
       adopted++;
     }
   }

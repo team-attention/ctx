@@ -8,10 +8,9 @@ import {
   findProjectRoot,
   isGlobalCtxInitialized,
   readProjectRegistry,
-  writeProjectRegistry,
+  writeProjectRegistryWithSync,
   readGlobalCtxRegistry,
   writeGlobalCtxRegistry,
-  updateGlobalIndex,
   getGlobalCtxDir,
 } from '../lib/registry.js';
 import { ContextEntry, ContextPathConfig } from '../lib/types.js';
@@ -146,7 +145,7 @@ async function addToProject(patterns: string[]) {
     }
   }
 
-  await writeProjectRegistry(projectRoot, registry);
+  await writeProjectRegistryWithSync(projectRoot, registry);
 
   console.log();
   console.log(chalk.blue.bold('Summary:'));
@@ -161,12 +160,6 @@ async function addToProject(patterns: string[]) {
     console.log();
     console.log(chalk.blue('Running sync to apply new patterns...'));
     await syncCommand({ global: false });
-  }
-
-  // Update global index
-  const globalInitialized = await isGlobalCtxInitialized();
-  if (globalInitialized) {
-    await updateGlobalIndex(projectRoot);
   }
 }
 

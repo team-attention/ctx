@@ -299,5 +299,4 @@ ctx save --path learnings/terraform-2026-01-03.md --content "..."
 - `shared/inbox-schema.md` - Inbox data format
 
 ### Related Skills
-- **slack-capture** - Capture Slack messages
 - **ctx-save** - Save final context from inbox

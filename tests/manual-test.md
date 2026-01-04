@@ -84,7 +84,7 @@ ctx init .
 cat > test.ctx.md << 'EOF'
 ---
 what: Test context
-when:
+keywords:
   - testing sync
 ---
 # Test
@@ -112,7 +112,7 @@ ctx sync
 - [ ] `index` 필드에 프로젝트 이름 키 있음
 - [ ] `path`: 프로젝트 절대 경로
 - [ ] `context_count`: context 개수
-- [ ] `contexts`: 각 context의 what, when 정보
+- [ ] `contexts`: 각 context의 what, keywords 정보
 
 ---
 
@@ -127,7 +127,7 @@ ctx sync
 cat > new.ctx.md << 'EOF'
 ---
 what: New context
-when:
+keywords:
   - testing add
 ---
 # New

@@ -129,10 +129,28 @@ export async function readProjectRegistry(projectRoot: string): Promise<UnifiedR
 }
 
 /**
- * Write project registry
+ * Write project registry (low-level, does NOT update global index)
+ * @internal Use writeProjectRegistryWithSync for most cases
  */
 export async function writeProjectRegistry(projectRoot: string, registry: UnifiedRegistry): Promise<void> {
   await writeUnifiedRegistry(getProjectRegistryPath(projectRoot), registry);
+}
+
+/**
+ * Write project registry AND sync to global index
+ * This is the recommended function for updating project registry.
+ * Automatically updates global index if global ctx is initialized.
+ */
+export async function writeProjectRegistryWithSync(
+  projectRoot: string,
+  registry: UnifiedRegistry
+): Promise<void> {
+  await writeProjectRegistry(projectRoot, registry);
+
+  const globalInitialized = await isGlobalCtxInitialized();
+  if (globalInitialized) {
+    await updateGlobalIndex(projectRoot);
+  }
 }
 
 /**
@@ -142,6 +160,11 @@ export async function updateGlobalIndex(projectRoot: string): Promise<void> {
   const globalRegistry = await readGlobalCtxRegistry();
   const projectRegistry = await readProjectRegistry(projectRoot);
 
+  // Safety check: ensure globalRegistry is valid
+  if (!globalRegistry) {
+    return;
+  }
+
   if (!globalRegistry.index) {
     globalRegistry.index = {};
   }
@@ -150,7 +173,7 @@ export async function updateGlobalIndex(projectRoot: string): Promise<void> {
   const contexts = Object.entries(projectRegistry.contexts).map(([key, entry]) => ({
     path: key,
     what: entry.preview.what,
-    when: entry.preview.when,
+    keywords: entry.preview.keywords,
   }));
 
   const indexEntry: ProjectIndexEntry = {

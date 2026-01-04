@@ -1,45 +1,44 @@
 ---
 name: ctx-capture
-description: This agent should be used when the user asks to "capture data from multiple sources", "capture and save", "combine slack and session", "get from sources and save", or needs to orchestrate capture from Slack, session, or multiple external sources and save as context.
+description: This agent should be used when the user asks to "capture session and save", "capture and save context", "summarize today's work and save", "get session history and save", or needs to orchestrate session capture with insight extraction and save as context.
 color: blue
 ---
 
 # CTX Capture Agent
 
-Orchestrator agent for capturing data from multiple external sources and saving as context.
+Orchestrator agent for capturing session data and saving as context with insight extraction.
 
 ## Purpose
 
-This agent coordinates the capture of external data (Slack, session history, etc.) and synthesizes it into meaningful context.
+This agent coordinates the capture of session history, extracts insights, and synthesizes it into meaningful context.
 
 ```
 ┌──────────────────────────────────────────────────────┐
 │  User Request                                        │
-│  "Combine today's slack and session, then save"      │
+│  "Summarize today's work and save as context"        │
 └──────────────────────────────────────────────────────┘
                          │
                          ▼
 ┌──────────────────────────────────────────────────────┐
 │  ctx-capture Agent (Orchestrator)                    │
-│  • Analyze request → determine sources               │
-│  • Reference capture skills                          │
-│  • Synthesize inbox results                          │
+│  • Analyze request                                   │
+│  • Execute session-capture skill                     │
+│  • Read inbox results                                │
 │  • Extract insights                                  │
 │  • Save final context                                │
 └──────────────────────────────────────────────────────┘
                          │
-         ┌───────────────┴───────────────┐
-         ▼                               ▼
-┌─────────────────┐             ┌─────────────────┐
-│  slack-capture  │             │ session-capture │
-│     Skill       │             │     Skill       │
-└─────────────────┘             └─────────────────┘
-         │                               │
-         ▼                               ▼
-┌─────────────────┐             ┌─────────────────┐
-│ .ctx/inbox/     │             │ .ctx/inbox/     │
-│ slack/          │             │ session/        │
-└─────────────────┘             └─────────────────┘
+                         ▼
+              ┌─────────────────┐
+              │ session-capture │
+              │     Skill       │
+              └─────────────────┘
+                         │
+                         ▼
+              ┌─────────────────┐
+              │ .ctx/inbox/     │
+              │ session/        │
+              └─────────────────┘
                          │
                          ▼
 ┌──────────────────────────────────────────────────────┐
@@ -52,14 +51,13 @@ This agent coordinates the capture of external data (Slack, session history, etc
 ## When to Use
 
 **Use this agent when:**
-- User requests data from multiple sources
+- User wants capture + save in one workflow
 - User wants automated insight extraction
-- Complex capture workflow needed
-- "combine slack and session"
-- "all sources", "from all sources"
+- "summarize today's work and save"
+- "capture session and save as context"
 
-**Use individual skills when:**
-- Single source capture (slack only, session only)
+**Use session-capture skill directly when:**
+- Simple capture without save
 - User explicitly requests specific skill
 
 ---
@@ -69,11 +67,9 @@ This agent coordinates the capture of external data (Slack, session history, etc
 | Skill | Source | Description |
 |-------|--------|-------------|
 | **session-capture** | Claude Code | Capture session history from ~/.claude/projects/ |
-| **slack-capture** | Slack | Capture channel messages via MCP |
 
-Reference skills by reading their SKILL.md files:
+Reference skill by reading:
 - `plugin/skills/session-capture/SKILL.md`
-- `plugin/skills/slack-capture/SKILL.md`
 
 ---
 
@@ -82,50 +78,38 @@ Reference skills by reading their SKILL.md files:
 ### Step 1: Analyze Request
 
 Parse user request to determine:
-1. **Sources** - Which data sources to capture (slack, session, or both)
-2. **Time range** - When (today, yesterday, this week)
-3. **Filters** - Keywords or topics to focus on
-4. **Output** - Desired format or focus area
+1. **Time range** - When (today, yesterday, this week)
+2. **Filters** - Keywords or topics to focus on
+3. **Output** - Desired format or focus area
 
 **Examples:**
 ```
-"Save yesterday's #team-ai slack conversation"
-→ Sources: [slack], Channel: #team-ai, Time: yesterday
-
 "Summarize what I learned about terraform from today's session"
-→ Sources: [session], Filter: terraform, Time: today
+→ Filter: terraform, Time: today
 
-"Combine today's slack and session work, then save"
-→ Sources: [slack, session], Time: today
+"Save today's work as context"
+→ Time: today, auto_save: true
+
+"Capture this week's debugging sessions"
+→ Time: this_week
 ```
 
-### Step 2: Execute Capture Skills
+### Step 2: Execute Capture Skill
 
-For each identified source, reference the corresponding skill:
+Reference the session-capture skill:
 
-**Single source:**
 ```
-1. Read skill SKILL.md for guidance
+1. Read plugin/skills/session-capture/SKILL.md for guidance
 2. Follow skill's execution algorithm
-3. Save to inbox
-```
-
-**Multiple sources:**
-```
-1. Execute each skill sequentially
-2. Each skill saves to its inbox:
-   - .ctx/inbox/slack/<run_id>.json
-   - .ctx/inbox/session/<run_id>.json
-3. Use same run_id across sources for correlation
+3. Save to inbox (.ctx/inbox/session/<run_id>.json)
 ```
 
 ### Step 3: Read Inbox Results
 
-After capture, read inbox files to synthesize:
+After capture, read inbox file to synthesize:
 
 ```bash
 # Read captured data
-cat .ctx/inbox/slack/<run_id>.json
 cat .ctx/inbox/session/<run_id>.json
 ```
 
@@ -156,18 +140,14 @@ Structure the extracted insights into context format:
 ```markdown
 ---
 what: "Description of this context"
-when:
+keywords:
   - keyword1
   - keyword2
 captured_from:
-  sources:
-    - type: slack
-      channel: "#team-ai"
-      time_range: "2026-01-02 ~ 2026-01-03"
-      message_count: 42
-    - type: session
-      project: "/path/to/project"
-      session_count: 3
+  source: session
+  project: "/path/to/project"
+  session_count: 3
+  time_range: "2026-01-02 ~ 2026-01-03"
   captured_at: "2026-01-03T10:00:00Z"
   run_id: "550e8400-..."
 ---
@@ -209,8 +189,7 @@ Provide final summary to user:
 ```markdown
 ## Capture Complete
 
-### Sources
-- **Slack:** #team-ai (42 messages)
+### Source
 - **Session:** 3 sessions (150 messages)
 
 ### Insights Extracted
@@ -251,38 +230,36 @@ Provide final summary to user:
 
 ### Example 1: Daily Summary
 
-**User:** "Summarize today's work from slack and session combined"
+**User:** "Summarize today's work and save"
 
 **Actions:**
-1. Parse: sources=[slack, session], time=today
+1. Parse: time=today
 2. Execute session-capture skill (today's sessions)
-3. Execute slack-capture skill (today's messages)
-4. Read both inbox files
-5. Extract insights:
-   - What was discussed
+3. Read inbox file
+4. Extract insights:
    - What was implemented
    - What decisions were made
-6. Generate summary context
-7. Save to `.ctx/contexts/daily-2026-01-03.md`
+   - What was learned
+5. Generate summary context
+6. Save to `.ctx/contexts/daily-2026-01-03.md`
 
 ### Example 2: Topic-Focused Capture
 
-**User:** "Summarize this week's terraform discussions"
+**User:** "Summarize this week's terraform work"
 
 **Actions:**
 1. Parse: filter=terraform, time=this_week
 2. Execute session-capture with filter
-3. Execute slack-capture, search for terraform mentions
-4. Synthesize terraform-specific insights
-5. Save to `.ctx/contexts/terraform-week-1.md`
+3. Synthesize terraform-specific insights
+4. Save to `.ctx/contexts/terraform-week-1.md`
 
-### Example 3: Single Source with Auto-Save
+### Example 3: Quick Save
 
-**User:** "Save yesterday's #dev slack conversation directly"
+**User:** "Save today's session directly"
 
 **Actions:**
-1. Parse: sources=[slack], channel=#dev, time=yesterday, auto_save=true
-2. Execute slack-capture skill
+1. Parse: time=today, auto_save=true
+2. Execute session-capture skill
 3. Generate summary from inbox
 4. Save immediately (no review step)
 5. Report completion
@@ -293,8 +270,8 @@ Provide final summary to user:
 
 | Scenario | Response |
 |----------|----------|
-| No sources identified | "Which source should I capture from? (slack, session)" |
-| Skill execution failed | "Slack capture failed: [error]. Continue with session only?" |
+| No session files found | "No session files found for this project. Check ~/.claude/projects/." |
+| Skill execution failed | "Session capture failed: [error]." |
 | No data captured | "No data found for the specified period. Extend the range?" |
 | Insight extraction empty | "No key insights found. Save raw data instead?" |
 
@@ -308,14 +285,12 @@ Provide final summary to user:
 |---------|---------|-------------|
 | Auto-save | false | Require user confirmation before save |
 | Time range | last 24h | Default time window |
-| Expand threads | false | Don't fetch thread replies by default |
 | Insight extraction | true | Always try to extract insights |
 
 ### Override via Request
 
 ```
 "save directly" → auto_save=true
-"include threads" → expand_threads=true
 "raw data only" → insight_extraction=false
 ```
 
@@ -325,7 +300,6 @@ Provide final summary to user:
 
 ### Skills
 - `plugin/skills/session-capture/SKILL.md`
-- `plugin/skills/slack-capture/SKILL.md`
 - `plugin/skills/ctx-save/SKILL.md`
 
 ### Policies

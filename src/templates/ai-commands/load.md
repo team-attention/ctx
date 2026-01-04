@@ -21,7 +21,7 @@ Examples: `authentication`, `payment processing`, `api design rules`, `database 
 ## 2. SEARCH & FILTER
 Match `$ARGUMENTS` against:
 - `preview.what` (what the context describes)
-- `preview.when` (when to use it)
+- `preview.keywords` (when to use it)
 - `folder` names (for global contexts)
 - File paths and names
 
@@ -68,7 +68,7 @@ Try: Different keywords, broader terms, or run `ctx sync`
 ### Loaded: [path]
 
 **What:** [preview.what]
-**When:** [preview.when as bullets]
+**Keywords:** [preview.keywords as bullets]
 
 [Show key content/exports]
 ```

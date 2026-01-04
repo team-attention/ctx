@@ -12,17 +12,14 @@
 
 ```
 [External Source]  →  [Capture]  →  [inbox (RAW)]  →  [Process]  →  [ctx save]
-   Slack              Skill         JSON format       Agent        Markdown
-   Session                          Temporary         Insights     Permanent
+   Session            Skill         JSON format       Agent        Markdown
+                                    Temporary         Insights     Permanent
 ```
 
 ### Storage Location
 
 ```
 .ctx/inbox/
-├── slack/
-│   ├── 550e8400-e29b-41d4-a716-446655440000.json
-│   └── 661f9511-f39c-52e5-b827-557766551111.json
 └── session/
     └── 772g0622-g40d-63f6-c938-668877662222.json
 ```
@@ -42,7 +39,7 @@ Base structure shared by all inbox files:
 {
   "schema_version": "1.0",
   "run_id": "<UUID v4>",
-  "source": "<slack|session|github>",
+  "source": "session",
   "fetched_at": "<ISO 8601 timestamp>",
   "query": { },
   "data": { },
@@ -71,91 +68,7 @@ Base structure shared by all inbox files:
 
 ---
 
-## 3. Slack Inbox Schema
-
-### Full Structure
-
-```json
-{
-  "schema_version": "1.0",
-  "run_id": "550e8400-e29b-41d4-a716-446655440000",
-  "source": "slack",
-  "fetched_at": "2026-01-03T10:00:00Z",
-  "query": {
-    "channel": "#team-ai",
-    "channel_id": "C1234567890",
-    "since": "2026-01-02T00:00:00Z",
-    "until": "2026-01-03T00:00:00Z",
-    "timezone": "Asia/Seoul",
-    "expand_threads": false
-  },
-  "data": {
-    "messages": [
-      {
-        "ts": "1704200400.000100",
-        "user": "U1234567890",
-        "user_name": "John Doe",
-        "text": "Deploying today",
-        "thread_ts": null,
-        "reply_count": 3,
-        "reactions": [
-          { "name": "thumbsup", "count": 2 }
-        ]
-      }
-    ]
-  },
-  "metadata": {
-    "message_count": 42,
-    "thread_count": 5,
-    "user_count": 8,
-    "has_more": false,
-    "redacted_count": 2
-  },
-  "provenance": {
-    "tool": "ctx-capture",
-    "version": "1.0.0",
-    "user": "hoyeonlee",
-    "cwd": "/Users/hoyeonlee/team-attention/ctx"
-  }
-}
-```
-
-### query Fields
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `channel` | string | ✅ | Channel name (#channel) |
-| `channel_id` | string | ✅ | Slack channel ID |
-| `since` | string | - | Start time (ISO 8601) |
-| `until` | string | - | End time (ISO 8601) |
-| `timezone` | string | - | Timezone (default: Asia/Seoul) |
-| `expand_threads` | boolean | - | Expand threads (default: false) |
-
-### data.messages Fields
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `ts` | string | ✅ | Message timestamp |
-| `user` | string | ✅ | User ID |
-| `user_name` | string | - | User display name |
-| `text` | string | ✅ | Message content |
-| `thread_ts` | string | - | Parent thread timestamp |
-| `reply_count` | number | - | Reply count |
-| `reactions` | array | - | Reaction list |
-
-### metadata Fields
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `message_count` | number | Collected message count |
-| `thread_count` | number | Thread count |
-| `user_count` | number | Participant count |
-| `has_more` | boolean | More messages available |
-| `redacted_count` | number | Masked item count |
-
----
-
-## 4. Session Inbox Schema
+## 3. Session Inbox Schema
 
 ### Full Structure
 
@@ -248,7 +161,7 @@ Base structure shared by all inbox files:
 
 ---
 
-## 5. Path Encoding Rules
+## 4. Path Encoding Rules
 
 Claude Code sessions store project paths with encoding:
 
@@ -273,7 +186,7 @@ Claude Code sessions store project paths with encoding:
 
 ---
 
-## 6. UUID Generation
+## 5. UUID Generation
 
 ### run_id Generation Rules
 
@@ -298,7 +211,7 @@ function generateRunId(): string {
 
 ---
 
-## 7. Schema Version Management
+## 6. Schema Version Management
 
 ### Version Rules
 

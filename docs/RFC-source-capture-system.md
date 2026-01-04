@@ -713,7 +713,7 @@ Section 3.2 민감 정보 처리 참조
 ```yaml
 ---
 what: "Slack #team-ai 대화 요약"
-when: ["slack", "team-ai", "2026-01"]
+keywords: ["slack", "team-ai", "2026-01"]
 captured_from:
   sources:
     - type: slack

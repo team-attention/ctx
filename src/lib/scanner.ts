@@ -9,7 +9,11 @@ import { DEFAULT_PATTERNS } from './config.js';
 const CTX_DIR = '.ctx';
 const CONTEXTS_DIR = 'contexts';
 const REGISTRY_FILE = 'registry.yaml';
-const GLOBAL_CTX_DIR = path.join(os.homedir(), CTX_DIR);
+
+/** Get global ctx directory (uses current HOME, not cached) */
+function getGlobalCtxDir(): string {
+  return path.join(os.homedir(), CTX_DIR);
+}
 
 /** Default context paths when settings not configured */
 const DEFAULT_CONTEXT_PATHS: ContextPathConfig[] = [
@@ -200,7 +204,8 @@ export async function scanProjectContexts(
  * Scan for global context files based on settings.context_paths in ~/.ctx/
  */
 export async function scanGlobalCtxContexts(): Promise<ScannedContext[]> {
-  const registryPath = path.join(GLOBAL_CTX_DIR, REGISTRY_FILE);
+  const globalCtxDir = getGlobalCtxDir();
+  const registryPath = path.join(globalCtxDir, REGISTRY_FILE);
   const contextPaths = await getContextPathsFromRegistry(registryPath);
 
   const contexts: ScannedContext[] = [];
@@ -208,7 +213,7 @@ export async function scanGlobalCtxContexts(): Promise<ScannedContext[]> {
 
   for (const cp of contextPaths) {
     const files = await glob(cp.path, {
-      cwd: GLOBAL_CTX_DIR,
+      cwd: globalCtxDir,
       absolute: false,
     });
 
@@ -216,7 +221,7 @@ export async function scanGlobalCtxContexts(): Promise<ScannedContext[]> {
       if (seenPaths.has(file)) continue;
       seenPaths.add(file);
 
-      const absolutePath = path.join(GLOBAL_CTX_DIR, file);
+      const absolutePath = path.join(globalCtxDir, file);
       try {
         const content = await fs.readFile(absolutePath, 'utf-8');
         contexts.push({
