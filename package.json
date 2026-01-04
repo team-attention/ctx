@@ -1,6 +1,6 @@
 {
   "name": "@team-attention/ctx",
-  "version": "0.2.18",
+  "version": "0.2.19",
   "description": "Context-driven development CLI tool",
   "type": "module",
   "bin": {
