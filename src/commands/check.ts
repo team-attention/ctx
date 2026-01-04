@@ -9,6 +9,7 @@ import {
 import { computeChecksum, computeFileChecksum } from '../lib/checksum.js';
 import { CheckOptions } from '../lib/types.js';
 import { findMatchingContexts } from '../lib/target-matcher.js';
+import { getProjectContextPaths } from '../lib/context-path-matcher.js';
 
 interface CheckResult {
   status: 'fresh' | 'stale';
@@ -207,28 +208,30 @@ async function findNewContexts(
   registry: { contexts: Record<string, any> }
 ): Promise<Array<{ path: string; hasTarget: boolean; target?: string }>> {
   const newContexts: Array<{ path: string; hasTarget: boolean; target?: string }> = [];
-
-  // Scan for *.ctx.md files (typically bound to target files)
   const { glob } = await import('glob');
-  const patterns = ['**/*.ctx.md', '**/ctx.md'];
-  const ignore = ['node_modules/**', 'dist/**', 'build/**', '.git/**', '.ctx/**'];
+  const seenPaths = new Set<string>();
 
-  for (const pattern of patterns) {
-    const files = await glob(pattern, { cwd: projectRoot, ignore });
+  // Get context paths from registry settings (respects user configuration)
+  const contextPaths = await getProjectContextPaths(projectRoot);
+  const defaultIgnore = ['node_modules/**', 'dist/**', 'build/**', '.git/**'];
+
+  for (const cp of contextPaths) {
+    // Determine ignore patterns - exclude .ctx/** unless pattern explicitly targets it
+    const ignore = cp.path.startsWith('.ctx/')
+      ? defaultIgnore
+      : [...defaultIgnore, '.ctx/**'];
+
+    const files = await glob(cp.path, { cwd: projectRoot, ignore });
+
     for (const file of files) {
-      if (!registry.contexts[file]) {
-        // *.ctx.md files are typically bound to a target file
-        newContexts.push({ path: file, hasTarget: true });
-      }
-    }
-  }
+      if (seenPaths.has(file)) continue;
+      seenPaths.add(file);
 
-  // Scan for .ctx/contexts/*.md files (standalone, no target)
-  const projectContextPattern = '.ctx/contexts/**/*.md';
-  const projectFiles = await glob(projectContextPattern, { cwd: projectRoot });
-  for (const file of projectFiles) {
-    if (!registry.contexts[file]) {
-      newContexts.push({ path: file, hasTarget: false });
+      if (!registry.contexts[file]) {
+        // *.ctx.md files are typically bound, others are standalone
+        const hasTarget = file.endsWith('.ctx.md');
+        newContexts.push({ path: file, hasTarget });
+      }
     }
   }
 

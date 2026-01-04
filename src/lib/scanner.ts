@@ -133,9 +133,12 @@ export function extractFolder(relativePath: string, globalDir: string): string |
 
 /**
  * Get context paths from registry settings
- * Falls back to default paths if settings not configured
+ * Falls back to scope-appropriate default paths if settings not configured
  */
-async function getContextPathsFromRegistry(registryPath: string): Promise<ContextPathConfig[]> {
+async function getContextPathsFromRegistry(
+  registryPath: string,
+  scope: 'project' | 'global' = 'project'
+): Promise<ContextPathConfig[]> {
   try {
     const content = await fs.readFile(registryPath, 'utf-8');
     const { parse } = await import('yaml');
@@ -146,7 +149,7 @@ async function getContextPathsFromRegistry(registryPath: string): Promise<Contex
   } catch {
     // Registry doesn't exist or is invalid
   }
-  return DEFAULT_PROJECT_CONTEXT_PATHS;
+  return scope === 'global' ? DEFAULT_GLOBAL_CONTEXT_PATHS : DEFAULT_PROJECT_CONTEXT_PATHS;
 }
 
 /**
@@ -203,7 +206,7 @@ export async function scanProjectContexts(
 export async function scanGlobalCtxContexts(): Promise<ScannedContext[]> {
   const globalCtxDir = getGlobalCtxDir();
   const registryPath = path.join(globalCtxDir, REGISTRY_FILE);
-  const contextPaths = await getContextPathsFromRegistry(registryPath);
+  const contextPaths = await getContextPathsFromRegistry(registryPath, 'global');
 
   const contexts: ScannedContext[] = [];
   const seenPaths = new Set<string>();

@@ -13,17 +13,10 @@ import {
   isProjectCtxInitialized,
 } from '../lib/registry.js';
 import { ContextPathConfig, UnifiedRegistry } from '../lib/types.js';
-
-/** Default context paths for Global */
-const DEFAULT_GLOBAL_CONTEXT_PATHS: ContextPathConfig[] = [
-  { path: 'contexts/**/*.md', purpose: 'General context documents' },
-];
-
-/** Default context paths for Project */
-const DEFAULT_PROJECT_CONTEXT_PATHS: ContextPathConfig[] = [
-  { path: '**/*.ctx.md', purpose: 'Bound contexts next to code' },
-  { path: '.ctx/contexts/**/*.md', purpose: 'Centralized project contexts' },
-];
+import {
+  DEFAULT_PROJECT_CONTEXT_PATHS,
+  DEFAULT_GLOBAL_CONTEXT_PATHS,
+} from '../lib/context-path-matcher.js';
 
 /**
  * Parse --context-paths CLI option
