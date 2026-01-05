@@ -78,5 +78,3 @@
   ⎿  Error: File content (48231 tokens) exceeds maximum allowed tokens (25000).
      Please use offset and limit parameters to read specific portions of the
      file, or use the GrepTool to search for specific content.
-
-## 7. 

@@ -1,6 +1,6 @@
 {
   "name": "ctx",
-  "version": "0.2.20",
+  "version": "1.0.0",
   "description": "Persistent memory for AI - Context auto-loads, grows over time, and travels with your code",
   "author": {
     "name": "team-attention",
