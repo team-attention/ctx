@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "plugin/scripts/auto-load-context.sh",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/auto-load-context.sh",
             "timeout": 5000
           }
         ]

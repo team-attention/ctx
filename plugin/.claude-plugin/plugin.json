@@ -12,6 +12,5 @@
   "keywords": ["context", "memory", "workspace", "documentation", "knowledge-management", "capture", "session"],
   "commands": "./commands/",
   "skills": "./skills/",
-  "agents": ["./agents/ctx-orchestrator/AGENT.md"],
-  "hooks": "./hooks/hooks.json"
+  "agents": ["./agents/ctx-orchestrator/AGENT.md"]
 }

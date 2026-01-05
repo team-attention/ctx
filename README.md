@@ -65,6 +65,7 @@ ctx init .
 For auto-loading and AI skills, install the ctx plugin in Claude Code:
 
 ```
+/plugin marketplace add team-attention/ctx
 /plugin install ctx@team-attention/ctx
 ```
 
