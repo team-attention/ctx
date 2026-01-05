@@ -72,19 +72,18 @@ Route all context-related tasks through this orchestrator to ensure consistency 
 
 ### Capture Operations
 
-**Trigger phrases:**
-- "capture session", "save session history"
-- "get today's work", "summarize what I worked on"
-- "오늘 한 거 정리해줘"
+**Trigger:** User references conversation/session as source material
+- Treats past/current dialogue as information source
+- Wants to access, extract, summarize, or review session content
+- Examples: "오늘 세션 기준으로", "대화내용에서", "what we discussed", "today's work"
 
 **Action:** Read and follow `skills/session-capture/SKILL.md`
 
 ### Capture + Save (Multi-step)
 
-**Trigger phrases:**
-- "capture and save", "summarize today's work and save"
-- "이 세션에서 한 거 저장해줘"
-- "save what we discussed"
+**Trigger:** Conversation/session as source + save/create intent
+- User wants to save/create context FROM conversation/session
+- Examples: "대화내용에서 저장해줘", "세션 기반으로 컨텍스트 만들어줘", "save what we discussed"
 
 **Action:** Execute full capture-to-save workflow (see below)
 

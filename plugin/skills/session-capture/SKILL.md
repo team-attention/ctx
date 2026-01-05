@@ -1,6 +1,6 @@
 ---
 name: session-capture
-description: This skill should be used when the user asks to "capture session", "save session history", "get today's work", "extract feedback from session", "summarize what I worked on", "/ctx.capture session", or wants to capture Claude Code session history as context.
+description: This skill should be used when user wants to access, capture, or reference Claude Code session history. Trigger when user references past/current conversation, dialogue, or session as a source - whether for saving, extracting, summarizing, or reviewing. This includes any mention of "what we discussed", "today's work", "session history", or when user treats the conversation itself as source material (e.g., "대화내용에서", "세션 기준으로", "아까 얘기한 거", "from our conversation").
 allowed-tools: Read, Glob, Bash, Write
 ---
 
@@ -11,11 +11,11 @@ Capture Claude Code session history and save to inbox for context creation.
 ## Trigger Conditions
 
 Activate this skill when:
-- Request contains "capture session", "save session history"
-- Request contains "today's work", "get session history"
-- Request contains "extract feedback from session"
-- Request contains "summarize what I worked on"
-- Explicit command `/ctx.capture session`
+- Explicit: "capture session", "save session history", `/ctx.capture session`
+- **User references conversation/session as source material:**
+  - Treats past/current dialogue as information source
+  - Wants to extract, save, summarize, or review session content
+  - Examples: "오늘 세션 기준으로", "대화내용에서", "아까 얘기한 거", "what we discussed", "from our conversation", "today's work"
 
 ---
 
@@ -111,18 +111,102 @@ Use Glob to find session files:
 - "this week" → files modified this week
 - "yesterday" → files modified yesterday
 
-### Step 4: Parse Session Files
+### Step 4: Preprocess & Parse Sessions
 
-Read each JSONL file and parse messages:
+Session files can be very large (>25000 tokens) due to thinking blocks, tool calls, and metadata.
+Use preprocessing to reduce size before parsing.
 
-```typescript
-interface SessionMessage {
-  type: 'user' | 'assistant';
-  message: {
-    role: string;
-    content: string;
-  };
-}
+#### 4a. Check File Count and Size
+
+```bash
+# Count session files
+SESSION_COUNT=$(ls -1 ~/.claude/projects/<encoded-cwd>/*.jsonl 2>/dev/null | wc -l)
+
+# Check individual file sizes (rough token estimate: bytes / 4)
+for f in ~/.claude/projects/<encoded-cwd>/*.jsonl; do
+  SIZE=$(wc -c < "$f")
+  TOKENS=$((SIZE / 4))
+  echo "$f: ~$TOKENS tokens"
+done
+```
+
+#### 4b. Preprocess with extract-session.sh
+
+Use the bundled script to extract essential content:
+
+```bash
+# Extract user messages + assistant text only (removes thinking, tool_use, metadata)
+${CLAUDE_PLUGIN_ROOT}/scripts/extract-session.sh <session.jsonl>
+```
+
+**What gets extracted:**
+- `summary` type → session summary
+- `user` type → user messages with timestamp
+- `assistant` type → text content only (excludes thinking, tool_use)
+
+**Size reduction:** Typically 60-90% (e.g., 48000 tokens → 5000 tokens)
+
+#### 4c. Parallel Processing for Multiple Sessions
+
+When multiple session files exist, use parallel Task(haiku) for efficiency:
+
+```
+┌─────────────────────────────────────────────────────┐
+│  Session Files (N개)                                 │
+├─────────────────────────────────────────────────────┤
+│                    ↓                                │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐            │
+│  │Task      │ │Task      │ │Task      │  ...       │
+│  │(haiku)   │ │(haiku)   │ │(haiku)   │            │
+│  │Session 1 │ │Session 2 │ │Session 3 │            │
+│  └────┬─────┘ └────┬─────┘ └────┬─────┘            │
+│       │            │            │                   │
+│       ↓            ↓            ↓                   │
+│  ┌──────────────────────────────────────┐          │
+│  │  Main Agent: Collect & Synthesize    │          │
+│  └──────────────────────────────────────┘          │
+└─────────────────────────────────────────────────────┘
+```
+
+**Implementation:**
+
+```markdown
+For each session file, launch parallel Task:
+
+Task(
+  subagent_type="general-purpose",
+  model="haiku",
+  prompt="
+    1. Run: ${CLAUDE_PLUGIN_ROOT}/scripts/extract-session.sh <session_path>
+    2. From the filtered output, extract:
+       - User's main questions/requests
+       - Key decisions and solutions reached
+       - Problems encountered and how they were resolved
+    3. Return structured summary (max 500 words)
+  "
+)
+```
+
+**Benefits:**
+- **Speed**: N sessions processed in parallel vs sequential
+- **Cost**: haiku is ~10x cheaper than opus
+- **Context**: Each Task has isolated context, no overflow
+- **Resilience**: Individual failures don't block other sessions
+
+#### 4d. Decision Tree
+
+```
+Session files found?
+├─ No → Error: "No sessions found"
+└─ Yes → How many files?
+    ├─ 1 file, small (<10000 tokens)
+    │   → Direct Read + parse
+    ├─ 1 file, large (≥10000 tokens)
+    │   → extract-session.sh → parse
+    └─ Multiple files
+        → Parallel Task(haiku) for each
+        → Collect results
+        → Synthesize
 ```
 
 ### Step 5: Apply Filters
@@ -231,7 +315,7 @@ ctx save --path learnings/terraform-2026-01-03.md --content "..."
 
 ## Example Workflows
 
-### Example 1: Basic Session Capture
+### Example 1: Basic Session Capture (Single Small File)
 
 **User:** "Save today's session history"
 
@@ -239,24 +323,63 @@ ctx save --path learnings/terraform-2026-01-03.md --content "..."
 1. Scope: `current_project` (default)
 2. Encode CWD → `-Users-hoyeonlee-team-attention-ctx`
 3. Glob: `~/.claude/projects/-Users-hoyeonlee-team-attention-ctx/*.jsonl`
-4. Filter: files modified today
-5. Parse JSONL, apply redaction
-6. Save to `.ctx/inbox/session/<run_id>.json`
-7. Report: "3 sessions, 150 messages captured"
+4. Filter: files modified today → 1 file found, ~5000 tokens
+5. Direct Read + parse JSONL
+6. Apply redaction
+7. Save to `.ctx/inbox/session/<run_id>.json`
+8. Report: "1 session, 50 messages captured"
 
-### Example 2: Filtered Capture
+### Example 2: Large File Handling
+
+**User:** "Capture this week's sessions"
+
+**Actions:**
+1. Scope: `current_project`
+2. Find session files → 1 file, but ~48000 tokens (too large!)
+3. Run `extract-session.sh` to preprocess:
+   ```bash
+   ${CLAUDE_PLUGIN_ROOT}/scripts/extract-session.sh <session.jsonl>
+   ```
+4. Reduced to ~5000 tokens (90% reduction)
+5. Parse filtered output
+6. Apply redaction, save to inbox
+7. Report: "1 session processed (preprocessed due to size)"
+
+### Example 3: Multiple Sessions - Parallel Processing
+
+**User:** "Get all my terraform sessions from this project"
+
+**Actions:**
+1. Scope: `current_project`
+2. Find session files → 5 files found
+3. Launch 5 parallel Task(haiku):
+   ```
+   Task 1: extract-session.sh file1.jsonl → summarize
+   Task 2: extract-session.sh file2.jsonl → summarize
+   Task 3: extract-session.sh file3.jsonl → summarize
+   Task 4: extract-session.sh file4.jsonl → summarize
+   Task 5: extract-session.sh file5.jsonl → summarize
+   ```
+4. Collect all summaries
+5. Filter: keyword "terraform"
+6. Synthesize into unified context
+7. Save to inbox
+8. Report: "5 sessions processed in parallel, 42 terraform-related messages"
+
+### Example 4: Filtered Capture
 
 **User:** "Summarize what I learned about terraform today"
 
 **Actions:**
 1. Scope: `current_project`
 2. Find today's session files
-3. Parse and filter: messages containing "terraform"
-4. Save to inbox
-5. Report filtered results
-6. Optionally: Extract insights and suggest `ctx save`
+3. Preprocess with extract-session.sh if large
+4. Parse and filter: messages containing "terraform"
+5. Save to inbox
+6. Report filtered results
+7. Optionally: Extract insights and suggest `ctx save`
 
-### Example 3: All Projects (Requires Confirmation)
+### Example 5: All Projects (Requires Confirmation)
 
 **User:** "Get this week's work from all projects"
 
@@ -266,9 +389,10 @@ ctx save --path learnings/terraform-2026-01-03.md --content "..."
 3. If confirmed:
    - Glob: `~/.claude/projects/*/*.jsonl`
    - Filter: files modified this week
-   - Process all sessions
-4. Save to inbox
-5. Report: "15 projects, 42 sessions processed"
+   - Launch parallel Task(haiku) per project
+4. Collect and synthesize results
+5. Save to inbox
+6. Report: "15 projects, 42 sessions processed in parallel"
 
 ---
 
@@ -280,6 +404,9 @@ ctx save --path learnings/terraform-2026-01-03.md --content "..."
 | Project path not encoded | "Could not find encoded path for: [cwd]. Check ~/.claude/projects/ structure." |
 | JSONL parse error | "Warning: Could not parse [file]. Skipping." |
 | Inbox write failed | "Error: Could not write to inbox. Check .ctx/ permissions." |
+| File too large (>25000 tokens) | Auto-preprocess with extract-session.sh |
+| jq not installed | "Error: jq is required for large file processing. Install with: brew install jq" |
+| Task(haiku) failed | "Warning: Could not process [file]. Including raw summary only." |
 
 ---
 
@@ -293,6 +420,9 @@ ctx save --path learnings/terraform-2026-01-03.md --content "..."
 ---
 
 ## Related Resources
+
+### Scripts
+- **`scripts/extract-session.sh`** - Extract essential content from session JSONL (removes thinking, tool_use)
 
 ### Policy Files
 - `shared/CAPTURE_POLICY.md` - Security and privacy policies

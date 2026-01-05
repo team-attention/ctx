@@ -2,7 +2,7 @@
 name: ctx-save
 description: This skill should be used when the user asks to "save this context", "remember this", "extract context", "store this knowledge", "document this pattern", "store this insight", "add to project knowledge", "save for future reference", "document this decision", "저장해줘", "기억해줘", or requests `/ctx.save`.
 version: 0.2.0
-allowed-tools: Read, Write, Edit, Bash, Glob, Grep
+allowed-tools: Read, Write, Edit, Bash, Glob, Grep, AskUserQuestion
 ---
 
 # CTX Save Skill
@@ -47,18 +47,18 @@ Make a judgment based on the situation and explain in one line:
 | 2 | Create | Low |
 | 3 | Replace | High - explicit request only |
 
-### 4. Execution Judgment
+### 4. Execution Judgment (Confirm by Default)
 
 ```
-Clear instruction → Execute immediately
-  e.g., "Save to .ctx/contexts/auth.md"
-  e.g., "바로 저장해", "즉시", "directly"
+Default → Always confirm with AskUserQuestion
+  Show: path, what, keywords, content preview (300 chars)
+  Options: Save / Change path / Edit content / Cancel
 
-Uncertain → Confirm
-  e.g., Need to choose among multiple candidates
-  e.g., Ambiguous: new file vs append to existing
+Immediate save → Only when explicitly requested
+  e.g., "바로 저장해", "즉시 저장", "directly save"
+  e.g., "--save" flag in /ctx.capture
 
-Risky → Always confirm
+Risky → Extra warning in confirmation
   e.g., Replace/delete existing content
   e.g., "교체해줘", "덮어써"
 ```
@@ -81,6 +81,48 @@ Risky → Always confirm
 ```
 
 **Decide freely within principles.** These are guidelines, not rigid rules.
+
+---
+
+## Confirmation Template
+
+Use AskUserQuestion to confirm before saving. Show structured information:
+
+### Message Format
+
+```
+📁 Context 저장 확인
+
+경로: {path}
+what: "{what}"
+keywords: {keywords}
+
+--- 내용 미리보기 ---
+{content_preview_300_chars}
+---
+```
+
+### AskUserQuestion Options
+
+```yaml
+question: "이대로 저장할까요?"
+header: "Context"
+options:
+  - label: "저장 (Recommended)"
+    description: "위 내용대로 저장합니다"
+  - label: "경로 변경"
+    description: "다른 위치에 저장합니다"
+  - label: "내용 수정"
+    description: "저장할 내용을 수정합니다"
+  - label: "취소"
+    description: "저장하지 않습니다"
+```
+
+### When to Skip Confirmation
+
+Skip only when user explicitly requests immediate save:
+- "바로 저장해", "즉시 저장", "directly save"
+- `/ctx.capture --save` flag
 
 ---
 
