@@ -1,6 +1,6 @@
 {
   "name": "ctx",
-  "version": "1.1.0",
+  "version": "0.2.20",
   "description": "Persistent memory for AI - Context auto-loads, grows over time, and travels with your code",
   "author": {
     "name": "team-attention",
@@ -12,6 +12,6 @@
   "keywords": ["context", "memory", "workspace", "documentation", "knowledge-management", "capture", "session"],
   "commands": "./commands/",
   "skills": "./skills/",
-  "agents": "./agents/",
+  "agents": ["./agents/ctx-orchestrator/AGENT.md"],
   "hooks": "./hooks/hooks.json"
 }

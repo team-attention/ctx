@@ -8,8 +8,7 @@
     {
       "name": "ctx",
       "source": "./plugin",
-      "description": "Persistent memory for AI - Context auto-loads, grows over time, and travels with your code",
-      "version": "0.2.20"
+      "description": "Persistent memory for AI - Context auto-loads, grows over time, and travels with your code"
     }
   ]
 }
