@@ -78,3 +78,43 @@
   ⎿  Error: File content (48231 tokens) exceeds maximum allowed tokens (25000).
      Please use offset and limit parameters to read specific portions of the
      file, or use the GrepTool to search for specific content.
+
+
+## 7. 옮기는 것을 할때 뭔가 작업이 잘 안된다... 
+1. ctx save를 안써서 registry에 저장이 안되어버림. 무조건 ctx save 타게 해야함
+2. npx ctx를 부를 때가 있다..
+
+우선 ctx/learnings에 있는걸 우리 컨텍스트 경로로 옮기는데, 이때 내용을 build,deploy rule 같은걸로 만들어서 작업해 +
+ 루트에 AGENT.md 하나 만들어
+
+⏺ 먼저 ctx/learnings에 있는 파일들과 .ctx/ 구조를 확인하겠습니다.
+
+⏺ Bash(ls -la ctx/learnings/)
+  ⎿  total 16
+     drwx------@  3 hoyeonlee  staff    96 Jan  6 12:30 .
+     drwxr-xr-x@ 13 hoyeonlee  staff   416 Jan  6 12:30 ..
+     -rw-------@  1 hoyeonlee  staff  5129 Jan  6 12:30 gcp-cloudrun-deployment-troubleshooting.md
+
+⏺ Search(pattern: ".ctx/**/*")
+  ⎿  Found 1 file (ctrl+o to expand)
+
+⏺ Read(ctx/learnings/gcp-cloudrun-deployment-troubleshooting.md)
+  ⎿  Read 211 lines
+
+⏺ Read(.ctx/registry.yaml)
+  ⎿  Read 11 lines
+
+⏺ Bash(mkdir -p .ctx/contexts)
+  ⎿  (No content)
+
+⏺ Write(.ctx/contexts/gcp-deployment-rules.ctx.md)
+  ⎿  Wrote 131 lines to .ctx/contexts/gcp-deployment-rules.ctx.md
+     ---
+     type: rules
+     tags: [gcp, cloud-run, terraform, docker, deployment]
+     created: 2025-01-06
+     scope: project
+     ---
+     # GCP Cloud Run 배포 규칙
+     contents-hub GCP 배포 시 반드시 따라야 하는 규칙들.
+     … +121 lines (ctrl+o to expand)

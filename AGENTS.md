@@ -124,7 +124,7 @@ ctx/
 │   │   └── plugin.json   # Plugin config
 │   ├── .mcp.json         # MCP server config
 │   ├── agents/           # AI Agents (orchestrators)
-│   │   └── ctx-orchestrator/  # Central context orchestrator
+│   │   └── ctx/               # Central context agent
 │   ├── skills/           # AI Skills
 │   │   ├── ctx-load/     # Context load skill
 │   │   ├── ctx-save/     # Context save skill
@@ -259,7 +259,7 @@ External data capture and context creation system.
 
 | Component | Location | Purpose |
 |-----------|----------|---------|
-| **ctx-orchestrator Agent** | `plugin/agents/ctx-orchestrator/` | Central orchestrator for all context operations |
+| **ctx Agent** | `plugin/agents/ctx/` | Central agent for all context operations |
 | **session-capture Skill** | `plugin/skills/session-capture/` | Capture Claude Code sessions |
 | **/ctx.capture Command** | `plugin/commands/ctx.capture.md` | User entry point |
 
