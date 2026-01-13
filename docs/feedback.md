@@ -118,3 +118,7 @@
      # GCP Cloud Run 배포 규칙
      contents-hub GCP 배포 시 반드시 따라야 하는 규칙들.
      … +121 lines (ctrl+o to expand)
+
+## 8. command 에서 agent를 부를 때 뭔가 프롬프트를 잘못준다. 그냥 사용자 요청을 그대로 주게하면 agent가 알아서 동작하지 않을까? 
+
+## 9. ctx-save에서 저장할 때 askUserQuestion에서 저장할 내용을 안보여주고 물어보네.. 버그인듯..g

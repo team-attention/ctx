@@ -2,6 +2,7 @@
 name: session-capture
 description: This skill should be used when user wants to access, capture, or reference Claude Code session history. Trigger when user references past/current conversation, dialogue, or session as a source - whether for saving, extracting, summarizing, or reviewing. This includes any mention of "what we discussed", "today's work", "session history", or when user treats the conversation itself as source material (e.g., "대화내용에서", "세션 기준으로", "아까 얘기한 거", "from our conversation").
 allowed-tools: Read, Glob, Bash, Write
+context: fork
 ---
 
 # Session Capture Skill
@@ -11,7 +12,7 @@ Capture Claude Code session history and save to inbox for context creation.
 ## Trigger Conditions
 
 Activate this skill when:
-- Explicit: "capture session", "save session history", `/ctx.capture session`
+- Explicit: "capture session", "save session history"
 - **User references conversation/session as source material:**
   - Treats past/current dialogue as information source
   - Wants to extract, save, summarize, or review session content
@@ -199,9 +200,9 @@ Task(
 Session files found?
 ├─ No → Error: "No sessions found"
 └─ Yes → How many files?
-    ├─ 1 file, small (<10000 tokens)
+    ├─ 1 file, small (<5000 tokens)
     │   → Direct Read + parse
-    ├─ 1 file, large (≥10000 tokens)
+    ├─ 1 file, large (≥5000 tokens)
     │   → extract-session.sh → parse
     └─ Multiple files
         → Parallel Task(haiku) for each
