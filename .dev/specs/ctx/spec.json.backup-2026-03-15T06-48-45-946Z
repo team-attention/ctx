@@ -1,0 +1,1389 @@
+{
+  "meta": {
+    "name": "ctx",
+    "goal": "Rust CLI tool for project context graph: programmatic (match --diff) + semantic (query) search over ctx:true markdown nodes with graph traversal",
+    "created_at": "2026-03-15T05:31:10.600Z",
+    "type": "dev",
+    "mode": {
+      "depth": "standard",
+      "interaction": "interactive"
+    },
+    "non_goals": [
+      "Global scope (~/.ctx/) support",
+      "Code indexing (qmd/LLM domain)",
+      "Backward compatibility with old ctx (no users, full rewrite)",
+      "*.ctx.md local context files (removed)",
+      "Registry file (replaced by runtime parsing)",
+      "Claude Code plugin integration (separate scope after CLI)"
+    ],
+    "updated_at": "2026-03-15T06:22:36.510Z"
+  },
+  "tasks": [
+    {
+      "id": "T1",
+      "action": "프로젝트 기반 설정: Cargo.toml 의존성 + 모듈 구조 + CLI 엔트리포인트",
+      "type": "work",
+      "status": "done",
+      "risk": "low",
+      "file_scope": [
+        "Cargo.toml",
+        "src/main.rs",
+        "src/lib.rs",
+        "src/cli.rs"
+      ],
+      "inputs": [],
+      "outputs": [
+        {
+          "id": "cargo_toml",
+          "path": "Cargo.toml"
+        },
+        {
+          "id": "cli_entry",
+          "path": "src/main.rs"
+        }
+      ],
+      "steps": [
+        "Cargo.toml에 의존성 추가: clap (derive), serde + serde_yaml, globset, serde_json",
+        "src/lib.rs 생성",
+        "src/cli.rs — clap derive CLI 구조체",
+        "src/main.rs — clap parse + dispatch",
+        "cargo build 확인"
+      ],
+      "references": [
+        {
+          "path": ".dev/specs/PRD.md",
+          "start_line": 159,
+          "end_line": 180
+        }
+      ],
+      "must_not_do": [
+        "Do not run git commands",
+        "Do not add pulldown-cmark (D8)",
+        "Do not add dialoguer/crossterm (D9)"
+      ],
+      "acceptance_criteria": {
+        "functional": [
+          {
+            "description": "clap이 모든 서브커맨드를 파싱"
+          }
+        ],
+        "static": [
+          {
+            "description": "cargo clippy 경고 없음",
+            "command": "cargo clippy -- -D warnings"
+          }
+        ],
+        "runtime": [
+          {
+            "description": "cargo build 성공",
+            "command": "cargo build"
+          }
+        ]
+      },
+      "started_at": "2026-03-15T06:25:14.999Z",
+      "completed_at": "2026-03-15T06:31:29.966Z",
+      "summary": "Cargo.toml + clap CLI scaffold + module structure"
+    },
+    {
+      "id": "T2",
+      "action": "YAML frontmatter 파서: --- split + serde_yaml + ContextNode 구조체",
+      "type": "work",
+      "status": "done",
+      "risk": "low",
+      "file_scope": [
+        "src/parser.rs"
+      ],
+      "inputs": [
+        {
+          "from_task": "T1",
+          "artifact": "cargo_toml"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "parser_module",
+          "path": "src/parser.rs"
+        }
+      ],
+      "steps": [
+        "ContextNode 구조체 + Category enum",
+        "--- frontmatter/body 분리",
+        "serde_yaml 파싱 + ctx: true 검증",
+        "name 유효성 ([a-z0-9-], 64자)",
+        "에러 핸들링 + 단위 테스트"
+      ],
+      "references": [
+        {
+          "path": ".dev/specs/PRD.md",
+          "start_line": 57,
+          "end_line": 106
+        }
+      ],
+      "must_not_do": [
+        "Do not run git commands",
+        "Do not use pulldown-cmark",
+        "Do not infer fields from body (C5)",
+        "Do not use filename as node ID (C3)"
+      ],
+      "acceptance_criteria": {
+        "functional": [
+          {
+            "description": "ctx: true 파싱, false/string/integer 무시, invalid YAML skip"
+          }
+        ],
+        "static": [
+          {
+            "description": "cargo clippy 경고 없음",
+            "command": "cargo clippy -- -D warnings"
+          }
+        ],
+        "runtime": [
+          {
+            "description": "파서 테스트 통과",
+            "command": "cargo test parser"
+          }
+        ]
+      },
+      "started_at": "2026-03-15T06:31:35.632Z",
+      "completed_at": "2026-03-15T06:35:12.295Z",
+      "summary": "YAML frontmatter parser + ContextNode struct + 15 unit tests"
+    },
+    {
+      "id": "T3",
+      "action": "프로젝트 스캐너: 루트 감지 + .ctxconfig ignore + 재귀 .md 스캔",
+      "type": "work",
+      "status": "done",
+      "risk": "medium",
+      "file_scope": [
+        "src/scanner.rs",
+        "src/config.rs"
+      ],
+      "inputs": [
+        {
+          "from_task": "T2",
+          "artifact": "parser_module"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "scanner_module",
+          "path": "src/scanner.rs"
+        }
+      ],
+      "steps": [
+        "루트 감지 (.ctxconfig → .ctx/ → .git/ → error)",
+        ".ctxconfig 파싱",
+        "기본 ignore 패턴",
+        "재귀 스캔 + ignore",
+        "중복 name 감지",
+        "상대 경로 정규화"
+      ],
+      "references": [
+        {
+          "path": ".dev/specs/PRD.md",
+          "start_line": 125,
+          "end_line": 154
+        }
+      ],
+      "must_not_do": [
+        "Do not run git commands",
+        "Do not scan ~/.ctx/ (C6)"
+      ],
+      "acceptance_criteria": {
+        "functional": [
+          {
+            "description": "루트 감지, ignore 적용, 중복 name 경고"
+          }
+        ],
+        "static": [
+          {
+            "description": "cargo clippy 경고 없음",
+            "command": "cargo clippy -- -D warnings"
+          }
+        ],
+        "runtime": [
+          {
+            "description": "스캐너 테스트 통과",
+            "command": "cargo test scanner"
+          }
+        ]
+      },
+      "started_at": "2026-03-15T06:35:21.647Z",
+      "completed_at": "2026-03-15T06:39:37.270Z",
+      "summary": "Project scanner with root detection, .ctxconfig ignore, recursive scan"
+    },
+    {
+      "id": "T4",
+      "action": "ctx init + ctx create 커맨드",
+      "type": "work",
+      "status": "done",
+      "risk": "low",
+      "file_scope": [
+        "src/commands/init.rs",
+        "src/commands/create.rs",
+        "src/commands/mod.rs"
+      ],
+      "inputs": [
+        {
+          "from_task": "T3",
+          "artifact": "scanner_module"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "init_create_cmds",
+          "path": "src/commands/"
+        }
+      ],
+      "steps": [
+        "ctx init: .ctxconfig + .ctx/ 생성",
+        "ctx create: .ctx/<name>.md 생성",
+        "--category/--triggers/--depends-on flags",
+        "name 유효성 + 중복 체크"
+      ],
+      "references": [
+        {
+          "path": ".dev/specs/PRD.md",
+          "start_line": 183,
+          "end_line": 198
+        }
+      ],
+      "must_not_do": [
+        "Do not run git commands",
+        "Do not add interactive prompts (D9)"
+      ],
+      "acceptance_criteria": {
+        "functional": [
+          {
+            "description": "init/create 정상 동작, 중복 에러"
+          }
+        ],
+        "static": [
+          {
+            "description": "cargo clippy 경고 없음",
+            "command": "cargo clippy -- -D warnings"
+          }
+        ],
+        "runtime": [
+          {
+            "description": "테스트 통과",
+            "command": "cargo test commands::init && cargo test commands::create"
+          }
+        ]
+      },
+      "started_at": "2026-03-15T06:39:44.341Z",
+      "completed_at": "2026-03-15T06:43:41.316Z",
+      "summary": "ctx init + ctx create commands with flags"
+    },
+    {
+      "id": "T5",
+      "action": "ctx list + ctx show + ctx check 커맨드",
+      "type": "work",
+      "status": "done",
+      "risk": "low",
+      "file_scope": [
+        "src/commands/list.rs",
+        "src/commands/show.rs",
+        "src/commands/check.rs"
+      ],
+      "inputs": [
+        {
+          "from_task": "T3",
+          "artifact": "scanner_module"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "read_cmds",
+          "path": "src/commands/"
+        }
+      ],
+      "steps": [
+        "ctx list: JSON 배열",
+        "ctx show: frontmatter + body, 없으면 exit 1",
+        "ctx check: broken_dep/duplicate_name/missing_field → JSON",
+        "기본 exit 0, --strict exit 2 (D10)",
+        "--pretty/--paths 지원"
+      ],
+      "references": [
+        {
+          "path": ".dev/specs/PRD.md",
+          "start_line": 270,
+          "end_line": 293
+        }
+      ],
+      "must_not_do": [
+        "Do not run git commands",
+        "Do not write to disk (C4)"
+      ],
+      "acceptance_criteria": {
+        "functional": [
+          {
+            "description": "list/show/check JSON schema 준수"
+          }
+        ],
+        "static": [
+          {
+            "description": "cargo clippy 경고 없음",
+            "command": "cargo clippy -- -D warnings"
+          }
+        ],
+        "runtime": [
+          {
+            "description": "테스트 통과",
+            "command": "cargo test commands::list && cargo test commands::show && cargo test commands::check"
+          }
+        ]
+      },
+      "started_at": "2026-03-15T06:39:44.435Z",
+      "completed_at": "2026-03-15T06:43:41.407Z",
+      "summary": "ctx list + show + check commands with --strict/--pretty/--paths"
+    },
+    {
+      "id": "T6",
+      "action": "글로브 매처: globset triggers 매칭",
+      "type": "work",
+      "status": "done",
+      "risk": "medium",
+      "file_scope": [
+        "src/matcher.rs"
+      ],
+      "inputs": [
+        {
+          "from_task": "T2",
+          "artifact": "parser_module"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "matcher_module",
+          "path": "src/matcher.rs"
+        }
+      ],
+      "steps": [
+        "triggers → GlobSet 컴파일",
+        "파일 × triggers → direct matches",
+        "matched_triggers 기록",
+        "상대 경로 매칭"
+      ],
+      "references": [
+        {
+          "path": ".dev/specs/PRD.md",
+          "start_line": 329,
+          "end_line": 344
+        }
+      ],
+      "must_not_do": [
+        "Do not run git commands"
+      ],
+      "acceptance_criteria": {
+        "functional": [
+          {
+            "description": "globset 매칭, matched_triggers 기록"
+          }
+        ],
+        "static": [
+          {
+            "description": "cargo clippy 경고 없음",
+            "command": "cargo clippy -- -D warnings"
+          }
+        ],
+        "runtime": [
+          {
+            "description": "매처 테스트 통과",
+            "command": "cargo test matcher"
+          }
+        ]
+      },
+      "started_at": "2026-03-15T06:35:21.745Z",
+      "completed_at": "2026-03-15T06:39:37.363Z",
+      "summary": "Glob matcher using globset for triggers matching"
+    },
+    {
+      "id": "T7",
+      "action": "그래프 모듈: 1-level depends_on 순회",
+      "type": "work",
+      "status": "done",
+      "risk": "low",
+      "file_scope": [
+        "src/graph.rs"
+      ],
+      "inputs": [
+        {
+          "from_task": "T2",
+          "artifact": "parser_module"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "graph_module",
+          "path": "src/graph.rs"
+        }
+      ],
+      "steps": [
+        "HashMap 그래프",
+        "1-level depends_on 확장",
+        "중복 제거, 깨진 참조 무시",
+        "type/via 필드"
+      ],
+      "references": [
+        {
+          "path": ".dev/specs/PRD.md",
+          "start_line": 329,
+          "end_line": 344
+        }
+      ],
+      "must_not_do": [
+        "Do not run git commands",
+        "Do not implement multi-level traversal (C1)"
+      ],
+      "acceptance_criteria": {
+        "functional": [
+          {
+            "description": "1-level 순회, 중복 제거, 깨진 참조 무시"
+          }
+        ],
+        "static": [
+          {
+            "description": "cargo clippy 경고 없음",
+            "command": "cargo clippy -- -D warnings"
+          }
+        ],
+        "runtime": [
+          {
+            "description": "그래프 테스트 통과",
+            "command": "cargo test graph"
+          }
+        ]
+      },
+      "started_at": "2026-03-15T06:35:21.889Z",
+      "completed_at": "2026-03-15T06:39:37.481Z",
+      "summary": "1-level depends_on graph traversal"
+    },
+    {
+      "id": "T8",
+      "action": "ctx match: 파일/diff/body/staged/base 모드",
+      "type": "work",
+      "status": "done",
+      "risk": "medium",
+      "file_scope": [
+        "src/commands/match_cmd.rs"
+      ],
+      "inputs": [
+        {
+          "from_task": "T6",
+          "artifact": "matcher_module"
+        },
+        {
+          "from_task": "T7",
+          "artifact": "graph_module"
+        },
+        {
+          "from_task": "T3",
+          "artifact": "scanner_module"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "match_cmd",
+          "path": "src/commands/match_cmd.rs"
+        }
+      ],
+      "steps": [
+        "ctx match <file...>: scanner → matcher → graph → JSON",
+        "--diff: git diff + ls-files --others",
+        "--staged/--base flags",
+        "--body: body 필드 추가",
+        "git 없으면 exit 1",
+        "--pretty/--paths 지원"
+      ],
+      "references": [
+        {
+          "path": ".dev/specs/PRD.md",
+          "start_line": 210,
+          "end_line": 260
+        }
+      ],
+      "must_not_do": [
+        "Do not run git commands other than diff/ls-files",
+        "Do not write to disk (C4)",
+        "Do not include score on deps (C2)"
+      ],
+      "acceptance_criteria": {
+        "functional": [
+          {
+            "description": "모든 매칭 모드 동작, JSON schema 준수"
+          }
+        ],
+        "static": [
+          {
+            "description": "cargo clippy 경고 없음",
+            "command": "cargo clippy -- -D warnings"
+          }
+        ],
+        "runtime": [
+          {
+            "description": "match 테스트 통과",
+            "command": "cargo test match_cmd"
+          }
+        ]
+      },
+      "started_at": "2026-03-15T06:39:44.545Z",
+      "completed_at": "2026-03-15T06:43:41.499Z",
+      "summary": "ctx match with file/diff/staged/base/body modes"
+    },
+    {
+      "id": "T9",
+      "action": "ctx graph: ASCII 그래프 시각화",
+      "type": "work",
+      "status": "done",
+      "risk": "low",
+      "file_scope": [
+        "src/commands/graph_cmd.rs"
+      ],
+      "inputs": [
+        {
+          "from_task": "T7",
+          "artifact": "graph_module"
+        },
+        {
+          "from_task": "T3",
+          "artifact": "scanner_module"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "graph_cmd",
+          "path": "src/commands/graph_cmd.rs"
+        }
+      ],
+      "steps": [
+        "ctx graph: 전체 ASCII",
+        "ctx graph <node>: incoming + outgoing",
+        "간단 포맷"
+      ],
+      "references": [
+        {
+          "path": ".dev/specs/PRD.md",
+          "start_line": 318,
+          "end_line": 326
+        }
+      ],
+      "must_not_do": [
+        "Do not run git commands",
+        "Do not write to disk (C4)"
+      ],
+      "acceptance_criteria": {
+        "functional": [
+          {
+            "description": "전체/노드별 그래프 출력"
+          }
+        ],
+        "static": [
+          {
+            "description": "cargo clippy 경고 없음",
+            "command": "cargo clippy -- -D warnings"
+          }
+        ],
+        "runtime": [
+          {
+            "description": "graph_cmd 테스트 통과",
+            "command": "cargo test graph_cmd"
+          }
+        ]
+      },
+      "started_at": "2026-03-15T06:39:44.645Z",
+      "completed_at": "2026-03-15T06:43:41.601Z",
+      "summary": "ctx graph ASCII visualization"
+    },
+    {
+      "id": "T10",
+      "action": "ctx migrate: --dry-run/--apply/--yes 마이그레이션",
+      "type": "work",
+      "status": "done",
+      "risk": "high",
+      "file_scope": [
+        "src/commands/migrate.rs"
+      ],
+      "inputs": [
+        {
+          "from_task": "T2",
+          "artifact": "parser_module"
+        },
+        {
+          "from_task": "T3",
+          "artifact": "scanner_module"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "migrate_cmd",
+          "path": "src/commands/migrate.rs"
+        }
+      ],
+      "steps": [
+        "디렉토리 스캔",
+        "기존 frontmatter 추출",
+        "what = 첫 # 제목",
+        "--dry-run 기본 + [DRY RUN] 배너",
+        "--apply + --yes 확인 게이트",
+        "충돌: skip + warning",
+        "Rollback: 부분 실패 시 새로 생성된 파일 삭제"
+      ],
+      "references": [
+        {
+          "path": ".dev/specs/PRD.md",
+          "start_line": 393,
+          "end_line": 401
+        }
+      ],
+      "must_not_do": [
+        "Do not run git commands",
+        "Do not overwrite existing files silently"
+      ],
+      "acceptance_criteria": {
+        "functional": [
+          {
+            "description": "dry-run 기본, apply+yes 게이트, 충돌 skip, 부분 실패 cleanup"
+          }
+        ],
+        "static": [
+          {
+            "description": "cargo clippy 경고 없음",
+            "command": "cargo clippy -- -D warnings"
+          }
+        ],
+        "runtime": [
+          {
+            "description": "migrate 테스트 통과",
+            "command": "cargo test migrate"
+          }
+        ]
+      },
+      "started_at": "2026-03-15T06:39:44.743Z",
+      "completed_at": "2026-03-15T06:43:41.698Z",
+      "summary": "ctx migrate with --dry-run/--apply/--yes"
+    },
+    {
+      "id": "T11",
+      "action": "BM25 키워드 스코어링 엔진",
+      "type": "work",
+      "status": "done",
+      "risk": "medium",
+      "file_scope": [
+        "src/search.rs"
+      ],
+      "inputs": [
+        {
+          "from_task": "T2",
+          "artifact": "parser_module"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "search_module",
+          "path": "src/search.rs"
+        }
+      ],
+      "steps": [
+        "BM25 scoring (k1=1.2, b=0.75)",
+        "쿼리 토큰화",
+        "keywords+name+what 코퍼스",
+        "score 정렬 + 필터"
+      ],
+      "references": [
+        {
+          "path": ".dev/specs/PRD.md",
+          "start_line": 366,
+          "end_line": 375
+        }
+      ],
+      "must_not_do": [
+        "Do not run git commands",
+        "Do not use body for scoring (C5)"
+      ],
+      "acceptance_criteria": {
+        "functional": [
+          {
+            "description": "BM25 scoring, 정렬, 필터링"
+          }
+        ],
+        "static": [
+          {
+            "description": "cargo clippy 경고 없음",
+            "command": "cargo clippy -- -D warnings"
+          }
+        ],
+        "runtime": [
+          {
+            "description": "search 테스트 통과",
+            "command": "cargo test search"
+          }
+        ]
+      },
+      "started_at": "2026-03-15T06:35:21.990Z",
+      "completed_at": "2026-03-15T06:39:37.582Z",
+      "summary": "BM25 keyword scoring engine"
+    },
+    {
+      "id": "T12",
+      "action": "qmd CLI 통합: optional + fallback",
+      "type": "work",
+      "status": "done",
+      "risk": "medium",
+      "file_scope": [
+        "src/qmd.rs"
+      ],
+      "inputs": [
+        {
+          "from_task": "T11",
+          "artifact": "search_module"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "qmd_module",
+          "path": "src/qmd.rs"
+        }
+      ],
+      "steps": [
+        "qmd 존재 확인",
+        "available → 위임",
+        "없음 → BM25 fallback",
+        "lazy update",
+        "에러 → fallback"
+      ],
+      "references": [
+        {
+          "path": ".dev/specs/PRD.md",
+          "start_line": 346,
+          "end_line": 375
+        }
+      ],
+      "must_not_do": [
+        "Do not run git commands",
+        "Do not make qmd required"
+      ],
+      "acceptance_criteria": {
+        "functional": [
+          {
+            "description": "qmd 위임, fallback, 에러 처리"
+          }
+        ],
+        "static": [
+          {
+            "description": "cargo clippy 경고 없음",
+            "command": "cargo clippy -- -D warnings"
+          }
+        ],
+        "runtime": [
+          {
+            "description": "qmd 테스트 통과",
+            "command": "cargo test qmd"
+          }
+        ]
+      },
+      "started_at": "2026-03-15T06:39:44.846Z",
+      "completed_at": "2026-03-15T06:43:41.796Z",
+      "summary": "qmd CLI integration with optional fallback"
+    },
+    {
+      "id": "T13",
+      "action": "ctx query + ctx index 커맨드",
+      "type": "work",
+      "status": "done",
+      "risk": "low",
+      "file_scope": [
+        "src/commands/query.rs",
+        "src/commands/index.rs"
+      ],
+      "inputs": [
+        {
+          "from_task": "T12",
+          "artifact": "qmd_module"
+        },
+        {
+          "from_task": "T7",
+          "artifact": "graph_module"
+        },
+        {
+          "from_task": "T3",
+          "artifact": "scanner_module"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "query_index_cmds",
+          "path": "src/commands/"
+        }
+      ],
+      "steps": [
+        "ctx query: scan → search → graph → JSON",
+        "dependency score 생략 (C2)",
+        "ctx index: qmd 설정",
+        "JSON schema 준수"
+      ],
+      "references": [
+        {
+          "path": ".dev/specs/PRD.md",
+          "start_line": 262,
+          "end_line": 270
+        }
+      ],
+      "must_not_do": [
+        "Do not run git commands",
+        "Do not include score on deps (C2)"
+      ],
+      "acceptance_criteria": {
+        "functional": [
+          {
+            "description": "query/index 동작, score 생략"
+          }
+        ],
+        "static": [
+          {
+            "description": "cargo clippy 경고 없음",
+            "command": "cargo clippy -- -D warnings"
+          }
+        ],
+        "runtime": [
+          {
+            "description": "query 테스트 통과",
+            "command": "cargo test query"
+          }
+        ]
+      },
+      "started_at": "2026-03-15T06:45:11.261Z",
+      "completed_at": "2026-03-15T06:48:40.387Z",
+      "summary": "ctx query (BM25/qmd) + ctx index commands"
+    },
+    {
+      "id": "TF",
+      "action": "전체 검증: 빌드 + 테스트 + lint",
+      "type": "verification",
+      "status": "pending",
+      "risk": "low",
+      "file_scope": [],
+      "depends_on": [
+        "T1",
+        "T2",
+        "T3",
+        "T4",
+        "T5",
+        "T6",
+        "T7",
+        "T8",
+        "T9",
+        "T10",
+        "T11",
+        "T12",
+        "T13"
+      ],
+      "inputs": [
+        {
+          "from_task": "T13",
+          "artifact": "query_index_cmds"
+        }
+      ],
+      "must_not_do": [
+        "Do not modify any files",
+        "Do not run git commands"
+      ],
+      "acceptance_criteria": {
+        "functional": [
+          {
+            "description": "모든 CLI 커맨드 PRD대로 동작"
+          }
+        ],
+        "static": [
+          {
+            "description": "clippy + fmt",
+            "command": "cargo clippy -- -D warnings && cargo fmt --check"
+          }
+        ],
+        "runtime": [
+          {
+            "description": "전체 테스트 + 릴리즈 빌드",
+            "command": "cargo test && cargo build --release"
+          }
+        ]
+      }
+    }
+  ],
+  "history": [
+    {
+      "ts": "2026-03-15T05:31:10.600Z",
+      "type": "spec_created"
+    },
+    {
+      "ts": "2026-03-15T05:31:18.937Z",
+      "type": "spec_updated",
+      "detail": "merged: meta"
+    },
+    {
+      "ts": "2026-03-15T05:33:21.043Z",
+      "type": "spec_updated",
+      "detail": "merged: context"
+    },
+    {
+      "ts": "2026-03-15T05:36:08.797Z",
+      "type": "spec_updated",
+      "detail": "merged: context"
+    },
+    {
+      "ts": "2026-03-15T05:45:28.747Z",
+      "type": "spec_updated",
+      "detail": "merged: context"
+    },
+    {
+      "ts": "2026-03-15T05:45:42.347Z",
+      "type": "spec_updated",
+      "detail": "merged: constraints"
+    },
+    {
+      "ts": "2026-03-15T05:51:01.083Z",
+      "type": "spec_updated",
+      "detail": "merged: tasks"
+    },
+    {
+      "ts": "2026-03-15T05:52:26.823Z",
+      "type": "spec_updated",
+      "detail": "merged: requirements"
+    },
+    {
+      "ts": "2026-03-15T05:54:15.220Z",
+      "type": "spec_updated",
+      "detail": "merged: context"
+    },
+    {
+      "ts": "2026-03-15T05:54:50.736Z",
+      "type": "spec_updated",
+      "detail": "merged: tasks"
+    },
+    {
+      "ts": "2026-03-15T05:56:03.200Z",
+      "type": "spec_updated",
+      "detail": "merged: tasks"
+    },
+    {
+      "ts": "2026-03-15T05:57:32.287Z",
+      "type": "spec_updated",
+      "detail": "merged: requirements"
+    },
+    {
+      "ts": "2026-03-15T05:57:51.587Z",
+      "type": "spec_updated",
+      "detail": "merged: tasks"
+    },
+    {
+      "ts": "2026-03-15T06:04:08.962Z",
+      "type": "spec_updated",
+      "detail": "merged: requirements"
+    },
+    {
+      "ts": "2026-03-15T06:22:36.510Z",
+      "type": "spec_updated",
+      "detail": "merged: tasks"
+    },
+    {
+      "ts": "2026-03-15T06:25:14.999Z",
+      "type": "task_start",
+      "task": "T1"
+    },
+    {
+      "ts": "2026-03-15T06:31:29.966Z",
+      "type": "task_done",
+      "task": "T1",
+      "summary": "Cargo.toml + clap CLI scaffold + module structure"
+    },
+    {
+      "ts": "2026-03-15T06:31:35.632Z",
+      "type": "task_start",
+      "task": "T2"
+    },
+    {
+      "ts": "2026-03-15T06:35:12.295Z",
+      "type": "task_done",
+      "task": "T2",
+      "summary": "YAML frontmatter parser + ContextNode struct + 15 unit tests"
+    },
+    {
+      "ts": "2026-03-15T06:35:21.647Z",
+      "type": "task_start",
+      "task": "T3"
+    },
+    {
+      "ts": "2026-03-15T06:35:21.745Z",
+      "type": "task_start",
+      "task": "T6"
+    },
+    {
+      "ts": "2026-03-15T06:35:21.889Z",
+      "type": "task_start",
+      "task": "T7"
+    },
+    {
+      "ts": "2026-03-15T06:35:21.990Z",
+      "type": "task_start",
+      "task": "T11"
+    },
+    {
+      "ts": "2026-03-15T06:39:37.270Z",
+      "type": "task_done",
+      "task": "T3",
+      "summary": "Project scanner with root detection, .ctxconfig ignore, recursive scan"
+    },
+    {
+      "ts": "2026-03-15T06:39:37.363Z",
+      "type": "task_done",
+      "task": "T6",
+      "summary": "Glob matcher using globset for triggers matching"
+    },
+    {
+      "ts": "2026-03-15T06:39:37.481Z",
+      "type": "task_done",
+      "task": "T7",
+      "summary": "1-level depends_on graph traversal"
+    },
+    {
+      "ts": "2026-03-15T06:39:37.582Z",
+      "type": "task_done",
+      "task": "T11",
+      "summary": "BM25 keyword scoring engine"
+    },
+    {
+      "ts": "2026-03-15T06:39:44.341Z",
+      "type": "task_start",
+      "task": "T4"
+    },
+    {
+      "ts": "2026-03-15T06:39:44.435Z",
+      "type": "task_start",
+      "task": "T5"
+    },
+    {
+      "ts": "2026-03-15T06:39:44.545Z",
+      "type": "task_start",
+      "task": "T8"
+    },
+    {
+      "ts": "2026-03-15T06:39:44.645Z",
+      "type": "task_start",
+      "task": "T9"
+    },
+    {
+      "ts": "2026-03-15T06:39:44.743Z",
+      "type": "task_start",
+      "task": "T10"
+    },
+    {
+      "ts": "2026-03-15T06:39:44.846Z",
+      "type": "task_start",
+      "task": "T12"
+    },
+    {
+      "ts": "2026-03-15T06:43:41.316Z",
+      "type": "task_done",
+      "task": "T4",
+      "summary": "ctx init + ctx create commands with flags"
+    },
+    {
+      "ts": "2026-03-15T06:43:41.407Z",
+      "type": "task_done",
+      "task": "T5",
+      "summary": "ctx list + show + check commands with --strict/--pretty/--paths"
+    },
+    {
+      "ts": "2026-03-15T06:43:41.499Z",
+      "type": "task_done",
+      "task": "T8",
+      "summary": "ctx match with file/diff/staged/base/body modes"
+    },
+    {
+      "ts": "2026-03-15T06:43:41.601Z",
+      "type": "task_done",
+      "task": "T9",
+      "summary": "ctx graph ASCII visualization"
+    },
+    {
+      "ts": "2026-03-15T06:43:41.698Z",
+      "type": "task_done",
+      "task": "T10",
+      "summary": "ctx migrate with --dry-run/--apply/--yes"
+    },
+    {
+      "ts": "2026-03-15T06:43:41.796Z",
+      "type": "task_done",
+      "task": "T12",
+      "summary": "qmd CLI integration with optional fallback"
+    },
+    {
+      "ts": "2026-03-15T06:45:11.261Z",
+      "type": "task_start",
+      "task": "T13"
+    },
+    {
+      "ts": "2026-03-15T06:48:40.387Z",
+      "type": "task_done",
+      "task": "T13",
+      "summary": "ctx query (BM25/qmd) + ctx index commands"
+    }
+  ],
+  "context": {
+    "request": "Build ctx CLI (Rust) — project context graph tool with programmatic match + semantic query. Full scope: Phase 0 (foundation) + Phase 1 (programmatic core) + Phase 2 (semantic search). Based on PRD v1.0.",
+    "research": "Brand new Rust project (cargo init, hello world). TypeScript predecessor at ../ctx/ provides reference patterns but ctx-new is a full rewrite with different architecture (no registry, no global scope, triggers+depends_on graph model). PRD specifies serde_yaml, pulldown-cmark, globset, clap for CLI. No build tooling or CI configured yet. Key patterns: command-per-file structure, glob+frontmatter scanner, HashMap-based in-memory graph. Commands: cargo build/test/clippy/fmt. UX review highlights: rename setup-search to index, ctx migrate needs DRY RUN banner, ctx check consider --strict flag, omit score field for dependency nodes, add TTY-aware interactive prompts for ctx create.",
+    "decisions": [
+      {
+        "id": "D1",
+        "decision": "setup-search → index로 rename",
+        "rationale": "단일동사 일관성 (init, create, list, check, match, query, show, graph, index, migrate)",
+        "alternatives_rejected": [
+          {
+            "option": "setup-search 유지",
+            "reason": "하이픈 서브커맨드는 tab completion 패턴 깨뜨림"
+          }
+        ]
+      },
+      {
+        "id": "D2",
+        "decision": "ctx check: 기본 exit 0, --strict 시 exit 2",
+        "rationale": "&& chaining 호환성. 스크립트에서 warning으로 실패하면 안 됨",
+        "alternatives_rejected": [
+          {
+            "option": "항상 exit 2 on warnings",
+            "reason": "naive && chaining 깨뜨림"
+          }
+        ]
+      },
+      {
+        "id": "D3",
+        "decision": "ctx query dependency 노드에서 score 필드 생략",
+        "rationale": "null보다 필드 부재가 의미 명확 (scored vs unscored)",
+        "alternatives_rejected": [
+          {
+            "option": "score: null",
+            "reason": "JSON 소비자가 null 특수처리 필요"
+          }
+        ]
+      },
+      {
+        "id": "D4",
+        "decision": "ctx create: TTY 감지 시 interactive prompt",
+        "rationale": "새 사용자 discoverability. non-TTY는 기본값 사용",
+        "alternatives_rejected": [
+          {
+            "option": "항상 non-interactive",
+            "reason": "초보 사용자 진입장벽"
+          }
+        ]
+      },
+      {
+        "id": "D5",
+        "decision": "단일 spec.json에 Phase 0/1/2 전체 포함",
+        "rationale": "DAG로 의존성 관리. 하나의 실행 단위",
+        "alternatives_rejected": [
+          {
+            "option": "Phase별 별도 spec",
+            "reason": "Phase간 의존성 추적 복잡"
+          }
+        ]
+      },
+      {
+        "id": "D6",
+        "decision": "keyword fallback에 BM25 내장",
+        "rationale": "qmd 없이도 양질의 검색 품질 제공",
+        "alternatives_rejected": [
+          {
+            "option": "simple token match",
+            "reason": "검색 품질 부족"
+          }
+        ]
+      },
+      {
+        "id": "D7",
+        "decision": "ctx migrate --apply에 --yes 플래그 필요 (TTY시 y/N 프롬프트)",
+        "rationale": "사용자 파일 변경은 HIGH risk. 이중 확인 게이트",
+        "alternatives_rejected": [
+          {
+            "option": "--apply만으로 즉시 실행",
+            "reason": "한 플래그 실수로 파일 변경 위험"
+          }
+        ]
+      },
+      {
+        "id": "D8",
+        "decision": "pulldown-cmark 제거, --- 문자열 split으로 frontmatter 분리",
+        "rationale": "body를 raw text로만 사용. 불필요한 의존성 제거",
+        "alternatives_rejected": [
+          {
+            "option": "pulldown-cmark 사용",
+            "reason": "full CommonMark 파싱 불필요, 200KB 바이너리 증가"
+          }
+        ]
+      },
+      {
+        "id": "D9",
+        "decision": "ctx create interactive 모드 제거, flag-only + --help 예제 강화",
+        "rationale": "dialoguer 의존성 제거, 두 코드 경로 유지보수 비용 제거",
+        "alternatives_rejected": [
+          {
+            "option": "TTY 감지 interactive prompt",
+            "reason": "의존성 추가, 테스트 복잡도 증가"
+          }
+        ]
+      },
+      {
+        "id": "D10",
+        "decision": "ctx check: 기본 exit 0, --strict 시 exit 2 (D2 확정)",
+        "rationale": "PRD 에러 테이블 오버라이드. && chaining 호환성 우선",
+        "alternatives_rejected": [
+          {
+            "option": "항상 exit 2 on warnings",
+            "reason": "스크립트 && 체이닝 깨짐"
+          }
+        ]
+      },
+      {
+        "id": "D4-SUPERSEDED",
+        "decision": "D4 (ctx create interactive) 는 D9에 의해 대체됨. Interactive 모드 제거 확정",
+        "rationale": "D9가 최종 결정",
+        "alternatives_rejected": []
+      }
+    ],
+    "known_gaps": [
+      {
+        "gap": "ctx migrate 파일 충돌 시 동작 미정의 (덮어쓰기/skip/에러)",
+        "severity": "medium",
+        "mitigation": "skip + warning으로 구현, --force로 덮어쓰기 옵션 제공"
+      },
+      {
+        "gap": "BM25 IDF가 소규모 코퍼스(10-50노드)에서 의미 없을 수 있음",
+        "severity": "low",
+        "mitigation": "간단 token match로 시작, BM25는 50+ 노드 시 전환 고려"
+      },
+      {
+        "gap": "ctx graph ASCII 포맷 미명세",
+        "severity": "low",
+        "mitigation": "구현 시 adjacency list 기반 간단 포맷 사용"
+      },
+      {
+        "gap": "serde_yaml 0.9 deprecation (maintenance-only)",
+        "severity": "low",
+        "mitigation": "현재 stable, 필요시 yaml-rust2로 교체 가능"
+      }
+    ]
+  },
+  "constraints": [
+    {
+      "id": "C1",
+      "type": "must_not_do",
+      "rule": "depends_on 그래프 순회는 1-level만. 재귀/다중 홉 금지",
+      "verified_by": "agent",
+      "verify": {
+        "type": "assertion",
+        "checks": [
+          "graph traversal 코드에 depth 파라미터나 재귀 호출 없음",
+          "billing→ux→term 시나리오에서 term이 결과에 포함되지 않음"
+        ]
+      }
+    },
+    {
+      "id": "C2",
+      "type": "must_not_do",
+      "rule": "score 필드를 dependency 노드에 포함하지 않음 (null도 안됨, 필드 자체 생략)",
+      "verified_by": "agent",
+      "verify": {
+        "type": "assertion",
+        "checks": [
+          "ctx query 결과에서 type:dependency 노드에 score 필드가 존재하지 않음",
+          "serde serialize에 skip_serializing_if 적용"
+        ]
+      }
+    },
+    {
+      "id": "C3",
+      "type": "must_not_do",
+      "rule": "filename을 노드 ID로 사용하지 않음. 노드 ID는 반드시 frontmatter name 필드",
+      "verified_by": "agent",
+      "verify": {
+        "type": "assertion",
+        "checks": [
+          "코드에서 파일명 기반 노드 조회 로직 없음",
+          "모든 노드 참조가 name 필드 기반"
+        ]
+      }
+    },
+    {
+      "id": "C4",
+      "type": "must_not_do",
+      "rule": "ctx match/query/list/check/graph는 read-only. 디스크 쓰기 금지",
+      "verified_by": "agent",
+      "verify": {
+        "type": "assertion",
+        "checks": [
+          "해당 명령어 코드 경로에 File::create, write, fs::write 호출 없음"
+        ]
+      }
+    },
+    {
+      "id": "C5",
+      "type": "must_not_do",
+      "rule": "markdown body에서 노드 필드를 자동 추론하지 않음. 모든 필드는 frontmatter에서만",
+      "verified_by": "agent",
+      "verify": {
+        "type": "assertion",
+        "checks": [
+          "body 파싱 로직이 frontmatter 필드 생성에 사용되지 않음"
+        ]
+      }
+    },
+    {
+      "id": "C6",
+      "type": "must_not_do",
+      "rule": "global scope (~/.ctx/) 지원 코드 추가 금지",
+      "verified_by": "agent",
+      "verify": {
+        "type": "assertion",
+        "checks": [
+          "home_dir, ~/.ctx 경로 참조 없음"
+        ]
+      }
+    }
+  ],
+  "requirements": [
+    {
+      "id": "R9",
+      "behavior": "CLI UX: 에러 메시지 명확성",
+      "priority": 3,
+      "scenarios": [
+        {
+          "id": "R9-S1",
+          "given": "깨진 참조 프로젝트 (fixture)",
+          "when": "ctx check 실행",
+          "then": "JSON 출력에 source node name, target node name, file path 포함",
+          "verified_by": "agent",
+          "execution_env": "sandbox",
+          "verify": {
+            "type": "assertion",
+            "checks": [
+              "ctx check JSON warnings 배열의 각 항목에 node, detail 필드 존재",
+              "broken_dep warning의 detail에 참조된 노드 이름과 참조하는 노드 이름 포함",
+              "missing_field warning에 누락 필드명 명시"
+            ]
+          }
+        },
+        {
+          "id": "R9-S2",
+          "given": "ctx match --diff --body 출력",
+          "when": "Claude에 주입",
+          "then": "AI가 체크리스트 이해",
+          "verified_by": "human",
+          "verify": {
+            "type": "instruction",
+            "ask": "(1) 3개+ 노드 프로젝트에서 ctx match --diff --body 실행 (2) 출력을 Claude에 붙여넣고 체크리스트 요약 요청 (3) Claude가 노드별 what/body를 참조하는지 확인 (4) 일반적 응답이면 FAIL"
+          }
+        }
+      ]
+    }
+  ]
+}
